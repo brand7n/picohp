@@ -46,6 +46,9 @@
             "pestphp/pest-plugin": true
         }
     },
+    "scripts": {
+        "phpstan": "php -d memory_limit=-1 vendor/bin/phpstan analyse --configuration phpstan.neon --debug"
+    },
     "minimum-stability": "stable",
     "prefer-stable": true,
     "bin": ["picohp"]

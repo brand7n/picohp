@@ -24,8 +24,8 @@ final class AstNodeVisitor extends NodeVisitorAbstract {
             $emitter->begin();
         }
         if ($node->getType() === 'Scalar_Int') {
-            
         }
+        return null;
     }
 
     public function leaveNode(Node $node) {
@@ -37,13 +37,13 @@ final class AstNodeVisitor extends NodeVisitorAbstract {
             $emitter = $node->getAttribute('emitter');
             $emitter->end();
         }
+        return null;
     }
 
-    private function checkNode(Node $node) : bool {
-        return true;
-        return (
-            Str::startsWith($node->getType(), 'Stmt_') ||
-            Str::startsWith($node->getType(), 'Expr_')
-        );
-    }
+    // private function checkNode(Node $node) : bool {
+    //     return (
+    //         Str::startsWith($node->getType(), 'Stmt_') ||
+    //         Str::startsWith($node->getType(), 'Expr_')
+    //     );
+    // }
 }

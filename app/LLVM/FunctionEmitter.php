@@ -4,7 +4,15 @@ namespace App\LLVM;
 
 class FunctionEmitter extends BaseEmitter
 {
+    private string $name;
+    /**
+     * @var array<string> $params
+     */
+    private array $params;
 
+    /**
+     * @param array<string> $params
+     */
     function __construct(string $name, array $params) {
         $this->name = $name;
         $this->params = $params;
