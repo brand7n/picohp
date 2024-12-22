@@ -15,4 +15,8 @@ class BaseEmitter
     public function writeln(int $indent = 0, string $line = ''): void {
         file_put_contents('out.ll', str_repeat(' ', $indent * 4) . $line . PHP_EOL, FILE_APPEND);
     }
+
+    public function begin() : void {}
+
+    public function end() : void {}
 }

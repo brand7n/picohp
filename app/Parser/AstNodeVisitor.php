@@ -14,7 +14,10 @@ final class AstNodeVisitor extends NodeVisitorAbstract {
         //     return;
         // }
         $parentNode = $node->getAttribute('parent');
-        $parent = isset($parentNode) ? $parentNode->getType() : '';
+        $parent = '';
+        if ($parentNode instanceof Node) {
+            $parent = $parentNode->getType() ;
+        }
         $name = isset($node->name) ? $node->name : '';
         echo 'enter: ' . $node->getType() . ' p: ' . $parent . ' n: ' . $name .PHP_EOL;
 
@@ -35,7 +38,9 @@ final class AstNodeVisitor extends NodeVisitorAbstract {
         echo 'leave: ' . $node->getType() . PHP_EOL;
         if ($node->hasAttribute('emitter')) {
             $emitter = $node->getAttribute('emitter');
-            $emitter->end();
+            if ($emitter instanceof \App\LLVM\BaseEmitter) {
+                $emitter->end();
+            }
         }
         return null;
     }
