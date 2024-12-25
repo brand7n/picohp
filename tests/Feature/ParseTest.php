@@ -9,7 +9,8 @@ use App\LLVM\FunctionEmitter;
 /*
 TODO:
 - use stack.ll to implement expression parsing?
-- integrate phpstan
+- different runtimes in rust, 8-bit micro, hosted OS, etc
+- integrate phpstan, extension?
 */
 
 test('parse', function () {
@@ -32,6 +33,9 @@ test('parse', function () {
     CODE;
 
     $stmts = $parser->parse($code);
+    if (is_null($stmts)) {
+        return;
+    }
     $stmts = $traverser->traverse($stmts);
 
     $traverser2 = new NodeTraverser();
@@ -40,6 +44,7 @@ test('parse', function () {
     $main = new FunctionEmitter("main", []);
     $main->begin();
     $traverser2->traverse($stmts);
+
     $main->end();
 
     expect(true)->toBeTrue();

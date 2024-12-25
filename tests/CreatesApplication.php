@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types = 1);
 
 namespace Tests;
 
@@ -14,8 +14,18 @@ trait CreatesApplication
     {
         $app = require __DIR__.'/../bootstrap/app.php';
 
-        $app->make(Kernel::class)->bootstrap();
+        if ($app instanceof Application) {
+            $kernel = $app->make(Kernel::class);
 
-        return $app;
+            if ($kernel instanceof \LaravelZero\Framework\Kernel) {
+                $kernel->bootstrap();
+            } else {
+                throw new \Exception("failed to bootstrap kernel");
+            }
+
+            return $app;
+        }
+
+        throw new \Exception("failed to create application");
     }
 }

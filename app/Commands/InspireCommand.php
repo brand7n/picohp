@@ -19,7 +19,7 @@ class InspireCommand extends Command
     /**
      * The description of the command.
      *
-     * @var string
+     * @var string|null
      */
     protected $description = 'Display an inspiring quote';
 

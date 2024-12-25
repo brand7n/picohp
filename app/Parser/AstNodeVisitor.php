@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types = 1);
 
 namespace App\Parser;
 
@@ -16,10 +16,12 @@ final class AstNodeVisitor extends NodeVisitorAbstract {
         $parentNode = $node->getAttribute('parent');
         $parent = '';
         if ($parentNode instanceof Node) {
-            $parent = $parentNode->getType() ;
+            $parent = $parentNode->getType();
         }
-        $name = isset($node->name) ? $node->name : '';
-        echo 'enter: ' . $node->getType() . ' p: ' . $parent . ' n: ' . $name .PHP_EOL;
+        //$name = isset($node->name) && is_string($node->name) ? $node->name : '';
+        echo 'enter: ' . $node->getType();
+        echo ' p: ' . $parent;
+        //var_dump( $name );//.PHP_EOL;
 
         if ($node->getType() === 'Stmt_Echo') {
             $emitter = new EchoEmitter();

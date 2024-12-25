@@ -1,4 +1,10 @@
 parameters:
-    level: 9
+    level: max
     paths:
     - app
+    - tests
+    - bootstrap
+
+includes:
+    - vendor/phpstan/phpstan/conf/bleedingEdge.neon
+    - vendor/phpstan/phpstan-strict-rules/rules.neon
