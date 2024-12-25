@@ -22,14 +22,8 @@ test('parse', function () {
     $code = <<<'CODE'
     <?php
 
-    //function test(int $a) : int
-    //{
-    //    poke(1234, $a);
-    //    return peek(1234);
-    //}
-
-    //echo(test($a));
     echo(1);
+
     CODE;
 
     $stmts = $parser->parse($code);
@@ -44,8 +38,11 @@ test('parse', function () {
     $main = new FunctionEmitter("main", []);
     $main->begin();
     $traverser2->traverse($stmts);
-
     $main->end();
 
-    expect(true)->toBeTrue();
+    $output = [];
+    $result = 0;
+    exec('clang out.ll -o test', $output, $result);
+
+    expect($result)->toBe(0);
 });

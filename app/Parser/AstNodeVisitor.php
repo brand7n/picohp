@@ -23,13 +23,21 @@ final class AstNodeVisitor extends NodeVisitorAbstract {
         echo ' p: ' . $parent;
         //var_dump( $name );//.PHP_EOL;
 
+        $emitter = null;
         if ($node->getType() === 'Stmt_Echo') {
             $emitter = new EchoEmitter();
+        }
+        // if ($node->getType() === 'Scalar_Int') {
+        // }
+        // if ($node->getType() === 'Stmt_Function') {
+        //     $emitter = new FunctionEmitter('test', []);
+        // }
+
+        if ($emitter instanceof \App\LLVM\BaseEmitter) {
             $node->setAttribute('emitter', $emitter);
             $emitter->begin();
         }
-        if ($node->getType() === 'Scalar_Int') {
-        }
+
         return null;
     }
 
