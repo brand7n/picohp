@@ -1,33 +1,37 @@
-<?php declare(strict_types = 1);
+<?php
+
+declare(strict_types=1);
 
 namespace App\Parser;
 
-use PhpParser\NodeVisitorAbstract;
-use PhpParser\Node;
-use Illuminate\Support\Str;
-use App\LLVM\FunctionEmitter;
 use App\LLVM\EchoEmitter;
+use App\LLVM\FunctionEmitter;
+use PhpParser\Node;
+use PhpParser\NodeVisitorAbstract;
 
-final class AstNodeVisitor extends NodeVisitorAbstract {
-    public function enterNode(Node $node) {
+final class AstNodeVisitor extends NodeVisitorAbstract
+{
+    public function enterNode(Node $node)
+    {
         $parentNode = $node->getAttribute('parent');
 
-        $type = get_class($node);
-        echo "enter: $type" . PHP_EOL;
+        $type = $node->getType();
+        echo "enter: $type".PHP_EOL;
         if ($parentNode instanceof Node) {
-            $parent = get_class($parentNode);
-            echo "    parent: $parent" . PHP_EOL;
-        }
-        if ($node instanceof \PhpParser\Node\Identifier ||
-            $node instanceof \PhpParser\Node\Name ||
-            $node instanceof \PhpParser\Node\Expr\Variable) {
-            $name = is_string($node->name) ? $node->name : '';
-            echo "    name: $name" . PHP_EOL;
+            $parentType = $parentNode->getType();
+            echo "    parent: $parentType".PHP_EOL;
         }
 
         $emitter = null;
-        if ($node->getType() === 'Stmt_Echo') {
-            $emitter = new EchoEmitter();
+        switch ($node->getType()) {
+            case 'Stmt_Echo':
+                $emitter = new EchoEmitter;
+                break;
+
+            case 'Stmt_Function':
+                $funcNode = new Function_($node);
+                $emitter = new FunctionEmitter($funcNode->getName(), $funcNode->getParams());
+                break;
         }
 
         if ($emitter instanceof \App\LLVM\BaseEmitter) {
@@ -38,15 +42,17 @@ final class AstNodeVisitor extends NodeVisitorAbstract {
         return null;
     }
 
-    public function leaveNode(Node $node) {
-        $type = get_class($node);
-        echo "leave: $type" . PHP_EOL;
+    public function leaveNode(Node $node)
+    {
+        $type = $type = $node->getType(); //get_class($node);
+        echo "leave: $type".PHP_EOL;
         if ($node->hasAttribute('emitter')) {
             $emitter = $node->getAttribute('emitter');
             if ($emitter instanceof \App\LLVM\BaseEmitter) {
                 $emitter->end();
             }
         }
+
         return null;
     }
 }
