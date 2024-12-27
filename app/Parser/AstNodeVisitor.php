@@ -10,28 +10,25 @@ use App\LLVM\EchoEmitter;
 
 final class AstNodeVisitor extends NodeVisitorAbstract {
     public function enterNode(Node $node) {
-        // if (!$this->checkNode($node)) {
-        //     return;
-        // }
         $parentNode = $node->getAttribute('parent');
-        $parent = '';
+
+        $type = get_class($node);
+        echo "enter: $type" . PHP_EOL;
         if ($parentNode instanceof Node) {
-            $parent = $parentNode->getType();
+            $parent = get_class($parentNode);
+            echo "    parent: $parent" . PHP_EOL;
         }
-        //$name = isset($node->name) && is_string($node->name) ? $node->name : '';
-        echo 'enter: ' . $node->getType();
-        echo ' p: ' . $parent;
-        //var_dump( $name );//.PHP_EOL;
+        if ($node instanceof \PhpParser\Node\Identifier ||
+            $node instanceof \PhpParser\Node\Name ||
+            $node instanceof \PhpParser\Node\Expr\Variable) {
+            $name = is_string($node->name) ? $node->name : '';
+            echo "    name: $name" . PHP_EOL;
+        }
 
         $emitter = null;
         if ($node->getType() === 'Stmt_Echo') {
             $emitter = new EchoEmitter();
         }
-        // if ($node->getType() === 'Scalar_Int') {
-        // }
-        // if ($node->getType() === 'Stmt_Function') {
-        //     $emitter = new FunctionEmitter('test', []);
-        // }
 
         if ($emitter instanceof \App\LLVM\BaseEmitter) {
             $node->setAttribute('emitter', $emitter);
@@ -42,10 +39,8 @@ final class AstNodeVisitor extends NodeVisitorAbstract {
     }
 
     public function leaveNode(Node $node) {
-        // if (!$this->checkNode($node)) {
-        //     return;
-        // }
-        echo 'leave: ' . $node->getType() . PHP_EOL;
+        $type = get_class($node);
+        echo "leave: $type" . PHP_EOL;
         if ($node->hasAttribute('emitter')) {
             $emitter = $node->getAttribute('emitter');
             if ($emitter instanceof \App\LLVM\BaseEmitter) {
@@ -54,11 +49,4 @@ final class AstNodeVisitor extends NodeVisitorAbstract {
         }
         return null;
     }
-
-    // private function checkNode(Node $node) : bool {
-    //     return (
-    //         Str::startsWith($node->getType(), 'Stmt_') ||
-    //         Str::startsWith($node->getType(), 'Expr_')
-    //     );
-    // }
 }

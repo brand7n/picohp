@@ -22,8 +22,14 @@ test('parse', function () {
     $code = <<<'CODE'
     <?php
 
-    echo(1);
+    $a = 0;
 
+    function main(): int {
+        echo(1);
+        return $a;
+    }
+
+    main();
     CODE;
 
     $stmts = $parser->parse($code);
