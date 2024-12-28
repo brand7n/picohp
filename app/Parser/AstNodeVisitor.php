@@ -9,7 +9,6 @@ use App\LLVM\FunctionEmitter;
 use PhpParser\Node;
 use PhpParser\NodeVisitorAbstract;
 
-
 final class AstNodeVisitor extends NodeVisitorAbstract
 {
     public function enterNode(Node $node)

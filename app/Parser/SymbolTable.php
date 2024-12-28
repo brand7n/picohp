@@ -4,7 +4,8 @@ namespace App\Parser;
 
 use Illuminate\Support\Arr;
 
-class SymbolTable {
+class SymbolTable
+{
     /**
      * @var array<string, array<Symbol>>
      */
@@ -14,18 +15,20 @@ class SymbolTable {
     /**
      * Enter a new scope.
      */
-    public function enterScope(): void {
+    public function enterScope(): void
+    {
         $this->currentScopeLevel++;
     }
 
     /**
      * Exit the current scope and remove all symbols in that scope.
      */
-    public function exitScope(): void {
+    public function exitScope(): void
+    {
         foreach ($this->table as $name => $symbols) {
             $this->table[$name] = array_filter(
                 $symbols,
-                fn(Symbol $symbol) => $symbol->scopeLevel < $this->currentScopeLevel
+                fn (Symbol $symbol) => $symbol->scopeLevel < $this->currentScopeLevel
             );
             if (count($this->table[$name]) === 0) {
                 unset($this->table[$name]);
@@ -37,7 +40,8 @@ class SymbolTable {
     /**
      * Add a symbol to the symbol table.
      */
-    public function addSymbol(string $name, string $type, mixed $value = null): void {
+    public function addSymbol(string $name, string $type, mixed $value = null): void
+    {
         if (!isset($this->table[$name])) {
             $this->table[$name] = [];
         }
@@ -47,7 +51,8 @@ class SymbolTable {
     /**
      * Lookup a symbol by name in the current or outer scopes.
      */
-    public function lookup(string $name): ?Symbol {
+    public function lookup(string $name): ?Symbol
+    {
         if (isset($this->table[$name])) {
             return Arr::last($this->table[$name]); // Return the most recent symbol.
         }
@@ -57,7 +62,8 @@ class SymbolTable {
     /**
      * Lookup a symbol in the current scope only.
      */
-    public function lookupCurrentScope(string $name): ?Symbol {
+    public function lookupCurrentScope(string $name): ?Symbol
+    {
         if (isset($this->table[$name])) {
             foreach (array_reverse($this->table[$name]) as $symbol) {
                 if ($symbol->scopeLevel === $this->currentScopeLevel) {
@@ -71,7 +77,8 @@ class SymbolTable {
     /**
      * Print the symbol table for debugging purposes.
      */
-    public function __toString(): string {
+    public function __toString(): string
+    {
         $output = "Symbol Table (current scope level: {$this->currentScopeLevel}):\n";
         foreach ($this->table as $name => $symbols) {
             foreach ($symbols as $symbol) {
