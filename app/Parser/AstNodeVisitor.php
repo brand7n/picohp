@@ -9,23 +9,15 @@ use App\LLVM\FunctionEmitter;
 use PhpParser\Node;
 use PhpParser\NodeVisitorAbstract;
 
+
 final class AstNodeVisitor extends NodeVisitorAbstract
 {
     public function enterNode(Node $node)
     {
-        $parentNode = $node->getAttribute('parent');
-
-        $type = $node->getType();
-        echo "enter: $type".PHP_EOL;
-        if ($parentNode instanceof Node) {
-            $parentType = $parentNode->getType();
-            echo "    parent: $parentType".PHP_EOL;
-        }
-
         $emitter = null;
         switch ($node->getType()) {
             case 'Stmt_Echo':
-                $emitter = new EchoEmitter;
+                $emitter = new EchoEmitter();
                 break;
 
             case 'Stmt_Function':
@@ -44,8 +36,8 @@ final class AstNodeVisitor extends NodeVisitorAbstract
 
     public function leaveNode(Node $node)
     {
-        $type = $type = $node->getType(); //get_class($node);
-        echo "leave: $type".PHP_EOL;
+        $type = $type = $node->getType();
+
         if ($node->hasAttribute('emitter')) {
             $emitter = $node->getAttribute('emitter');
             if ($emitter instanceof \App\LLVM\BaseEmitter) {
