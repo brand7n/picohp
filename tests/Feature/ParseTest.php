@@ -2,31 +2,31 @@
 
 declare(strict_types=1);
 
-namespace PhpParser\NodeVisitor;
-
-use App\LLVM\FunctionEmitter;
-use PhpParser\NodeTraverser;
 use PhpParser\ParserFactory;
+use App\Parser\SymbolTable;
+use function Termwind\render;
 
 /*
 TODO:
 - use stack.ll to implement expression parsing?
 - different runtimes in rust, 8-bit micro, hosted OS, etc
-- integrate phpstan, extension?
+- integrate phpstan, extension for narrowing language?
+- can we use type info from phpstan or some other lib?
+- create a obj we can add to the AST as an attribute which contains:
+  - emitter reference?
+  - symbol table entry?
+  - abstraction layer between AST Node from parser and LLVM/generic emitter layer
 */
 
-test('parse', function () {
-    $parser = (new ParserFactory)->createForNewestSupportedVersion();
-    $traverser = new NodeTraverser;
-    $traverser->addVisitor(new NameResolver);
-    $traverser->addVisitor(new ParentConnectingVisitor);
+it('parses a PHP program', function () {
+    $result = 0;
+    $parser = (new ParserFactory())->createForNewestSupportedVersion();
 
     $code = <<<'CODE'
     <?php
 
     function main(int $args): int {
-        $a = 5 * 4 + 3;
-        echo(1);
+        $a = 5 + 4 * 3;
         return $a;
     }
 
@@ -34,20 +34,39 @@ test('parse', function () {
     CODE;
 
     $stmts = $parser->parse($code);
+
     if (is_null($stmts)) {
         return;
     }
-    $stmts = $traverser->traverse($stmts);
+    foreach ($stmts as $stmt) {
+        if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
+                render(<<<'HTML'
+                    <div class="py-1 ml-2">
+                        <div class="px-1 bg-blue-300 text-black font-bold">Function</div>
+                        <em class="ml-1">
+                          $stmt->name->toString()
+                        </em>
+                    </div>
+                HTML);
+            echo($stmt->name->toString() . PHP_EOL);
+        }
+    }
 
-    $traverser2 = new NodeTraverser;
-    $traverser2->addVisitor(new \App\Parser\AstNodeVisitor);
+    // exec('clang out.ll -o test', result_code: $result);
+    expect($result)->toBe(0);
+});
 
-    //$main = new FunctionEmitter("main", []);
-    //$main->begin();
-    $traverser2->traverse($stmts);
-    //$main->end();
+it('can store symbols in the symbol table', function () {
+    $result = 0;
+    // Example Usage
+    $symbolTable = new SymbolTable();
 
-    $result = -1;
-    exec('clang out.ll -o test', result_code: $result);
+    $symbolTable->addSymbol("x", "int", 42);
+    $symbolTable->enterScope();
+    $symbolTable->addSymbol("y", "float", 3.14);
+    echo $symbolTable;
+
+    $symbolTable->exitScope();
+    echo $symbolTable;
     expect($result)->toBe(0);
 });
