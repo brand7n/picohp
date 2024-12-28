@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use PhpParser\ParserFactory;
 use App\Parser\SymbolTable;
-use function Termwind\render;
 
 /*
 TODO:
@@ -40,14 +39,6 @@ it('parses a PHP program', function () {
     }
     foreach ($stmts as $stmt) {
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
-                render(<<<'HTML'
-                    <div class="py-1 ml-2">
-                        <div class="px-1 bg-blue-300 text-black font-bold">Function</div>
-                        <em class="ml-1">
-                          $stmt->name->toString()
-                        </em>
-                    </div>
-                HTML);
             echo($stmt->name->toString() . PHP_EOL);
         }
     }
