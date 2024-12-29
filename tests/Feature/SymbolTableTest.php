@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Parser\SymbolTable;
+use App\PicoHP\SymbolTable;
 
 it('can store symbols in the symbol table', function () {
     $symbolTable = new SymbolTable();

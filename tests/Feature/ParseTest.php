@@ -54,7 +54,6 @@ it('parses a PHP program', function () {
     expect($names[0])->toBe('main');
     expect($names[1])->toBe('test1');
 
-
-    $symbolTable = new \App\Parser\SymbolTable();
+    $symbolTable = new \App\PicoHP\SymbolTable();
     $symbolTable->resolveStmts($stmts);
 });

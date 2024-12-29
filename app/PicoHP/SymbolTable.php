@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Parser;
+namespace App\PicoHP;
 
 use Illuminate\Support\Arr;
+use App\PicoHP\SymbolTable\{Scope, Symbol};
 
 class SymbolTable
 {

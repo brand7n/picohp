@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\LLVM;
+namespace App\PicoHP\LLVM;
 
 class FunctionEmitter extends BaseEmitter
 {

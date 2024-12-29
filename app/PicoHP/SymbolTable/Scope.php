@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Parser;
+namespace App\PicoHP\SymbolTable;
 
 use Illuminate\Support\Arr;
 
