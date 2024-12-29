@@ -26,6 +26,9 @@ it('parses a PHP program', function () {
 
     function main(int $args): int {
         $a = 5 + 4 * 3;
+        {
+            $b = $a;
+        }
         return $a;
     }
 

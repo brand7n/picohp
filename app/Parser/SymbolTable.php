@@ -100,6 +100,10 @@ class SymbolTable
             $this->resolveParams($stmt->params);
             $this->resolveStmts($stmt->stmts);
             $this->exitScope();
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Block) {
+            $this->enterScope();
+            $this->resolveStmts($stmt->stmts);
+            $this->exitScope();            
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Expression) {
             $this->resolveExpr($stmt->expr);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Return_) {
@@ -121,6 +125,8 @@ class SymbolTable
             if (!is_string($expr->name)) {
                 throw new \Exception("var name isn't string");
             }
+
+            // TODO: don't create if on right side of expr (or global)
             $s = $this->lookupCurrentScope($expr->name);
             if (is_null($s)) {
                 echo "adding " . $expr->name . PHP_EOL;
