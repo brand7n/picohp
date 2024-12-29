@@ -97,6 +97,7 @@ class SymbolTable
     {
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
             $this->enterScope();
+            $this->resolveParams($stmt->params);
             $this->resolveStmts($stmt->stmts);
             $this->exitScope();
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Expression) {
@@ -136,5 +137,20 @@ class SymbolTable
             var_dump($expr);
             throw new \Exception("unknown node type in expr resolver");
         }
+    }
+
+    /**
+     * @param array<\PhpParser\Node\Param> $params
+     */
+    public function resolveParams(array $params): void
+    {
+        foreach ($params as $param) {
+            $this->resolveParam($param);
+        }
+    }
+
+    public function resolveParam(\PhpParser\Node\Param $param): void
+    {
+        $this->resolveExpr($param->var);
     }
 }
