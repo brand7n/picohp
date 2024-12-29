@@ -22,6 +22,8 @@ it('parses a PHP program', function () {
     $code = <<<'CODE'
     <?php
 
+    $a = 27;
+
     function main(int $args): int {
         $a = 5 + 4 * 3;
         return $a;
@@ -35,6 +37,9 @@ it('parses a PHP program', function () {
     if (is_null($stmts)) {
         throw new \Exception("stmts is null");
     }
+
+    file_put_contents('parsed.json', json_encode($stmts, JSON_PRETTY_PRINT));
+
     $names = [];
     foreach ($stmts as $stmt) {
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
