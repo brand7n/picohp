@@ -14,7 +14,8 @@ class SymbolTable
 
     public function __construct()
     {
-        $this->scopes[] = new Scope(true);; // global scope
+        // push global scope on the stack
+        $this->scopes[] = new Scope(true);
     }
 
     /**
@@ -87,7 +88,7 @@ class SymbolTable
      */
     public function resolveStmts(array $stmts): void
     {
-        foreach($stmts as $stmt) {
+        foreach ($stmts as $stmt) {
             $this->resolveStmt($stmt);
         }
     }
@@ -98,16 +99,13 @@ class SymbolTable
             $this->enterScope();
             $this->resolveStmts($stmt->stmts);
             $this->exitScope();
-        }
-        elseif ($stmt instanceof \PhpParser\Node\Stmt\Expression) {
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Expression) {
             $this->resolveExpr($stmt->expr);
-        }
-        elseif ($stmt instanceof \PhpParser\Node\Stmt\Return_) {
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Return_) {
             if (!is_null($stmt->expr)) {
                 $this->resolveExpr($stmt->expr);
             }
-        }
-        else {
+        } else {
             var_dump($stmt);
             throw new \Exception("unknown node type in stmt resolver");
         }
@@ -118,8 +116,7 @@ class SymbolTable
         if ($expr instanceof \PhpParser\Node\Expr\Assign) {
             $this->resolveExpr($expr->var);
             $this->resolveExpr($expr->expr);
-        }
-        elseif ($expr instanceof \PhpParser\Node\Expr\Variable) {
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Variable) {
             if (!is_string($expr->name)) {
                 throw new \Exception("var name isn't string");
             }
@@ -130,15 +127,12 @@ class SymbolTable
             } else {
                 echo "found " . $expr->name . PHP_EOL;
             }
-        }
-        elseif ($expr instanceof \PhpParser\Node\Scalar\Int_) {
+        } elseif ($expr instanceof \PhpParser\Node\Scalar\Int_) {
 
-        }
-        elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp) {
+        } elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp) {
             $this->resolveExpr($expr->left);
             $this->resolveExpr($expr->right);
-        }
-        else {
+        } else {
             var_dump($expr);
             throw new \Exception("unknown node type in expr resolver");
         }

@@ -4,7 +4,8 @@ namespace App\Parser;
 
 use Illuminate\Support\Arr;
 
-class Scope {
+class Scope
+{
     /**
      * @var array<string, Symbol>
      */
@@ -12,7 +13,8 @@ class Scope {
 
     protected bool $global;
 
-    public function __construct(bool $global = false) {
+    public function __construct(bool $global = false)
+    {
         $this->global = $global;
     }
 
