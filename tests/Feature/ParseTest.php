@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use PhpParser\ParserFactory;
-use App\Parser\SymbolTable;
 
 /*
 TODO:
@@ -18,7 +17,6 @@ TODO:
 */
 
 it('parses a PHP program', function () {
-    $result = 0;
     $parser = (new ParserFactory())->createForNewestSupportedVersion();
 
     $code = <<<'CODE'
@@ -35,29 +33,16 @@ it('parses a PHP program', function () {
     $stmts = $parser->parse($code);
 
     if (is_null($stmts)) {
-        return;
+        throw new \Exception("stmts is null");
     }
+    $names = [];
     foreach ($stmts as $stmt) {
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
-            echo($stmt->name->toString() . PHP_EOL);
+            $names[] = $stmt->name->toString();
         }
     }
 
-    // exec('clang out.ll -o test', result_code: $result);
-    expect($result)->toBe(0);
-});
-
-it('can store symbols in the symbol table', function () {
-    $result = 0;
-    // Example Usage
-    $symbolTable = new SymbolTable();
-
-    $symbolTable->addSymbol("x", "int", 42);
-    $symbolTable->enterScope();
-    $symbolTable->addSymbol("y", "float", 3.14);
-    echo $symbolTable . PHP_EOL;
-
-    $symbolTable->exitScope();
-    echo $symbolTable . PHP_EOL;
-    expect($result)->toBe(0);
+    expect(count($names))->toBe(2);
+    expect($names[0])->toBe('main');
+    expect($names[1])->toBe('test1');
 });
