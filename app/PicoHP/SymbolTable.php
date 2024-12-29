@@ -130,10 +130,10 @@ class SymbolTable
             // TODO: don't create if on right side of expr (or global)
             $s = $this->lookupCurrentScope($expr->name);
             if (is_null($s)) {
-                echo "adding " . $expr->name . PHP_EOL;
+                //echo "adding " . $expr->name . PHP_EOL;
                 $this->addSymbol($expr->name, "int");
             } else {
-                echo "found " . $expr->name . PHP_EOL;
+                //echo "found " . $expr->name . PHP_EOL;
             }
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Int_) {
 
