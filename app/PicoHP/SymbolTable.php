@@ -104,7 +104,7 @@ class SymbolTable
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Block) {
             $this->enterScope();
             $this->resolveStmts($stmt->stmts);
-            $this->exitScope();            
+            $this->exitScope();
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Expression) {
             $this->resolveExpr($stmt->expr);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Return_) {
