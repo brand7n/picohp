@@ -7,24 +7,21 @@ class Symbol
     public string $name;
     public string $type;
     public mixed $value;
-    public int $scopeLevel;
 
-    public function __construct(string $name, string $type, mixed $value = null, int $scopeLevel = 0)
+    public function __construct(string $name, string $type, mixed $value = null)
     {
         $this->name = $name;
         $this->type = $type;
         $this->value = $value;
-        $this->scopeLevel = $scopeLevel;
     }
 
     public function __toString(): string
     {
         return sprintf(
-            "Symbol(name: %s, type: %s, value: %s, scopeLevel: %d)",
+            "Symbol(name: %s, type: %s, value: %s)",
             $this->name,
             $this->type,
             var_export($this->value, true),
-            $this->scopeLevel
         );
     }
 }

@@ -55,9 +55,9 @@ it('can store symbols in the symbol table', function () {
     $symbolTable->addSymbol("x", "int", 42);
     $symbolTable->enterScope();
     $symbolTable->addSymbol("y", "float", 3.14);
-    echo $symbolTable;
+    echo $symbolTable . PHP_EOL;
 
     $symbolTable->exitScope();
-    echo $symbolTable;
+    echo $symbolTable . PHP_EOL;
     expect($result)->toBe(0);
 });

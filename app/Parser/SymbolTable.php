@@ -7,17 +7,22 @@ use Illuminate\Support\Arr;
 class SymbolTable
 {
     /**
-     * @var array<string, array<Symbol>>
+     * @var array<Scope>
      */
-    private array $table = [];
-    private int $currentScopeLevel = 0;
+    private array $scopes = [];
+
+
+    public function __construct()
+    {
+        $this->enterScope(); // global scope
+    }
 
     /**
      * Enter a new scope.
      */
     public function enterScope(): void
     {
-        $this->currentScopeLevel++;
+        $this->scopes[] = new Scope();
     }
 
     /**
@@ -25,16 +30,9 @@ class SymbolTable
      */
     public function exitScope(): void
     {
-        foreach ($this->table as $name => $symbols) {
-            $this->table[$name] = array_filter(
-                $symbols,
-                fn (Symbol $symbol) => $symbol->scopeLevel < $this->currentScopeLevel
-            );
-            if (count($this->table[$name]) === 0) {
-                unset($this->table[$name]);
-            }
+        if (array_pop($this->scopes) === null) {
+            throw new \Exception("scope stack empty");
         }
-        $this->currentScopeLevel--;
     }
 
     /**
@@ -42,10 +40,7 @@ class SymbolTable
      */
     public function addSymbol(string $name, string $type, mixed $value = null): void
     {
-        if (!isset($this->table[$name])) {
-            $this->table[$name] = [];
-        }
-        $this->table[$name][] = new Symbol($name, $type, $value, $this->currentScopeLevel);
+        $this->getCurrentScope()->add(new Symbol($name, $type, $value));
     }
 
     /**
@@ -53,8 +48,11 @@ class SymbolTable
      */
     public function lookup(string $name): ?Symbol
     {
-        if (isset($this->table[$name])) {
-            return Arr::last($this->table[$name]); // Return the most recent symbol.
+        foreach (array_reverse($this->scopes) as $scope) {
+            $result = $scope->lookup($name);
+            if ($result !== null) {
+                return $result;
+            }
         }
         return null;
     }
@@ -64,14 +62,7 @@ class SymbolTable
      */
     public function lookupCurrentScope(string $name): ?Symbol
     {
-        if (isset($this->table[$name])) {
-            foreach (array_reverse($this->table[$name]) as $symbol) {
-                if ($symbol->scopeLevel === $this->currentScopeLevel) {
-                    return $symbol;
-                }
-            }
-        }
-        return null;
+        return $this->getCurrentScope()->lookup($name);
     }
 
     /**
@@ -79,12 +70,16 @@ class SymbolTable
      */
     public function __toString(): string
     {
-        $output = "Symbol Table (current scope level: {$this->currentScopeLevel}):\n";
-        foreach ($this->table as $name => $symbols) {
-            foreach ($symbols as $symbol) {
-                $output .= "  $symbol\n";
-            }
-        }
-        return $output;
+        return var_export($this, true);
     }
+
+    protected function getCurrentScope(): Scope
+    {
+        $scope = Arr::last($this->scopes);
+        if ($scope === null) {
+            throw new \Exception("scope stack empty");
+        }
+        return $scope;
+    }
+
 }
