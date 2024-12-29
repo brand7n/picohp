@@ -50,4 +50,8 @@ it('parses a PHP program', function () {
     expect(count($names))->toBe(2);
     expect($names[0])->toBe('main');
     expect($names[1])->toBe('test1');
+
+
+    $symbolTable = new \App\Parser\SymbolTable();
+    $symbolTable->resolveStmts($stmts);
 });

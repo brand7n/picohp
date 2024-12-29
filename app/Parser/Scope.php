@@ -10,6 +10,12 @@ class Scope {
      */
     protected array $symbols = [];
 
+    protected bool $global;
+
+    public function __construct(bool $global = false) {
+        $this->global = $global;
+    }
+
     public function add(Symbol $s): void
     {
         if (Arr::exists($this->symbols, $s->name)) {
