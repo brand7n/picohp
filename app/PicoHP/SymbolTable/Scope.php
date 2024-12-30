@@ -18,12 +18,13 @@ class Scope
         $this->global = $global;
     }
 
-    public function add(Symbol $s): void
+    public function add(Symbol $s): Symbol
     {
         if (Arr::exists($this->symbols, $s->name)) {
             throw new \Exception("symbol already exists in this scope");
         }
         $this->symbols[$s->name] = $s;
+        return $s;
     }
 
     public function lookup(string $name): ?Symbol

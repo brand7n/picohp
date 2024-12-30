@@ -14,6 +14,7 @@ TODO:
   - emitter reference?
   - symbol table entry?
   - abstraction layer between AST Node from parser and LLVM/generic emitter layer
+- parse class properties, methods
 */
 
 it('parses a PHP program', function () {
@@ -22,11 +23,14 @@ it('parses a PHP program', function () {
     $code = <<<'CODE'
     <?php
 
+    /** @var int $a */
     $a = 27;
 
-    function main(int $args): int {
+    function main(int $c): int {
+        /** @var int $a */
         $a = 5 + 4 * 3;
         {
+            /** @var int $b */
             $b = $a;
         }
         return $a;
@@ -41,8 +45,6 @@ it('parses a PHP program', function () {
         throw new \Exception("stmts is null");
     }
 
-    file_put_contents('parsed.json', json_encode($stmts, JSON_PRETTY_PRINT));
-
     $names = [];
     foreach ($stmts as $stmt) {
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
@@ -56,4 +58,6 @@ it('parses a PHP program', function () {
 
     $symbolTable = new \App\PicoHP\SymbolTable();
     $symbolTable->resolveStmts($stmts);
+
+    file_put_contents('parsed.json', json_encode($stmts, JSON_PRETTY_PRINT));
 });

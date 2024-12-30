@@ -22,9 +22,10 @@ class SymbolTable
     /**
      * Enter a new scope.
      */
-    public function enterScope(): void
+    public function enterScope(): Scope
     {
         $this->scopes[] = new Scope();
+        return $this->getCurrentScope();
     }
 
     /**
@@ -32,17 +33,20 @@ class SymbolTable
      */
     public function exitScope(): void
     {
+        if (count($this->scopes) === 1) {
+            throw new \Exception("can't pop global scope");
+        }
         if (array_pop($this->scopes) === null) {
-            throw new \Exception("scope stack empty");
+            throw new \Exception("scope stack is empty");
         }
     }
 
     /**
      * Add a symbol to the symbol table.
      */
-    public function addSymbol(string $name, string $type, mixed $value = null): void
+    public function addSymbol(string $name, string $type, mixed $value = null): Symbol
     {
-        $this->getCurrentScope()->add(new Symbol($name, $type, $value));
+        return $this->getCurrentScope()->add(new Symbol($name, $type, $value));
     }
 
     /**
@@ -97,52 +101,57 @@ class SymbolTable
     public function resolveStmt(\PhpParser\Node\Stmt $stmt): void
     {
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
-            $this->enterScope();
+            $stmt->setAttribute("scope", $this->enterScope());
             $this->resolveParams($stmt->params);
             $this->resolveStmts($stmt->stmts);
             $this->exitScope();
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Block) {
-            $this->enterScope();
+            $stmt->setAttribute("scope", $this->enterScope());
+            $this->resolveStmts($stmt->stmts);
+            $this->exitScope();
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Class_) {
+            $stmt->setAttribute("scope", $this->enterScope());
             $this->resolveStmts($stmt->stmts);
             $this->exitScope();
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Expression) {
-            $this->resolveExpr($stmt->expr);
+            $doc = $stmt->getDocComment();
+            $this->resolveExpr($stmt->expr, $doc);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Return_) {
             if (!is_null($stmt->expr)) {
                 $this->resolveExpr($stmt->expr);
             }
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Property) {
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Nop) {
         } else {
-            var_dump($stmt);
-            throw new \Exception("unknown node type in stmt resolver");
+            throw new \Exception("unknown node type in stmt resolver: " . $stmt->getType());
         }
     }
 
-    public function resolveExpr(\PhpParser\Node\Expr $expr): void
+    public function resolveExpr(\PhpParser\Node\Expr $expr, ?\PhpParser\Comment\Doc $doc = null): void
     {
         if ($expr instanceof \PhpParser\Node\Expr\Assign) {
-            $this->resolveExpr($expr->var);
+            $this->resolveExpr($expr->var, $doc);
             $this->resolveExpr($expr->expr);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Variable) {
             if (!is_string($expr->name)) {
                 throw new \Exception("var name isn't string");
             }
 
-            // TODO: don't create if on right side of expr (or global)
             $s = $this->lookupCurrentScope($expr->name);
-            if (is_null($s)) {
-                //echo "adding " . $expr->name . PHP_EOL;
-                $this->addSymbol($expr->name, "int");
-            } else {
-                //echo "found " . $expr->name . PHP_EOL;
-            }
-        } elseif ($expr instanceof \PhpParser\Node\Scalar\Int_) {
 
+            if (!is_null($doc) && is_null($s)) {
+                // TODO: parse type from doc
+                //echo $doc->getText() . PHP_EOL;
+
+                $s = $this->addSymbol($expr->name, "int");
+                $expr->setAttribute("symbol", $s);
+            }
         } elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp) {
             $this->resolveExpr($expr->left);
             $this->resolveExpr($expr->right);
+        } elseif ($expr instanceof \PhpParser\Node\Scalar\Int_) {
         } else {
-            var_dump($expr);
-            throw new \Exception("unknown node type in expr resolver");
+            throw new \Exception("unknown node type in expr resolver: " . $expr->getType());
         }
     }
 
@@ -158,6 +167,8 @@ class SymbolTable
 
     public function resolveParam(\PhpParser\Node\Param $param): void
     {
-        $this->resolveExpr($param->var);
+        // TODO: fix this
+        // for now supply the emptpy Doc node so the parameter is added to the symbol table
+        $this->resolveExpr($param->var, new \PhpParser\Comment\Doc(''));
     }
 }
