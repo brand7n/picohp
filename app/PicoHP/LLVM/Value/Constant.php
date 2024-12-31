@@ -19,7 +19,7 @@ class Constant extends ValueAbstract {
     }
 
     // Represent the constant as a string in LLVM IR format
-    public function __toString(): void {
+    public function __toString(): string {
         return $this->value . " " . $this->type;
     }
 }

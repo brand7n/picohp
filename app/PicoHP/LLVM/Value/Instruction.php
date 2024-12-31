@@ -16,7 +16,7 @@ class Instruction extends ValueAbstract {
     }
 
     // Represent the instruction as a string in LLVM IR format
-    public function __toString() {
+    public function __toString(): string {
         $resultName = '%' . $this->getName();
         return "{$resultName} = add {$this->getType()} {$this->operand1}, {$this->operand2}";
     }
