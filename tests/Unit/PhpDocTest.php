@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use PHPStan\PhpDocParser\Lexer\Lexer;
 use PHPStan\PhpDocParser\ParserConfig;
 use PHPStan\PhpDocParser\Parser\ConstExprParser;
