@@ -11,8 +11,10 @@ it('generates IR from LLVM Values', function () {
 	$const2 = new Constant(20, 'i32');
 
 	// Create an addition instruction using the constants
-	$addInstruction = new Instruction($const1, $const2, 'i32');
+	$addInstruction = new Instruction('add', [$const1, $const2], 'i32');
 	$addInstruction->setName('add_result');
+
+	expect($addInstruction->__toString())->toBe('%add_result = add i32 10 i32, 20 i32');
 
 	// Generate a function definition (e.g., a function returning i32 with no arguments)
 	// $funcDef = new FunctionDefinition('myFunction', 'i32');
@@ -21,11 +23,9 @@ it('generates IR from LLVM Values', function () {
 	// echo $funcDef . "\n";
 
 	// Output the addition instruction as LLVM IR
-	echo "  " . $addInstruction . "\n";
+	//echo "  " . $addInstruction . "\n";
 
 	// Simulate returning a result from the function
-	echo "  ret i32 %" . $addInstruction->getName() . "\n";
+	//echo "  ret i32 %" . $addInstruction->getName() . "\n";
 	//echo "}\n";
-
-	expect(0)->toBe(0);
 });
