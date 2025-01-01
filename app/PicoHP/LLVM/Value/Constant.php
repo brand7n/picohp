@@ -26,4 +26,12 @@ class Constant extends ValueAbstract
     {
         return $this->value . " " . $this->type;
     }
+
+    /**
+     * @return array<string>
+     */
+    public function renderCode(): array
+    {
+        return [];
+    }
 }

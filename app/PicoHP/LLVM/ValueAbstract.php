@@ -8,7 +8,7 @@ TODO: instead of implementing every instruction as a Value, consider larger chun
 // Base class for all values
 abstract class ValueAbstract
 {
-    protected string $name;
+    protected ?string $name = null;
     protected string $type;
 
     // Constructor to set the type of the value
@@ -24,7 +24,7 @@ abstract class ValueAbstract
     }
 
     // Get the name of the value
-    public function getName(): string
+    public function getName(): ?string
     {
         return $this->name;
     }
@@ -35,8 +35,13 @@ abstract class ValueAbstract
         return $this->type;
     }
 
+    /**
+     * @return array<string>
+     */
+    abstract public function renderCode(): array;
+
     // Abstract method to represent the value in LLVM IR format
-    abstract public function __toString();
+    abstract public function __toString(): string;
 }
 /*
 

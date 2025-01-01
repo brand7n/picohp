@@ -28,7 +28,29 @@ class Instruction extends ValueAbstract
     public function __toString(): string
     {
         $resultName = '%' . $this->getName();
-        $operandString = join(', ', $this->operands);
+        $opsWithResults = [];
+        foreach ($this->operands as $operand) {
+            if ($operand->getName() !== null) {
+                $opsWithResults[] = '%' . $operand->getName();
+            } else {
+                $opsWithResults[] = $operand->__toString();
+            }
+        }
+        $operandString = join(', ', $opsWithResults);
         return "{$resultName} = {$this->opcode} {$this->getType()} {$operandString}";
+    }
+
+    /**
+     * @return array<string>
+     */
+    public function renderCode(): array
+    {
+        $code = [];
+        foreach ($this->operands as $operand) {
+            $code = array_merge($code, $operand->renderCode());
+        }
+        $code[] = $this->__toString();
+        return $code;
+
     }
 }

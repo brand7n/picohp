@@ -9,23 +9,23 @@ it('generates IR from LLVM Values', function () {
     // Example of using the system
     $const1 = new Constant(10, 'i32');
     $const2 = new Constant(20, 'i32');
+    $const3 = new Constant(30, 'i32');
+    $const4 = new Constant(40, 'i32');
 
     // Create an addition instruction using the constants
     $addInstruction = new Instruction('add', [$const1, $const2], 'i32');
     $addInstruction->setName('add_result');
 
-    expect($addInstruction->__toString())->toBe('%add_result = add i32 10 i32, 20 i32');
+    $mulInstruction = new Instruction('mul', [$addInstruction, $const3], 'i32');
+    $mulInstruction->setName('mul_result');
 
-    // Generate a function definition (e.g., a function returning i32 with no arguments)
-    // $funcDef = new FunctionDefinition('myFunction', 'i32');
-    // $funcDef->addArgument('i32');  // Adding one argument of type i32 (int)
+    $subInstruction = new Instruction('sub', [$mulInstruction, $const4], 'i32');
+    $subInstruction->setName('sub_result');
 
-    // echo $funcDef . "\n";
+    $code = $subInstruction->renderCode();
 
-    // Output the addition instruction as LLVM IR
-    //echo "  " . $addInstruction . "\n";
-
-    // Simulate returning a result from the function
-    //echo "  ret i32 %" . $addInstruction->getName() . "\n";
-    //echo "}\n";
+    expect(count($code))->toBe(3);
+    expect($code[0])->toBe('%add_result = add i32 10 i32, 20 i32');
+    expect($code[1])->toBe('%mul_result = mul i32 %add_result, 30 i32');
+    expect($code[2])->toBe('%sub_result = sub i32 %mul_result, 40 i32');
 });
