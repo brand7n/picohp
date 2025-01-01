@@ -21,6 +21,6 @@ jobs:
     - name: Run PHPStan
       run: composer run-script phpstan
     - name: Execute tests (Unit and Feature tests) via PHPUnit/Pest
-      run: php picoHP test
+      run: vendor/bin/pest --coverage
     - name: Run Laravel Pint
       run: vendor/bin/pint --test
