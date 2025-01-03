@@ -2,30 +2,34 @@
 
 declare(strict_types=1);
 
-use App\PicoHP\LLVM\Value\{Constant, Instruction};
+use App\PicoHP\LLVM\Builder;
+use App\PicoHP\LLVM\Value\Constant;
 
-it('generates IR from LLVM Values', function () {
-
+it('generates IR using LLVM Values', function () {
     // Example of using the system
+    $builder = new Builder("arm64-apple-macosx14.0.0", "e-m:o-i64:64-i128:128-n32:64-S128");
+
     $const1 = new Constant(10, 'i32');
     $const2 = new Constant(20, 'i32');
     $const3 = new Constant(30, 'i32');
     $const4 = new Constant(40, 'i32');
 
-    // Create an addition instruction using the constants
-    $addInstruction = new Instruction('add', [$const1, $const2], 'i32');
-    $addInstruction->setName('add_result');
+    $addVal = $builder->createInstruction('add', [$const1, $const2]);
 
-    $mulInstruction = new Instruction('mul', [$addInstruction, $const3], 'i32');
-    $mulInstruction->setName('mul_result');
+    $mulVal = $builder->createInstruction('mul', [$addVal, $const3]);
 
-    $subInstruction = new Instruction('sub', [$mulInstruction, $const4], 'i32');
-    $subInstruction->setName('sub_result');
+    $subVal = $builder->createInstruction('sub', [$mulVal, $const4]);
 
-    $code = $subInstruction->renderCode();
+    $builder->createInstruction('ret', [$subVal], false);
 
-    expect(count($code))->toBe(3);
-    expect($code[0])->toBe('%add_result = add i32 10 i32, 20 i32');
-    expect($code[1])->toBe('%mul_result = mul i32 %add_result, 30 i32');
-    expect($code[2])->toBe('%sub_result = sub i32 %mul_result, 40 i32');
+    //$builder->print();
+
+    $code = $builder->getLines();
+
+    $startLine = 19;
+    expect(count($code))->toBe($startLine + 4);
+    expect($code[$startLine++])->toBe('%add_result1 = add i32 10 i32, 20 i32');
+    expect($code[$startLine++])->toBe('%mul_result2 = mul i32 %add_result1, 30 i32');
+    expect($code[$startLine++])->toBe('%sub_result3 = sub i32 %mul_result2, 40 i32');
+    expect($code[$startLine++])->toBe('ret i32 %sub_result3');
 });

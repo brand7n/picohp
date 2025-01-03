@@ -35,13 +35,7 @@ abstract class ValueAbstract
         return $this->type;
     }
 
-    /**
-     * @return array<string>
-     */
-    abstract public function renderCode(): array;
-
-    // Abstract method to represent the value in LLVM IR format
-    abstract public function __toString(): string;
+    abstract public function render(): string;
 }
 /*
 
