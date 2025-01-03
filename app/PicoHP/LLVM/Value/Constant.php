@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\PicoHP\LLVM\Value;
 
 use App\PicoHP\LLVM\ValueAbstract;
@@ -24,6 +26,6 @@ class Constant extends ValueAbstract
     // Represent the constant as a string in LLVM IR format
     public function render(): string
     {
-        return $this->value . " " . $this->type;
+        return (string)$this->value;// . " " . $this->type;
     }
 }

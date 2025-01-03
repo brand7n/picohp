@@ -32,8 +32,15 @@ class Builder
         $this->addLine('    ret i32 %val');
         $this->addLine('}');
         $this->addLine();
-        $this->addLine('define i32 @main() {');
-        $this->addLine('    ret i32 0');
+    }
+
+    public function setInsertPoint(Function_ $function): void
+    {
+        $this->addLine('define i32 @'. $function->getName() . '() {');
+    }
+
+    public function endFunction(): void
+    {
         $this->addLine('}');
     }
 
@@ -48,9 +55,9 @@ class Builder
         $resultVal = new Void_();
         if ($emitResult) {
             $resultVal = new Instruction("{$opcode}_result", 'i32');
-            $this->addLine("{$resultVal->render()} = {$opcode} i32 {$operandString}");
+            $this->addLine("{$resultVal->render()} = {$opcode} i32 {$operandString}", 1);
         } else {
-            $this->addLine("{$opcode} i32 {$operandString}");
+            $this->addLine("{$opcode} i32 {$operandString}", 1);
         }
         return $resultVal;
     }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\PicoHP\LLVM\Value;
 
 use App\PicoHP\LLVM\ValueAbstract;
