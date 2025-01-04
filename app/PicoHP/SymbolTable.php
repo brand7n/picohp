@@ -88,6 +88,7 @@ class SymbolTable
         return $scope;
     }
 
+    //TODO: move into pass/resolver class
     /**
      * @param array<\PhpParser\Node\Stmt> $stmts
      */

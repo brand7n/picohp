@@ -24,4 +24,9 @@ class Instruction extends ValueAbstract
     {
         return "%{$this->getName()}";
     }
+
+    public static function resetCounter(): void
+    {
+        static::$counter = 1;
+    }
 }

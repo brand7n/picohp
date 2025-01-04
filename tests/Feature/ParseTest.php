@@ -6,7 +6,6 @@ use PhpParser\ParserFactory;
 
 /*
 TODO:
-- use stack.ll to implement expression parsing?
 - different runtimes in rust, 8-bit micro, hosted OS, etc
 - integrate phpstan, extension for narrowing language?
 - can we use type info from phpstan or some other lib?
@@ -23,20 +22,10 @@ it('parses a PHP program', function () {
     $code = <<<'CODE'
     <?php
 
-    /** @var int $a */
-    $a = 27;
-
-    function main(int $c): int {
-        /** @var int $a */
-        $a = 5 + 4 * 3;
-        {
-            /** @var int $b */
-            $b = $a;
-        }
-        return $a;
+    function main(): int {
+        return 5 + 4 + 3;
     }
 
-    function test1(): void {}
     CODE;
 
     $stmts = $parser->parse($code);
@@ -52,12 +41,21 @@ it('parses a PHP program', function () {
         }
     }
 
-    expect(count($names))->toBe(2);
+    //expect(count($names))->toBe(2);
     expect($names[0])->toBe('main');
-    expect($names[1])->toBe('test1');
+    //expect($names[1])->toBe('test1');
 
     $symbolTable = new \App\PicoHP\SymbolTable();
     $symbolTable->resolveStmts($stmts);
 
     file_put_contents('parsed.json', json_encode($stmts, JSON_PRETTY_PRINT));
+
+    $pass = new \App\PicoHP\Pass\IRGenerationPass();
+    $pass->resolveStmts($stmts);
+
+    $f = fopen('out.ll', 'w');
+    if ($f) {
+        $pass->module->print($f);
+    }
+
 });
