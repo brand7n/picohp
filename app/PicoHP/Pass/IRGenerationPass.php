@@ -14,7 +14,6 @@ class IRGenerationPass /* extends PassInterface??? */
 
     public function __construct()
     {
-        echo("HERE".PHP_EOL);
         $this->module = new Module("test_module");
         $this->builder = $this->module->getBuilder();
     }
@@ -31,7 +30,6 @@ class IRGenerationPass /* extends PassInterface??? */
 
     public function resolveStmt(\PhpParser\Node\Stmt $stmt): void
     {
-        echo $stmt->getType() . PHP_EOL;
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
             $function = new Function_($stmt->name->toString(), $this->module);
             $this->builder->setInsertPoint($function);
@@ -59,7 +57,6 @@ class IRGenerationPass /* extends PassInterface??? */
 
     public function resolveExpr(\PhpParser\Node\Expr $expr, ?\PhpParser\Comment\Doc $doc = null): ValueAbstract
     {
-        echo $expr->getType() . PHP_EOL;
         if ($expr instanceof \PhpParser\Node\Expr\Assign) {
             return $this->resolveExpr($expr->expr);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Variable) {
@@ -87,6 +84,5 @@ class IRGenerationPass /* extends PassInterface??? */
 
     public function resolveParam(\PhpParser\Node\Param $param): void
     {
-        echo $param->getType() . PHP_EOL;
     }
 }

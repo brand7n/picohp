@@ -54,8 +54,7 @@ it('parses a PHP program', function () {
     $pass->resolveStmts($stmts);
 
     $f = fopen('out.ll', 'w');
-    if ($f) {
+    if ($f !== false) {
         $pass->module->print($f);
     }
-
 });
