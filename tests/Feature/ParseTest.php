@@ -23,7 +23,7 @@ it('parses a PHP program', function () {
     <?php
 
     function main(): int {
-        return 5 + 4 + 3;
+        return 5 + 4 * 3 | 32 & 32 / 1;
     }
 
     CODE;

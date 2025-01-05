@@ -64,7 +64,29 @@ class IRGenerationPass /* extends PassInterface??? */
         } elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp) {
             $lval = $this->resolveExpr($expr->left);
             $rval = $this->resolveExpr($expr->right);
-            return $this->builder->createInstruction('add', [$lval, $rval]);
+            switch ($expr->getOperatorSigil()) {
+                case '+':
+                    $val = $this->builder->createInstruction('add', [$lval, $rval]);
+                    break;
+                case '*':
+                    $val = $this->builder->createInstruction('mul', [$lval, $rval]);
+                    break;
+                case '-':
+                    $val = $this->builder->createInstruction('sub', [$lval, $rval]);
+                    break;
+                case '/':
+                    $val = $this->builder->createInstruction('sdiv', [$lval, $rval]);
+                    break;
+                case '&':
+                    $val = $this->builder->createInstruction('and', [$lval, $rval]);
+                    break;
+                case '|':
+                    $val = $this->builder->createInstruction('or', [$lval, $rval]);
+                    break;
+                default:
+                    throw new \Exception("unknown BinaryOp {$expr->getOperatorSigil()}");
+            }
+            return $val;
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Int_) {
             return new Constant($expr->value, 'i32');
         } else {
