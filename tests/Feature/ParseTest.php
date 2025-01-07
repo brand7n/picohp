@@ -69,4 +69,8 @@ it('parses a PHP program', function () {
     if ($f !== false) {
         $pass->module->print($f);
     }
+
+    $result = 0;
+    exec('clang out.ll -o test', result_code: $result);
+    expect($result)->toBe(0);
 });
