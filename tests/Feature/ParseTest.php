@@ -71,6 +71,9 @@ it('parses a PHP program', function () {
     }
 
     $result = 0;
-    exec('clang out.ll -o test', result_code: $result);
+    exec('clang out.ll', result_code: $result);
     expect($result)->toBe(0);
+
+    exec('./a.out', result_code: $result);
+    expect($result)->toBe(49);
 });
