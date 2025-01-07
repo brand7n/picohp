@@ -4,24 +4,20 @@ declare(strict_types=1);
 
 namespace App\PicoHP\LLVM\Value;
 
-use App\PicoHP\LLVM\ValueAbstract;
-
 // A class representing an instruction (e.g., an arithmetic operation like addition)
-class Instruction extends ValueAbstract
+class AllocaInst extends Instruction
 {
     protected static int $counter = 1;
     protected int $count;
 
     public function __construct(string $name, string $type)
     {
-        parent::__construct($type);
-        $this->count = self::$counter++;
-        $this->setName($name);
+        parent::__construct($name, $type);
     }
 
     public function render(): string
     {
-        return "%{$this->getName()}_result{$this->count}";
+        return "%{$this->getName()}_localptr{$this->count}";
     }
 
     public static function resetCounter(): void

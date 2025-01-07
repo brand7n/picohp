@@ -9,9 +9,9 @@ class Scope
     /**
      * @var array<string, Symbol>
      */
-    protected array $symbols = [];
+    public array $symbols = [];
 
-    protected bool $global;
+    public bool $global;
 
     public function __construct(bool $global = false)
     {

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\PicoHP\LLVM;
 
 use Illuminate\Support\Collection;
-use App\PicoHP\LLVM\Value\{Instruction, Void_};
+use App\PicoHP\LLVM\Value\{Instruction, Void_, AllocaInst};
 
 class Builder
 {
@@ -54,12 +54,35 @@ class Builder
             ->join(', ');
         $resultVal = new Void_();
         if ($emitResult) {
-            $resultVal = new Instruction("{$opcode}_result", 'i32');
+            $resultVal = new Instruction($opcode, 'i32');
             $this->addLine("{$resultVal->render()} = {$opcode} i32 {$operandString}", 1);
         } else {
             $this->addLine("{$opcode} i32 {$operandString}", 1);
         }
         return $resultVal;
+    }
+
+    public function createAlloca(string $name): ValueAbstract
+    {
+        $resultVal = new AllocaInst($name, 'i32');
+        $this->addLine("{$resultVal->render()} = alloca i32", 1);
+        return $resultVal;
+    }
+
+    public function createLoad(AllocaInst $loadptr): ValueAbstract
+    {//store i32 3, ptr %ptr
+        $resultVal = new Instruction("{$loadptr->getName()}_load", 'i32');
+        $this->addLine("{$resultVal->render()} = load i32, i32* {$loadptr->render()}", 1);
+        return $resultVal;
+    }
+
+    public function createStore(ValueAbstract $rval, ValueAbstract $lval): ValueAbstract
+    {
+        if (!$lval instanceof AllocaInst) {
+            throw new \Exception();
+        }
+        $this->addLine("store i32 {$rval->render()}, i32* {$lval->render()}", 1);
+        return new Void_();
     }
 
     protected function addLine(?string $line = null, int $indent = 0): void

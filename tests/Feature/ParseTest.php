@@ -23,7 +23,15 @@ it('parses a PHP program', function () {
     <?php
 
     function main(): int {
-        return 5 + 4 * 3 | 32 & 32 / 1;
+        /** @var int */
+        $a = 4;
+        /** @var int */
+        $b = 5;
+        /** @var int */
+        $c = 64;
+        /** @var int */
+        $d = 32;
+        return ($b + ($a * 3)) | ($d & ($c / 2));
     }
 
     CODE;
@@ -41,18 +49,22 @@ it('parses a PHP program', function () {
         }
     }
 
-    //expect(count($names))->toBe(2);
+    expect(count($names))->toBe(1);
     expect($names[0])->toBe('main');
-    //expect($names[1])->toBe('test1');
 
     $symbolTable = new \App\PicoHP\SymbolTable();
     $symbolTable->resolveStmts($stmts);
 
+    // for debugging
     file_put_contents('parsed.json', json_encode($stmts, JSON_PRETTY_PRINT));
 
     $pass = new \App\PicoHP\Pass\IRGenerationPass();
     $pass->resolveStmts($stmts);
 
+    $code = $pass->module->getBuilder()->getLines();
+    expect($code[34])->toBe('    ret i32 %or_result13');
+
+    // to test with llvm
     $f = fopen('out.ll', 'w');
     if ($f !== false) {
         $pass->module->print($f);
