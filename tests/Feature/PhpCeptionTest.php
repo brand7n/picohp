@@ -39,12 +39,10 @@ it('calls a picoHP lib from PHP', function () {
     $f = fopen('out.ll', 'w');
     if ($f !== false) {
         $pass->module->print($f);
-    } else {
-        throw \Exception("unable to write output");
     }
 
     $result = 0;
-    // TODO: write output to storage dir?
+    // TODO: write output to storage/build dir?
     exec('clang -shared -undefined dynamic_lookup -o ffitest.so out.ll', result_code: $result);
     expect($result)->toBe(0);
 
