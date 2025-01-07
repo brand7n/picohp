@@ -47,5 +47,6 @@ it('calls a picoHP lib from PHP', function () {
     expect($result)->toBe(0);
 
     $ffi = FFI::cdef("int ffitest();", "./ffitest.so");
+    /** @phpstan-ignore-next-line */
     expect($ffi->ffitest())->toBe(49);
 });

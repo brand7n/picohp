@@ -8,6 +8,3 @@ parameters:
 includes:
     - vendor/phpstan/phpstan/conf/bleedingEdge.neon
     - vendor/phpstan/phpstan-strict-rules/rules.neon
-
-ignoreErrors:
-    - '#Call to an undefined method FFI::.+#'
