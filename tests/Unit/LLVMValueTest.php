@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\PicoHP\LLVM\{Module, Function_};
+use App\PicoHP\LLVM\{Module, Function_, Type};
 use App\PicoHP\LLVM\Value\Constant;
 
 it('generates IR using LLVM Values', function () {
@@ -12,10 +12,10 @@ it('generates IR using LLVM Values', function () {
     $function = new Function_("main", $module);
     $builder->setInsertPoint($function);
 
-    $const1 = new Constant(1, 'i32');
-    $const2 = new Constant(2, 'i32');
-    $const3 = new Constant(3, 'i32');
-    $const4 = new Constant(4, 'i32');
+    $const1 = new Constant(1, Type::INT);
+    $const2 = new Constant(2, Type::INT);
+    $const3 = new Constant(3, Type::INT);
+    $const4 = new Constant(4, Type::INT);
 
     $addVal = $builder->createInstruction('add', [$const1, $const2]);
 

@@ -151,6 +151,9 @@ class SymbolTable
             $this->resolveExpr($expr->left);
             $this->resolveExpr($expr->right);
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Int_) {
+        } elseif ($expr instanceof \PhpParser\Node\Scalar\Float_) {
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Int_) {
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Double) {
         } else {
             throw new \Exception("unknown node type in expr resolver: " . $expr->getType());
         }

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\PicoHP\Pass;
 
-use App\PicoHP\LLVM\{Module, Builder, Function_, ValueAbstract};
+use App\PicoHP\LLVM\{Module, Builder, Function_, ValueAbstract, Type};
 use App\PicoHP\LLVM\Value\{Constant, AllocaInst};
 use App\PicoHP\SymbolTable\{Scope, Symbol};
 
@@ -124,7 +124,9 @@ class IRGenerationPass /* extends PassInterface??? */
             }
             return $val;
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Int_) {
-            return new Constant($expr->value, 'i32');
+            return new Constant($expr->value, Type::INT);
+        } elseif ($expr instanceof \PhpParser\Node\Scalar\Float_) {
+            return new Constant($expr->value, Type::FLOAT);
         } else {
             throw new \Exception("unknown node type in expr: " . $expr->getType());
         }

@@ -4,18 +4,6 @@ declare(strict_types=1);
 
 use PhpParser\ParserFactory;
 
-/*
-TODO:
-- different runtimes in rust, 8-bit micro, hosted OS, etc
-- integrate phpstan, extension for narrowing language?
-- can we use type info from phpstan or some other lib?
-- create a obj we can add to the AST as an attribute which contains:
-  - emitter reference?
-  - symbol table entry?
-  - abstraction layer between AST Node from parser and LLVM/generic emitter layer
-- parse class properties, methods
-*/
-
 it('parses a PHP program', function () {
     $parser = (new ParserFactory())->createForNewestSupportedVersion();
 
@@ -37,10 +25,7 @@ it('parses a PHP program', function () {
     CODE;
 
     $stmts = $parser->parse($code);
-
-    if (is_null($stmts)) {
-        throw new \Exception("stmts is null");
-    }
+    assert(!is_null($stmts));
 
     $names = [];
     foreach ($stmts as $stmt) {
@@ -55,8 +40,13 @@ it('parses a PHP program', function () {
     $symbolTable = new \App\PicoHP\SymbolTable();
     $symbolTable->resolveStmts($stmts);
 
+    $buildPath = config('app.build_path');
+    assert(is_string($buildPath));
+    $astOutput = "{$buildPath}/ast.json";
+    $llvmIRoutput = "{$buildPath}/out.ll";
+
     // for debugging
-    file_put_contents('parsed.json', json_encode($stmts, JSON_PRETTY_PRINT));
+    file_put_contents($astOutput, json_encode($stmts, JSON_PRETTY_PRINT));
 
     $pass = new \App\PicoHP\Pass\IRGenerationPass();
     $pass->resolveStmts($stmts);
@@ -65,15 +55,23 @@ it('parses a PHP program', function () {
     expect($code[34])->toBe('    ret i32 %or_result13');
 
     // to test with llvm
-    $f = fopen('out.ll', 'w');
-    if ($f !== false) {
-        $pass->module->print($f);
-    }
+    $f = fopen($llvmIRoutput, 'w');
+    assert($f !== false);
+    $pass->module->print($f);
 
+    $optimizedIR = "{$buildPath}/optimized.ll";
+    $exe = "{$buildPath}/a.out";
+
+    $llvmPath = config('app.llvm_path');
+    assert(is_string($llvmPath));
+    $llvmPath .= "/";
     $result = 0;
-    exec('clang out.ll', result_code: $result);
+    exec("{$llvmPath}/opt -Os -S -o {$optimizedIR} {$llvmIRoutput}", result_code: $result);
     expect($result)->toBe(0);
 
-    exec('./a.out', result_code: $result);
+    exec("{$llvmPath}/clang -o {$exe} {$optimizedIR}", result_code: $result);
+    expect($result)->toBe(0);
+
+    exec($exe, result_code: $result);
     expect($result)->toBe(49);
 });

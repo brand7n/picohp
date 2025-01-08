@@ -36,13 +36,14 @@ it('calls a picoHP lib from PHP', function () {
     $pass = new \App\PicoHP\Pass\IRGenerationPass();
     $pass->resolveStmts($stmts);
 
+    // TODO: write output to storage/build dir?
     $f = fopen('out.ll', 'w');
-    if ($f !== false) {
-        $pass->module->print($f);
+    if ($f === false) {
+        throw new \Exception("unable to open out.ll");
     }
+    $pass->module->print($f);
 
     $result = 0;
-    // TODO: write output to storage/build dir?
     exec('clang -shared -undefined dynamic_lookup -o ffitest.so out.ll', result_code: $result);
     expect($result)->toBe(0);
 
