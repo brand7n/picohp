@@ -62,27 +62,34 @@ class Builder
         return $resultVal;
     }
 
-    public function createAlloca(string $name): ValueAbstract
+    public function createAlloca(string $name, Type $type): ValueAbstract
     {
-        $resultVal = new AllocaInst($name, 'i32');
-        $this->addLine("{$resultVal->render()} = alloca i32", 1);
+        $resultVal = new AllocaInst($name, $type->value);
+        $this->addLine("{$resultVal->render()} = alloca {$type->value}", 1);
         return $resultVal;
     }
 
     public function createLoad(AllocaInst $loadptr): ValueAbstract
-    {//store i32 3, ptr %ptr
+    {
+        $type = Type::INT;
         $resultVal = new Instruction("{$loadptr->getName()}_load", 'i32');
-        $this->addLine("{$resultVal->render()} = load i32, i32* {$loadptr->render()}", 1);
+        $this->addLine("{$resultVal->render()} = load {$type->value}, {$type->value}* {$loadptr->render()}", 1);
         return $resultVal;
     }
 
     public function createStore(ValueAbstract $rval, ValueAbstract $lval): ValueAbstract
     {
-        if (!$lval instanceof AllocaInst) {
-            throw new \Exception();
-        }
-        $this->addLine("store i32 {$rval->render()}, i32* {$lval->render()}", 1);
+        assert($lval instanceof AllocaInst);
+        $type = $lval->getType();
+        $this->addLine("store {$type} {$rval->render()}, {$type}* {$lval->render()}", 1);
         return new Void_();
+    }
+
+    public function createFpToSi(ValueAbstract $val): ValueAbstract
+    {
+        $resultVal = new Instruction("cast", 'i32');
+        $this->addLine("{$resultVal->render()} = fptosi float {$val->render()}", 1);
+        return $resultVal;
     }
 
     protected function addLine(?string $line = null, int $indent = 0): void

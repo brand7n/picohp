@@ -48,7 +48,20 @@ class IRGenerationPass /* extends PassInterface??? */
             $this->resolveParams($stmt->params);
             $scope = $this->getScope($stmt);
             foreach ($scope->symbols as $symbol) {
-                $symbol->value = $this->builder->createAlloca($symbol->name);
+                $type = null;
+                switch ($symbol->type) {
+                    case 'int':
+                        $type = Type::INT;
+                        break;
+                    case 'float':
+                        $type = Type::FLOAT;
+                        break;
+                    case 'bool':
+                        $type = Type::BOOL;
+                        break;
+                }
+                assert($type !== null);
+                $symbol->value = $this->builder->createAlloca($symbol->name, $type);
             }
             $this->resolveStmts($stmt->stmts);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Block) {
@@ -86,17 +99,11 @@ class IRGenerationPass /* extends PassInterface??? */
             }
 
             // otherwise we are referencing an existing value we need to load
-            if (!$this->currentScope instanceof Scope) {
-                throw new \Exception("no scope");
-            }
-            if (!is_string($expr->name)) {
-                throw new \Exception("name is not a string");
-            }
+            assert($this->currentScope instanceof Scope);
+            assert(is_string($expr->name));
             $symbol = $this->currentScope->lookup($expr->name);
-            if (!is_null($symbol) && $symbol->value instanceof AllocaInst) {
-                return $this->builder->createLoad($symbol->value);
-            }
-            throw new \Exception();
+            assert(!is_null($symbol) && $symbol->value instanceof AllocaInst);
+            return $this->builder->createLoad($symbol->value);
         } elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp) {
             $lval = $this->resolveExpr($expr->left);
             $rval = $this->resolveExpr($expr->right);
@@ -127,6 +134,15 @@ class IRGenerationPass /* extends PassInterface??? */
             return new Constant($expr->value, Type::INT);
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Float_) {
             return new Constant($expr->value, Type::FLOAT);
+        } elseif ($expr instanceof \PhpParser\Node\Expr\ConstFetch) {
+            $constName = $expr->name->toLowerString();
+            return new Constant($constName === 'true' ? 1 : 0, Type::BOOL);
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Int_) {
+            $val = $this->resolveExpr($expr->expr);
+            if ($val->getType() === Type::INT->value) {
+                return $val;
+            }
+            return $this->builder->createFpToSi($this->resolveExpr($expr->expr));
         } else {
             throw new \Exception("unknown node type in expr: " . $expr->getType());
         }

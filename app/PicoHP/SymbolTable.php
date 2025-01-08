@@ -3,20 +3,23 @@
 namespace App\PicoHP;
 
 use Illuminate\Support\Arr;
-use App\PicoHP\SymbolTable\{Scope, Symbol};
+use App\PicoHP\SymbolTable\{Scope, Symbol, DocTypeParser};
 
 class SymbolTable
 {
     /**
      * @var array<Scope>
      */
-    private array $scopes = [];
+    protected array $scopes = [];
 
+    protected DocTypeParser $docTypeParser;
 
     public function __construct()
     {
         // push global scope on the stack
         $this->scopes[] = new Scope(true);
+
+        $this->docTypeParser = new DocTypeParser();
     }
 
     /**
@@ -33,12 +36,8 @@ class SymbolTable
      */
     public function exitScope(): void
     {
-        if (count($this->scopes) === 1) {
-            throw new \Exception("can't pop global scope");
-        }
-        if (array_pop($this->scopes) === null) {
-            throw new \Exception("scope stack is empty");
-        }
+        assert(count($this->scopes) > 1);
+        array_pop($this->scopes);
     }
 
     /**
@@ -46,6 +45,7 @@ class SymbolTable
      */
     public function addSymbol(string $name, string $type, mixed $value = null): Symbol
     {
+        // echo "addSymbol {$name} {$type}" . PHP_EOL;
         return $this->getCurrentScope()->add(new Symbol($name, $type, $value));
     }
 
@@ -82,9 +82,7 @@ class SymbolTable
     protected function getCurrentScope(): Scope
     {
         $scope = Arr::last($this->scopes);
-        if ($scope === null) {
-            throw new \Exception("scope stack empty");
-        }
+        assert($scope !== null);
         return $scope;
     }
 
@@ -116,46 +114,61 @@ class SymbolTable
             $this->exitScope();
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Expression) {
             $doc = $stmt->getDocComment();
-            $this->resolveExpr($stmt->expr, $doc);
+            $type = $this->resolveExpr($stmt->expr, $doc);
+            //echo "stmt expr type: {$type}" . PHP_EOL;
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Return_) {
+            // TODO: verify return type of function matches expression
             if (!is_null($stmt->expr)) {
                 $this->resolveExpr($stmt->expr);
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Property) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Nop) {
         } else {
-            throw new \Exception("unknown node type in stmt resolver: " . $stmt->getType());
+            $line = $this->getLine($stmt);
+            throw new \Exception("line: {$line}, unknown node type in stmt resolver: " . $stmt->getType());
         }
     }
 
-    public function resolveExpr(\PhpParser\Node\Expr $expr, ?\PhpParser\Comment\Doc $doc = null): void
+    public function resolveExpr(\PhpParser\Node\Expr $expr, ?\PhpParser\Comment\Doc $doc = null): string
     {
         if ($expr instanceof \PhpParser\Node\Expr\Assign) {
-            $this->resolveExpr($expr->var, $doc);
-            $this->resolveExpr($expr->expr);
+            $ltype = $this->resolveExpr($expr->var, $doc);
+            $rtype = $this->resolveExpr($expr->expr);
+            assert($ltype === $rtype);
+            return $rtype;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Variable) {
-            if (!is_string($expr->name)) {
-                throw new \Exception("var name isn't string");
-            }
-
+            assert(is_string($expr->name));
             $s = $this->lookupCurrentScope($expr->name);
 
             if (!is_null($doc) && is_null($s)) {
-                // TODO: parse type from doc
-                //echo $doc->getText() . PHP_EOL;
-
-                $s = $this->addSymbol($expr->name, "int");
+                $type = $this->docTypeParser->parseType($doc->getText());
+                $s = $this->addSymbol($expr->name, $type);
                 $expr->setAttribute("symbol", $s);
+                return $type;
             }
+            if (is_null($s)) {
+                var_dump($this->getCurrentScope());
+            }
+            assert(!is_null($s));
+            return $s->type;
         } elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp) {
-            $this->resolveExpr($expr->left);
-            $this->resolveExpr($expr->right);
+            $ltype = $this->resolveExpr($expr->left);
+            $rtype = $this->resolveExpr($expr->right);
+            assert($ltype === $rtype);
+            return $rtype;
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Int_) {
+            return "int";
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Float_) {
+            return "float";
         } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Int_) {
+            return "int";
         } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Double) {
+            return "float";
+        } elseif ($expr instanceof \PhpParser\Node\Expr\ConstFetch) {
+            return "bool";
         } else {
-            throw new \Exception("unknown node type in expr resolver: " . $expr->getType());
+            $line = $this->getLine($expr);
+            throw new \Exception("line {$line}, unknown node type in expr resolver: " . $expr->getType());
         }
     }
 
@@ -174,5 +187,15 @@ class SymbolTable
         // TODO: fix this
         // for now supply the emptpy Doc node so the parameter is added to the symbol table
         $this->resolveExpr($param->var, new \PhpParser\Comment\Doc(''));
+    }
+
+    protected function getLine(\PhpParser\Node $node): int
+    {
+        $line = 0;
+        if ($node->hasAttribute("startLine")) {
+            $line = $node->getAttribute("startLine");
+            assert(is_int($line));
+        }
+        return $line;
     }
 }

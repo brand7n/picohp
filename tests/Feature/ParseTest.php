@@ -19,7 +19,11 @@ it('parses a PHP program', function () {
         $c = 64;
         /** @var int */
         $d = 32;
-        return ($b + ($a * 3)) | ($d & ($c / 2));
+        /** @var bool */
+        $e = true;
+        /** @var float */
+        $f = 1.234;
+        return ($b + ((int)$a * 3)) | ($d & ($c / 2));
     }
 
     CODE;
@@ -37,9 +41,6 @@ it('parses a PHP program', function () {
     expect(count($names))->toBe(1);
     expect($names[0])->toBe('main');
 
-    $symbolTable = new \App\PicoHP\SymbolTable();
-    $symbolTable->resolveStmts($stmts);
-
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
     $astOutput = "{$buildPath}/ast.json";
@@ -48,11 +49,18 @@ it('parses a PHP program', function () {
     // for debugging
     file_put_contents($astOutput, json_encode($stmts, JSON_PRETTY_PRINT));
 
+    $symbolTable = new \App\PicoHP\SymbolTable();
+    $symbolTable->resolveStmts($stmts);
+
     $pass = new \App\PicoHP\Pass\IRGenerationPass();
     $pass->resolveStmts($stmts);
 
+    // for debugging
+    $astWithSymbolOutput = "{$buildPath}/ast_sym.json";
+    file_put_contents($astWithSymbolOutput, json_encode($stmts, JSON_PRETTY_PRINT));
+
     $code = $pass->module->getBuilder()->getLines();
-    expect($code[34])->toBe('    ret i32 %or_result13');
+    expect($code[38])->toBe('    ret i32 %or_result15');
 
     // to test with llvm
     $f = fopen($llvmIRoutput, 'w');
