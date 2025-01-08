@@ -22,8 +22,8 @@ it('parses a PHP program', function () {
         /** @var bool */
         $e = true;
         /** @var float */
-        $f = 1.234;
-        return ($b + ((int)$a * 3)) | ($d & ($c / 2));
+        $f = 4.234;
+        return ($b + ((int)$f * 3)) | ($d & ($c / 2));
     }
 
     CODE;
@@ -60,7 +60,7 @@ it('parses a PHP program', function () {
     file_put_contents($astWithSymbolOutput, json_encode($stmts, JSON_PRETTY_PRINT));
 
     $code = $pass->module->getBuilder()->getLines();
-    expect($code[38])->toBe('    ret i32 %or_result15');
+    expect($code[40])->toBe('    ret i32 %or_result17');
 
     // to test with llvm
     $f = fopen($llvmIRoutput, 'w');

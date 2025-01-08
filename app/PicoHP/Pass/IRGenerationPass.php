@@ -138,6 +138,7 @@ class IRGenerationPass /* extends PassInterface??? */
             $constName = $expr->name->toLowerString();
             return new Constant($constName === 'true' ? 1 : 0, Type::BOOL);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Int_) {
+            // TODO: we seem to be introducing an extra load
             $val = $this->resolveExpr($expr->expr);
             if ($val->getType() === Type::INT->value) {
                 return $val;

@@ -71,9 +71,9 @@ class Builder
 
     public function createLoad(AllocaInst $loadptr): ValueAbstract
     {
-        $type = Type::INT;
-        $resultVal = new Instruction("{$loadptr->getName()}_load", 'i32');
-        $this->addLine("{$resultVal->render()} = load {$type->value}, {$type->value}* {$loadptr->render()}", 1);
+        $type = $loadptr->getType();
+        $resultVal = new Instruction("{$loadptr->getName()}_load", $type);
+        $this->addLine("{$resultVal->render()} = load {$type}, {$type}* {$loadptr->render()}", 1);
         return $resultVal;
     }
 
@@ -88,7 +88,7 @@ class Builder
     public function createFpToSi(ValueAbstract $val): ValueAbstract
     {
         $resultVal = new Instruction("cast", 'i32');
-        $this->addLine("{$resultVal->render()} = fptosi float {$val->render()}", 1);
+        $this->addLine("{$resultVal->render()} = fptosi float {$val->render()} to i32", 1);
         return $resultVal;
     }
 
@@ -119,86 +119,3 @@ class Builder
         }
     }
 }
-/*
-
-define i32 @foo(i32 %0, i32 %1) {
-entry:
-  %local_var = alloca i32
-  %sum = add i32 %0, %1
-  store i32 %sum, i32* %local_var
-  %load = load i32, i32* %local_var
-  ret i32 %load
-}
-
-%ptr = alloca i32                               ; yields ptr
-store i32 3, ptr %ptr                           ; yields void
-%val = load i32, ptr %ptr
-
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/Module.h>
-#include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/Verifier.h>
-#include <llvm/IR/Function.h>
-#include <llvm/IR/BasicBlock.h>
-#include <llvm/Support/raw_ostream.h>
-#include <llvm/ADT/APInt.h>
-
-using namespace llvm;
-
-int main() {
-    // Step 1: Initialize LLVM components
-    LLVMContext context;
-    Module* module = new Module("simple_module", context);
-    IRBuilder<> builder(context);
-
-    // Step 2: Define the function signature (int foo(int, int))
-    Type* int32Type = Type::getInt32Ty(context);
-    std::vector<Type*> paramTypes = { int32Type, int32Type };
-    FunctionType* funcType = FunctionType::get(int32Type, paramTypes, false);
-
-    // Step 3: Create the function
-    Function* func = Function::Create(funcType, Function::ExternalLinkage, "foo", module);
-
-    // Step 4: Create the entry basic block for the function
-    BasicBlock* entry = BasicBlock::Create(context, "entry", func);
-    builder.SetInsertPoint(entry);
-
-    // Step 5: Get the function parameters
-    auto args = func->arg_begin();
-    Value* param1 = &*args++;
-    Value* param2 = &*args;
-
-    // Step 6: Create local variables (using stack)
-    AllocaInst* localVar = builder.CreateAlloca(int32Type, nullptr, "local_var");
-
-    // Step 7: Add the two parameters and store the result in the local variable
-    Value* sum = builder.CreateAdd(param1, param2, "sum");
-    builder.CreateStore(sum, localVar);
-
-    // Step 8: Load the value from local variable (to return it)
-    Value* load = builder.CreateLoad(int32Type, localVar, "load");
-
-    // Step 9: Return the loaded value
-    builder.CreateRet(load);
-
-    // Step 10: Verify the module (optional, but useful for debugging)
-    std::string errStr;
-    if (verifyModule(*module, &errs())) {
-        errs() << "Module verification failed!\n";
-        return 1;
-    }
-
-    // Step 11: Output the IR to a string and print it
-    raw_string_ostream os(errStr);
-    module->print(os, nullptr);
-
-    // Print the generated IR
-    std::cout << os.str() << std::endl;
-
-    // Clean up
-    delete module;
-
-    return 0;
-}
-
-*/
