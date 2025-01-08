@@ -57,7 +57,7 @@ return [
         // App\Providers\AppServiceProvider::class,
     ],
 
-    'llvm_path' => '/opt/homebrew/Cellar/llvm/19.1.6/bin',
+    'llvm_path' => '/usr/bin',
     'build_path' => '/tmp',
 
 ];
