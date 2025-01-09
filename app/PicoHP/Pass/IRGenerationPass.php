@@ -33,9 +33,7 @@ class IRGenerationPass /* extends PassInterface??? */
     protected function getScope(\PhpParser\Node $node): Scope
     {
         $scope = $node->getAttribute('scope');
-        if (!$scope instanceof Scope) {
-            throw new \Exception("scope not found");
-        }
+        assert($scope instanceof Scope, "Scope not found.");
         $this->currentScope = $scope;
         return $scope;
     }
@@ -75,7 +73,6 @@ class IRGenerationPass /* extends PassInterface??? */
             if (!is_null($stmt->expr)) {
                 $val = $this->resolveExpr($stmt->expr);
                 $this->builder->createInstruction('ret', [$val], false);
-
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Property) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Nop) {
@@ -160,6 +157,20 @@ class IRGenerationPass /* extends PassInterface??? */
                     return $this->builder->createZext($this->resolveExpr($expr->expr));
                 default:
                     throw new \Exception("casting to int from unknown type");
+            }
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Double) {
+            // TODO: we seem to be introducing an extra load
+            $val = $this->resolveExpr($expr->expr);
+
+            switch ($val->getType()) {
+                case Type::INT->value:
+                    return $this->builder->createSiToFp($this->resolveExpr($expr->expr));
+                case Type::FLOAT->value:
+                    return $val;
+                // case Type::BOOL->value:
+                //     return $this->builder->createZext($this->resolveExpr($expr->expr));
+                default:
+                    throw new \Exception("casting to float from unknown type");
             }
         } else {
             throw new \Exception("unknown node type in expr: " . $expr->getType());

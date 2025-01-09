@@ -95,6 +95,12 @@ class Builder
         return $resultVal;
     }
 
+    public function createSiToFp(ValueAbstract $val): ValueAbstract
+    {
+        $resultVal = new Instruction("cast", 'float');
+        $this->addLine("{$resultVal->render()} = sitofp i32 {$val->render()} to float", 1);
+        return $resultVal;
+    }
 
     public function createZext(ValueAbstract $val): ValueAbstract
     {
