@@ -16,7 +16,7 @@ class Instruction extends ValueAbstract
     {
         parent::__construct($type);
         $this->count = self::$counter++;
-        $this->setName($name);
+        $this->setName(str_replace(' ', '', $name));
     }
 
     public function render(): string

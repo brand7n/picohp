@@ -20,7 +20,10 @@ class Builder
         $this->addLine('target datalayout = "' . $layout . '"');
         $this->addLine('target triple = "' . $triple . '"');
         $this->addLine();
-        $this->addLine('declare i32 @putchar(i32)');
+        $this->addLine('@.str.d = private constant [4 x i8] c"%d\0A\00", align 1');
+        $this->addLine('@.str.f = private constant [4 x i8] c"%f\0A\00", align 1');
+        $this->addLine();
+        $this->addLine('declare i32 @printf(ptr, ...)');
         $this->addLine('define void @poke(i32 %addr, i32 %value) {');
         $this->addLine('    %ptr = inttoptr i32 %addr to ptr');
         $this->addLine('    store i32 %value, i32* %ptr');
@@ -47,14 +50,14 @@ class Builder
     /**
      * @param array<ValueAbstract> $operands
      */
-    public function createInstruction(string $opcode, array $operands, bool $emitResult = true): ValueAbstract
+    public function createInstruction(string $opcode, array $operands, bool $emitResult = true, Type $resultType = Type::INT): ValueAbstract
     {
         $operandString = (new Collection($operands))
             ->map(fn ($operand): string => $operand->render())
             ->join(', ');
         $resultVal = new Void_();
         if ($emitResult) {
-            $resultVal = new Instruction($opcode, 'i32');
+            $resultVal = new Instruction($opcode, $resultType->value);
             $this->addLine("{$resultVal->render()} = {$opcode} i32 {$operandString}", 1);
         } else {
             $this->addLine("{$opcode} i32 {$operandString}", 1);
@@ -90,6 +93,27 @@ class Builder
         $resultVal = new Instruction("cast", 'i32');
         $this->addLine("{$resultVal->render()} = fptosi float {$val->render()} to i32", 1);
         return $resultVal;
+    }
+
+
+    public function createZext(ValueAbstract $val): ValueAbstract
+    {
+        $resultVal = new Instruction("cast", 'i32');
+        $this->addLine("{$resultVal->render()} = zext i1 {$val->render()} to i32", 1);
+        return $resultVal;
+    }
+
+    public function createCallPrintf(ValueAbstract $val): ValueAbstract
+    {
+        $str = "@.str.d";
+        if ($val->getType() === 'float') {
+            $valDbl = new Instruction('fpext', 'double');
+            $this->addLine("{$valDbl->render()} = fpext float {$val->render()} to double");
+            $str = "@.str.f";
+            $val = $valDbl;
+        }
+        $this->addLine("call i32 (ptr, ...) @printf(ptr {$str}, {$val->getType()} {$val->render()})", 1);
+        return new Void_();
     }
 
     protected function addLine(?string $line = null, int $indent = 0): void

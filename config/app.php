@@ -57,7 +57,7 @@ return [
         // App\Providers\AppServiceProvider::class,
     ],
 
-    'llvm_path' => '/usr/bin',
-    'build_path' => '/tmp',
+    'llvm_path' => env('LLVM_PATH', '/usr/bin'),
+    'build_path' => env('BUILD_PATH', '/tmp'),
 
 ];

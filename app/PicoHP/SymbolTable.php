@@ -123,6 +123,10 @@ class SymbolTable
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Property) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Nop) {
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Echo_) {
+            foreach ($stmt->exprs as $expr) {
+                $this->resolveExpr($expr);
+            }
         } else {
             $line = $this->getLine($stmt);
             throw new \Exception("line: {$line}, unknown node type in stmt resolver: " . $stmt->getType());
@@ -134,7 +138,8 @@ class SymbolTable
         if ($expr instanceof \PhpParser\Node\Expr\Assign) {
             $ltype = $this->resolveExpr($expr->var, $doc);
             $rtype = $this->resolveExpr($expr->expr);
-            assert($ltype === $rtype);
+            $line = $this->getLine($expr);
+            assert($ltype === $rtype, "line {$line}, type mismatch in assignment");
             return $rtype;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Variable) {
             assert(is_string($expr->name));
@@ -154,8 +159,26 @@ class SymbolTable
         } elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp) {
             $ltype = $this->resolveExpr($expr->left);
             $rtype = $this->resolveExpr($expr->right);
-            assert($ltype === $rtype);
-            return $rtype;
+            $line = $this->getLine($expr);
+            assert($ltype === $rtype, "line {$line}, type mismatch in binary op " . $expr->getOperatorSigil());
+            switch ($expr->getOperatorSigil()) {
+                case '+':
+                case '*':
+                case '-':
+                case '/':
+                case '&':
+                case '|':
+                    $type = $rtype;
+                    break;
+                case '==':
+                case '<':
+                case '>':
+                    $type = 'bool';
+                    break;
+                default:
+                    throw new \Exception("unknown BinaryOp {$expr->getOperatorSigil()}");
+            }
+            return $type;
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Int_) {
             return "int";
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Float_) {

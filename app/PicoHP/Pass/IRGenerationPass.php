@@ -79,6 +79,11 @@ class IRGenerationPass /* extends PassInterface??? */
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Property) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Nop) {
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Echo_) {
+            foreach ($stmt->exprs as $expr) {
+                $val = $this->resolveExpr($expr);
+                $this->builder->createCallPrintf($val);
+            }
         } else {
             throw new \Exception("unknown node type in stmt: " . $stmt->getType());
         }
@@ -126,6 +131,11 @@ class IRGenerationPass /* extends PassInterface??? */
                 case '|':
                     $val = $this->builder->createInstruction('or', [$lval, $rval]);
                     break;
+                case '==':
+                    $val = $this->builder->createInstruction('icmp eq', [$lval, $rval]);
+                    break;
+                case '<':
+                case '>':
                 default:
                     throw new \Exception("unknown BinaryOp {$expr->getOperatorSigil()}");
             }
@@ -140,10 +150,17 @@ class IRGenerationPass /* extends PassInterface??? */
         } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Int_) {
             // TODO: we seem to be introducing an extra load
             $val = $this->resolveExpr($expr->expr);
-            if ($val->getType() === Type::INT->value) {
-                return $val;
+
+            switch ($val->getType()) {
+                case Type::INT->value:
+                    return $val;
+                case Type::FLOAT->value:
+                    return $this->builder->createFpToSi($this->resolveExpr($expr->expr));
+                case Type::BOOL->value:
+                    return $this->builder->createZext($this->resolveExpr($expr->expr));
+                default:
+                    throw new \Exception("casting to int from unknown type");
             }
-            return $this->builder->createFpToSi($this->resolveExpr($expr->expr));
         } else {
             throw new \Exception("unknown node type in expr: " . $expr->getType());
         }
