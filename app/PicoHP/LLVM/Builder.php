@@ -34,6 +34,20 @@ class Builder
         $this->addLine('    %val = load i32, i32* %ptr');
         $this->addLine('    ret i32 %val');
         $this->addLine('}');
+        $this->addLine('define i32 @float_to_fixed(float %value, i32 %fractional_bits) {');
+        $this->addLine('    %scaling_factor = shl i32 1, %fractional_bits');
+        $this->addLine('    %scaling_factor_float = sitofp i32 %scaling_factor to float');
+        $this->addLine('    %scaled_value = fmul float %value, %scaling_factor_float');
+        $this->addLine('    %fixed_point = fptosi float %scaled_value to i32');
+        $this->addLine('    ret i32 %fixed_point');
+        $this->addLine('}');
+        $this->addLine('define float @fixed_to_float(i32 %fixed_point, i32 %fractional_bits) {');
+        $this->addLine('    %scaling_factor = shl i32 1, %fractional_bits');
+        $this->addLine('    %scaling_factor_float = sitofp i32 %scaling_factor to float');
+        $this->addLine('    %float_value = sitofp i32 %fixed_point to float');
+        $this->addLine('    %result = fdiv float %float_value, %scaling_factor_float');
+        $this->addLine('    ret float %result');
+        $this->addLine('}');
         $this->addLine();
     }
 
@@ -114,12 +128,25 @@ class Builder
         $str = "@.str.d";
         if ($val->getType() === 'float') {
             $valDbl = new Instruction('fpext', 'double');
-            $this->addLine("{$valDbl->render()} = fpext float {$val->render()} to double");
+            $this->addLine("{$valDbl->render()} = fpext float {$val->render()} to double", 1);
             $str = "@.str.f";
             $val = $valDbl;
         }
         $this->addLine("call i32 (ptr, ...) @printf(ptr {$str}, {$val->getType()} {$val->render()})", 1);
         return new Void_();
+    }
+
+    /**
+     * @param array<ValueAbstract> $paramVals
+     */
+    public function createCall(string $functionName, array $paramVals, Type $returnType): ValueAbstract
+    {
+        $paramString = (new Collection($paramVals))
+            ->map(fn ($param): string => "{$param->getType()} {$param->render()}")
+            ->join(', ');
+        $returnVal = new Instruction('call', $returnType->value);
+        $this->addLine("{$returnVal->render()} = call {$returnType->value} @{$functionName} ({$paramString})", 1);
+        return $returnVal;
     }
 
     protected function addLine(?string $line = null, int $indent = 0): void

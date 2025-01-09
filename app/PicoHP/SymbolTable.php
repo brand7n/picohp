@@ -183,12 +183,18 @@ class SymbolTable
             return "int";
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Float_) {
             return "float";
+        } elseif ($expr instanceof \PhpParser\Node\Scalar\String_) {
+            // TODO: add to symbol table?
+            return "string";
         } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Int_) {
             return "int";
         } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Double) {
             return "float";
         } elseif ($expr instanceof \PhpParser\Node\Expr\ConstFetch) {
             return "bool";
+        } elseif ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
+            // TODO: resolve the proper return type
+            return "float";
         } else {
             $line = $this->getLine($expr);
             throw new \Exception("line {$line}, unknown node type in expr resolver: " . $expr->getType());

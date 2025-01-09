@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace App\PicoHP\Pass;
 
 use App\PicoHP\LLVM\{Module, Builder, Function_, ValueAbstract, Type};
-use App\PicoHP\LLVM\Value\{Constant, AllocaInst};
+use App\PicoHP\LLVM\Value\{Constant, AllocaInst, Void_};
 use App\PicoHP\SymbolTable\{Scope, Symbol};
+use Illuminate\Support\Collection;
 
 class IRGenerationPass /* extends PassInterface??? */
 {
@@ -141,6 +142,8 @@ class IRGenerationPass /* extends PassInterface??? */
             return new Constant($expr->value, Type::INT);
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Float_) {
             return new Constant($expr->value, Type::FLOAT);
+        } elseif ($expr instanceof \PhpParser\Node\Scalar\String_) {
+            return new Void_(); // TODO: retrieve reference from symbol table?
         } elseif ($expr instanceof \PhpParser\Node\Expr\ConstFetch) {
             $constName = $expr->name->toLowerString();
             return new Constant($constName === 'true' ? 1 : 0, Type::BOOL);
@@ -167,11 +170,22 @@ class IRGenerationPass /* extends PassInterface??? */
                     return $this->builder->createSiToFp($this->resolveExpr($expr->expr));
                 case Type::FLOAT->value:
                     return $val;
-                // case Type::BOOL->value:
-                //     return $this->builder->createZext($this->resolveExpr($expr->expr));
+                    // case Type::BOOL->value:
+                    //     return $this->builder->createZext($this->resolveExpr($expr->expr));
                 default:
                     throw new \Exception("casting to float from unknown type");
             }
+        } elseif ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
+            $args = (new Collection($expr->args))
+                ->map(function ($arg): ValueAbstract {
+                    assert($arg instanceof \PhpParser\Node\Arg);
+                    return $this->resolveExpr($arg->value);
+                })
+                ->toArray();
+            assert($expr->name instanceof \PhpParser\Node\Name);
+            // TODO: figure out why phpstan thinks $args is array<mixed>
+            /** @phpstan-ignore-next-line */
+            return $this->builder->createCall($expr->name->name, $args, Type::FLOAT);
         } else {
             throw new \Exception("unknown node type in expr: " . $expr->getType());
         }
