@@ -60,7 +60,7 @@ it('parses a PHP program', function () {
     file_put_contents($astWithSymbolOutput, json_encode($stmts, JSON_PRETTY_PRINT));
 
     $code = $pass->module->getBuilder()->getLines();
-    expect($code[43])->toBe('    ret i32 %or_result17');
+    expect($code[57])->toBe('    ret i32 %or_result17');
 
     // to test with llvm
     $f = fopen($llvmIRoutput, 'w');

@@ -29,7 +29,7 @@ it('generates IR using LLVM Values', function () {
 
     $code = $builder->getLines();
 
-    $startLine = 20;
+    $startLine = 34;
     expect($code[$startLine++])->toBe('    %add_result1 = add i32 1, 2');
     expect($code[$startLine++])->toBe('    %mul_result2 = mul i32 %add_result1, 3');
     expect($code[$startLine++])->toBe('    %sub_result3 = sub i32 %mul_result2, 4');
