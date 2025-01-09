@@ -27,6 +27,8 @@ class DocTypeParser
 
     public function parseType(string $docString): string
     {
+        assert(strlen($docString) > 0, "Need to implement params.");
+
         // parsing and reading a PHPDoc string
         $tokens = new TokenIterator($this->lexer->tokenize($docString));
         $phpDocNode = $this->phpDocParser->parse($tokens); // PhpDocNode

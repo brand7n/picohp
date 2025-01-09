@@ -154,7 +154,7 @@ class SymbolTable
             if (is_null($s)) {
                 var_dump($this->getCurrentScope());
             }
-            assert(!is_null($s));
+            assert(!is_null($s), "Need to implement nested blocks.");
             return $s->type;
         } elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp) {
             $ltype = $this->resolveExpr($expr->left);
