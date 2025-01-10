@@ -83,7 +83,7 @@ class IRGenerationPass /* extends PassInterface??? */
                 $this->builder->createCallPrintf($val);
             }
         } else {
-            throw new \Exception("unknown node type in stmt: " . $stmt->getType());
+            throw new \Exception("unknown node type in stmt: " . get_class($stmt));
         }
     }
 
@@ -129,21 +129,42 @@ class IRGenerationPass /* extends PassInterface??? */
                 case '|':
                     $val = $this->builder->createInstruction('or', [$lval, $rval]);
                     break;
+                case '<<':
+                    $val = $this->builder->createInstruction('shl', [$lval, $rval]);
+                    break;
+                case '>>':
+                    $val = $this->builder->createInstruction('ashr', [$lval, $rval]);
+                    break;
                 case '==':
-                    $val = $this->builder->createInstruction('icmp eq', [$lval, $rval]);
+                    $val = $this->builder->createInstruction('icmp eq', [$lval, $rval], resultType: Type::BOOL);
                     break;
                 case '<':
+                    $val = $this->builder->createInstruction('icmp slt', [$lval, $rval], resultType: Type::BOOL);
+                    break;
                 case '>':
+                    $val = $this->builder->createInstruction('icmp sgt', [$lval, $rval], resultType: Type::BOOL);
+                    break;
                 default:
                     throw new \Exception("unknown BinaryOp {$expr->getOperatorSigil()}");
             }
             return $val;
+        } elseif ($expr instanceof \PhpParser\Node\Expr\UnaryMinus) {
+            return $this->builder->createInstruction('sub', [new Constant(0, Type::INT), $this->resolveExpr($expr->expr)]);
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Int_) {
             return new Constant($expr->value, Type::INT);
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Float_) {
             return new Constant($expr->value, Type::FLOAT);
         } elseif ($expr instanceof \PhpParser\Node\Scalar\String_) {
             return new Void_(); // TODO: retrieve reference from symbol table?
+        } elseif ($expr instanceof \PhpParser\Node\Scalar\InterpolatedString) {
+            foreach ($expr->parts as $part) {
+                if ($part instanceof \PhpParser\Node\InterpolatedStringPart) {
+
+                } else {
+                    return $this->resolveExpr($part);
+                }
+            }
+            return new Void_();
         } elseif ($expr instanceof \PhpParser\Node\Expr\ConstFetch) {
             $constName = $expr->name->toLowerString();
             return new Constant($constName === 'true' ? 1 : 0, Type::BOOL);
@@ -187,7 +208,7 @@ class IRGenerationPass /* extends PassInterface??? */
             /** @phpstan-ignore-next-line */
             return $this->builder->createCall($expr->name->name, $args, Type::FLOAT);
         } else {
-            throw new \Exception("unknown node type in expr: " . $expr->getType());
+            throw new \Exception("unknown node type in expr: " . get_class($expr));
         }
     }
 

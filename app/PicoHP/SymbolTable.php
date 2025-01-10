@@ -129,7 +129,7 @@ class SymbolTable
             }
         } else {
             $line = $this->getLine($stmt);
-            throw new \Exception("line: {$line}, unknown node type in stmt resolver: " . $stmt->getType());
+            throw new \Exception("line: {$line}, unknown node type in stmt resolver: " . get_class($stmt));
         }
     }
 
@@ -151,9 +151,6 @@ class SymbolTable
                 $expr->setAttribute("symbol", $s);
                 return $type;
             }
-            if (is_null($s)) {
-                var_dump($this->getCurrentScope());
-            }
             assert(!is_null($s), "Need to implement nested blocks.");
             return $s->type;
         } elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp) {
@@ -168,6 +165,8 @@ class SymbolTable
                 case '/':
                 case '&':
                 case '|':
+                case '<<':
+                case '>>':
                     $type = $rtype;
                     break;
                 case '==':
@@ -179,12 +178,25 @@ class SymbolTable
                     throw new \Exception("unknown BinaryOp {$expr->getOperatorSigil()}");
             }
             return $type;
+        } elseif ($expr instanceof \PhpParser\Node\Expr\UnaryMinus) {
+            $type = $this->resolveExpr($expr->expr);
+            assert($type === "int");
+            return "int";
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Int_) {
             return "int";
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Float_) {
             return "float";
         } elseif ($expr instanceof \PhpParser\Node\Scalar\String_) {
             // TODO: add to symbol table?
+            return "string";
+        } elseif ($expr instanceof \PhpParser\Node\Scalar\InterpolatedString) {
+            foreach ($expr->parts as $part) {
+                if ($part instanceof \PhpParser\Node\InterpolatedStringPart) {
+                    // TODO: add string part to symbol table
+                } else {
+                    return $this->resolveExpr($part);
+                }
+            }
             return "string";
         } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Int_) {
             return "int";
@@ -197,7 +209,7 @@ class SymbolTable
             return "float";
         } else {
             $line = $this->getLine($expr);
-            throw new \Exception("line {$line}, unknown node type in expr resolver: " . $expr->getType());
+            throw new \Exception("line {$line}, unknown node type in expr resolver: " . get_class($expr));
         }
     }
 
