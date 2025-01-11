@@ -58,6 +58,9 @@ class IRGenerationPass /* extends PassInterface??? */
                     case 'bool':
                         $type = Type::BOOL;
                         break;
+                    case 'array':
+                        $type = Type::ARRAY;
+                        break;
                 }
                 assert($type !== null);
                 $symbol->value = $this->builder->createAlloca($symbol->name, $type);
@@ -207,6 +210,9 @@ class IRGenerationPass /* extends PassInterface??? */
             // TODO: figure out why phpstan thinks $args is array<mixed>
             /** @phpstan-ignore-next-line */
             return $this->builder->createCall($expr->name->name, $args, Type::FLOAT);
+        } elseif ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
+            assert($expr->dim !== null);
+            return $this->builder->createGetElementPtr($this->resolveExpr($expr->var), $this->resolveExpr($expr->dim));
         } else {
             throw new \Exception("unknown node type in expr: " . get_class($expr));
         }

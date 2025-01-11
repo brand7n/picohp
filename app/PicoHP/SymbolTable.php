@@ -153,6 +153,13 @@ class SymbolTable
             }
             assert(!is_null($s), "Need to implement nested blocks.");
             return $s->type;
+        } elseif ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
+            // add/resolve this symbol which is an array/string $var = $expr->var;
+            assert($this->resolveExpr($expr->var, $doc) === 'array');
+            assert($expr->dim !== null);
+            assert($this->resolveExpr($expr->dim) === 'int');
+            // if doc is null type will be from a retrieved value
+            return "int"; // really a char/byte or maybe a single byte string?
         } elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp) {
             $ltype = $this->resolveExpr($expr->left);
             $rtype = $this->resolveExpr($expr->right);

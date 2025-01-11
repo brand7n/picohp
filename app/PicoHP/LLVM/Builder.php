@@ -54,6 +54,7 @@ class Builder
     public function setInsertPoint(Function_ $function): void
     {
         $this->addLine('define i32 @'. $function->getName() . '() {');
+        //$bb = new BasicBlock($function->getName());
     }
 
     public function endFunction(): void
@@ -81,8 +82,9 @@ class Builder
 
     public function createAlloca(string $name, Type $type): ValueAbstract
     {
+        $strType = $type->value;
         $resultVal = new AllocaInst($name, $type->value);
-        $this->addLine("{$resultVal->render()} = alloca {$type->value}", 1);
+        $this->addLine("{$resultVal->render()} = alloca {$strType}", 1);
         return $resultVal;
     }
 
@@ -96,8 +98,8 @@ class Builder
 
     public function createStore(ValueAbstract $rval, ValueAbstract $lval): ValueAbstract
     {
-        assert($lval instanceof AllocaInst);
-        $type = $lval->getType();
+        assert($lval instanceof AllocaInst || ($lval instanceof Instruction && $lval->getType() === 'i8*'));
+        $type = $rval->getType();
         $this->addLine("store {$type} {$rval->render()}, {$type}* {$lval->render()}", 1);
         return new Void_();
     }
@@ -147,6 +149,14 @@ class Builder
         $returnVal = new Instruction('call', $returnType->value);
         $this->addLine("{$returnVal->render()} = call {$returnType->value} @{$functionName} ({$paramString})", 1);
         return $returnVal;
+    }
+
+    public function createGetElementPtr(ValueAbstract $var, ValueAbstract $dim): ValueAbstract
+    {
+        $arrayType = $var->getType();
+        $resultVal = new Instruction('getelementptr', 'i8*');
+        $this->addLine("{$resultVal->render()} = getelementptr inbounds {$arrayType}, {$arrayType}* {$var->render()}, i64 0, {$dim->getType()} {$dim->render()}", 1);
+        return $resultVal;
     }
 
     protected function addLine(?string $line = null, int $indent = 0): void
