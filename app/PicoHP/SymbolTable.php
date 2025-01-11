@@ -155,7 +155,7 @@ class SymbolTable
             return $s->type;
         } elseif ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
             // add/resolve this symbol which is an array/string $var = $expr->var;
-            assert($this->resolveExpr($expr->var, $doc) === 'array');
+            assert($this->resolveExpr($expr->var, $doc) === 'string');
             assert($expr->dim !== null);
             assert($this->resolveExpr($expr->dim) === 'int');
             // if doc is null type will be from a retrieved value

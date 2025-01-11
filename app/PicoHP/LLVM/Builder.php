@@ -98,6 +98,8 @@ class Builder
 
     public function createStore(ValueAbstract $rval, ValueAbstract $lval): ValueAbstract
     {
+        // TODO: in case of i8* lval should we cast $rval from i32
+        //       use u8 instead?
         assert($lval instanceof AllocaInst || ($lval instanceof Instruction && $lval->getType() === 'i8*'));
         $type = $rval->getType();
         $this->addLine("store {$type} {$rval->render()}, {$type}* {$lval->render()}", 1);

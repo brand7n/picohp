@@ -9,5 +9,5 @@ enum Type: string
     case INT = 'i32';
     case FLOAT = 'float';
     case BOOL = 'i1';
-    case ARRAY = '[100 x i8]';
+    case STRING = '[100 x i8]';
 }

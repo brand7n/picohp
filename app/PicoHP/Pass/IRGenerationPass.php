@@ -58,8 +58,8 @@ class IRGenerationPass /* extends PassInterface??? */
                     case 'bool':
                         $type = Type::BOOL;
                         break;
-                    case 'array':
-                        $type = Type::ARRAY;
+                    case 'string':
+                        $type = Type::STRING;
                         break;
                 }
                 assert($type !== null);
