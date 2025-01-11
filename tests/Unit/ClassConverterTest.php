@@ -182,8 +182,8 @@ it('converts a class into functions', function () {
                 }
             });
             assert(!is_null($node->stmts));
-            // TODO: fix Property PhpParser\Node\Stmt\ClassMethod::$stmts (array<PhpParser\Node\Stmt>|null) 
-            // does not accept array<PhpParser\Node> 
+            // TODO: fix Property PhpParser\Node\Stmt\ClassMethod::$stmts (array<PhpParser\Node\Stmt>|null)
+            // does not accept array<PhpParser\Node>
             /** @phpstan-ignore-next-line */
             $node->stmts = $traverser->traverse($node->stmts);
         }
