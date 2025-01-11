@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\PicoHP\Tree\{NodeTrait, NodeInterface};
 
 // Example usage
