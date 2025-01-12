@@ -22,11 +22,12 @@ class IRGenerationPass /* extends PassInterface??? */
     }
 
     /**
-     * @param array<\PhpParser\Node\Stmt> $stmts
+     * @param array<\PhpParser\Node> $stmts
      */
     public function resolveStmts(array $stmts): void
     {
         foreach ($stmts as $stmt) {
+            assert($stmt instanceof \PhpParser\Node\Stmt);
             $this->resolveStmt($stmt);
         }
     }
@@ -66,6 +67,7 @@ class IRGenerationPass /* extends PassInterface??? */
                 $symbol->value = $this->builder->createAlloca($symbol->name, $type);
             }
             $this->resolveStmts($stmt->stmts);
+            $this->builder->endFunction();
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Block) {
             $this->resolveStmts($stmt->stmts);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Class_) {
@@ -209,7 +211,7 @@ class IRGenerationPass /* extends PassInterface??? */
             assert($expr->name instanceof \PhpParser\Node\Name);
             // TODO: figure out why phpstan thinks $args is array<mixed>
             /** @phpstan-ignore-next-line */
-            return $this->builder->createCall($expr->name->name, $args, Type::FLOAT);
+            return $this->builder->createCall($expr->name->name, $args, Type::INT);
         } elseif ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
             assert($expr->dim !== null);
             return $this->builder->createGetElementPtr($this->resolveExpr($expr->var), $this->resolveExpr($expr->dim));

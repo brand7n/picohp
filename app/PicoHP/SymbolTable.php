@@ -88,11 +88,12 @@ class SymbolTable
 
     //TODO: move into pass/resolver class
     /**
-     * @param array<\PhpParser\Node\Stmt> $stmts
+     * @param array<\PhpParser\Node> $stmts
      */
     public function resolveStmts(array $stmts): void
     {
         foreach ($stmts as $stmt) {
+            assert($stmt instanceof \PhpParser\Node\Stmt);
             $this->resolveStmt($stmt);
         }
     }
@@ -151,7 +152,9 @@ class SymbolTable
                 $expr->setAttribute("symbol", $s);
                 return $type;
             }
-            assert(!is_null($s), "Need to implement nested blocks.");
+
+            $s = $this->lookup($expr->name);
+            assert(!is_null($s));
             return $s->type;
         } elseif ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
             // add/resolve this symbol which is an array/string $var = $expr->var;

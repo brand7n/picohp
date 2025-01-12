@@ -7,6 +7,8 @@ namespace App\Commands;
 use Illuminate\Console\Scheduling\Schedule;
 use LaravelZero\Framework\Commands\Command;
 use PhpParser\ParserFactory;
+use PhpParser\NodeTraverser;
+use App\PicoHP\ClassToFunctionVisitor;
 
 class Build extends Command
 {
@@ -36,26 +38,34 @@ class Build extends Command
         $code = file_get_contents($filename);
         assert($code !== false, "Unable to open input file");
 
-        $stmts = $parser->parse($code);
-        assert(!is_null($stmts));
+        $ast = $parser->parse($code);
+        assert(!is_null($ast));
 
         $buildPath = config('app.build_path');
         assert(is_string($buildPath));
         $astOutput = "{$buildPath}/ast.json";
+        $transformedAstOutput = "{$buildPath}/transformed_ast.json";
         $llvmIRoutput = "{$buildPath}/out.ll";
 
         // for debugging
-        file_put_contents($astOutput, json_encode($stmts, JSON_PRETTY_PRINT));
+        file_put_contents($astOutput, json_encode($ast, JSON_PRETTY_PRINT));
+
+        $traverser = new NodeTraverser();
+        $traverser->addVisitor(new ClassToFunctionVisitor());
+        $transformedAst = $traverser->traverse($ast);
+
+        // for debugging
+        file_put_contents($transformedAstOutput, json_encode($transformedAst, JSON_PRETTY_PRINT));
 
         $symbolTable = new \App\PicoHP\SymbolTable();
-        $symbolTable->resolveStmts($stmts);
+        $symbolTable->resolveStmts($transformedAst);
 
         $pass = new \App\PicoHP\Pass\IRGenerationPass();
-        $pass->resolveStmts($stmts);
+        $pass->resolveStmts($transformedAst);
 
         // for debugging
         $astWithSymbolOutput = "{$buildPath}/ast_sym.json";
-        file_put_contents($astWithSymbolOutput, json_encode($stmts, JSON_PRETTY_PRINT));
+        file_put_contents($astWithSymbolOutput, json_encode($transformedAst, JSON_PRETTY_PRINT));
 
         // to test with llvm
         $f = fopen($llvmIRoutput, 'w');

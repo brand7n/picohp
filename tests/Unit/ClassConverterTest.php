@@ -37,9 +37,6 @@ it('converts a class into functions', function () {
     TheClass::statictest();
     CODE;
 
-    $parser = (new ParserFactory())->createForNewestSupportedVersion();
-    $ast = $parser->parse($code);
-
     // Step 2: Transform the AST
     class ClassToFunctionVisitor extends NodeVisitorAbstract
     {
@@ -189,6 +186,8 @@ it('converts a class into functions', function () {
         }
     }
 
+    $parser = (new ParserFactory())->createForNewestSupportedVersion();
+    $ast = $parser->parse($code);
     $traverser = new NodeTraverser();
     $traverser->addVisitor(new ClassToFunctionVisitor());
     assert(!is_null($ast));

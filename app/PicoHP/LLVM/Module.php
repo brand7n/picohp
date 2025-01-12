@@ -41,9 +41,6 @@ class Module
      */
     public function print($file = STDOUT): void
     {
-        if ($this->currentFunction !== null) {
-            $this->builder->endFunction();
-        }
         $this->builder->print($file);
     }
 }
