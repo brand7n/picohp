@@ -1,17 +1,23 @@
 <?php
 
+/** @var int */
+$glob = 5;
+
 class Test
 {
-    //public static int $value = 0;
+    public static int $value = 0;
     public static function test1(): int
     {
-        return 1;
+        echo start();
+        return start();
     }
 }
 
-function main(): int
+function start(): int
 {
     /** @var int */
     $a = 4 * 5 + 3;
-    return Test::test1();
+    return $a;
 }
+echo $glob;
+echo Test::test1();

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\PicoHP\LLVM;
 
 use Illuminate\Support\Collection;
-use App\PicoHP\LLVM\Value\{Instruction, Void_, AllocaInst};
+use App\PicoHP\LLVM\Value\{Instruction, Void_, AllocaInst, Global_};
 
 class Builder
 {
@@ -158,6 +158,13 @@ class Builder
         $arrayType = $var->getType();
         $resultVal = new Instruction('getelementptr', 'i8*');
         $this->addLine("{$resultVal->render()} = getelementptr inbounds {$arrayType}, {$arrayType}* {$var->render()}, i64 0, {$dim->getType()} {$dim->render()}", 1);
+        return $resultVal;
+    }
+
+    public function createGlobal(string $name, ValueAbstract $val): ValueAbstract
+    {
+        $resultVal = new Global_($name, $val->getType());
+        $this->addLine("{$resultVal->render()} = internal global {$val->getType()} {$val->render()}");
         return $resultVal;
     }
 

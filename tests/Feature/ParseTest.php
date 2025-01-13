@@ -52,8 +52,8 @@ it('parses a PHP program', function () {
     $symbolTable = new \App\PicoHP\SymbolTable();
     $symbolTable->resolveStmts($stmts);
 
-    $pass = new \App\PicoHP\Pass\IRGenerationPass();
-    $pass->resolveStmts($stmts);
+    $pass = new \App\PicoHP\Pass\IRGenerationPass($stmts);
+    $pass->exec();
 
     // for debugging
     $astWithSymbolOutput = "{$buildPath}/ast_sym.json";

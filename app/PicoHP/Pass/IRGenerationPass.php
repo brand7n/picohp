@@ -15,10 +15,24 @@ class IRGenerationPass /* extends PassInterface??? */
     protected Builder $builder;
     protected ?Scope $currentScope = null;
 
-    public function __construct()
+    /**
+     * @var array<\PhpParser\Node> $stmts
+     */
+    protected array $stmts;
+
+    /**
+     * @param array<\PhpParser\Node> $stmts
+     */
+    public function __construct(array $stmts)
     {
         $this->module = new Module("test_module");
         $this->builder = $this->module->getBuilder();
+        $this->stmts = $stmts;
+    }
+
+    public function exec(): void
+    {
+        $this->resolveStmts($this->stmts);
     }
 
     /**

@@ -33,8 +33,8 @@ it('calls a picoHP lib from PHP', function () {
     $symbolTable = new \App\PicoHP\SymbolTable();
     $symbolTable->resolveStmts($stmts);
 
-    $pass = new \App\PicoHP\Pass\IRGenerationPass();
-    $pass->resolveStmts($stmts);
+    $pass = new \App\PicoHP\Pass\IRGenerationPass($stmts);
+    $pass->exec();
 
     // TODO: write output to storage/build dir?
     $f = fopen('out.ll', 'w');

@@ -101,15 +101,17 @@ class SymbolTable
     public function resolveStmt(\PhpParser\Node\Stmt $stmt): void
     {
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
-            $stmt->setAttribute("scope", $this->enterScope());
+            $scope = $this->getCurrentScope();
+            if ($stmt->name->name !== 'main') {
+                $scope = $this->enterScope();
+            }
+            $stmt->setAttribute("scope", $scope);
             $this->resolveParams($stmt->params);
             $this->resolveStmts($stmt->stmts);
-            $this->exitScope();
+            if ($stmt->name->name !== 'main') {
+                $this->exitScope();
+            }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Block) {
-            $stmt->setAttribute("scope", $this->enterScope());
-            $this->resolveStmts($stmt->stmts);
-            $this->exitScope();
-        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Class_) {
             $stmt->setAttribute("scope", $this->enterScope());
             $this->resolveStmts($stmt->stmts);
             $this->exitScope();
@@ -122,8 +124,6 @@ class SymbolTable
             if (!is_null($stmt->expr)) {
                 $this->resolveExpr($stmt->expr);
             }
-        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Property) {
-        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Nop) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Echo_) {
             foreach ($stmt->exprs as $expr) {
                 $this->resolveExpr($expr);
@@ -167,7 +167,7 @@ class SymbolTable
             $ltype = $this->resolveExpr($expr->left);
             $rtype = $this->resolveExpr($expr->right);
             $line = $this->getLine($expr);
-            assert($ltype === $rtype, "line {$line}, type mismatch in binary op " . $expr->getOperatorSigil());
+            assert($ltype === $rtype, "line {$line}, type mismatch in binary op: {$ltype} {$expr->getOperatorSigil()} {$rtype}");
             switch ($expr->getOperatorSigil()) {
                 case '+':
                 case '*':
