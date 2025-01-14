@@ -34,7 +34,9 @@ class PicoHPData
     public static function getPData(\PhpParser\Node $node): PicoHPData
     {
         $pData = $node->getAttribute("picoHP");
-        assert(!is_null($pData) && $pData instanceof PicoHPData, var_export($node, true));
+        var_dump($node);
+        var_dump($pData);
+        assert($pData instanceof PicoHPData);
         return $pData;
     }
 }
