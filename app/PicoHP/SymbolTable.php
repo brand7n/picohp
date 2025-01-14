@@ -43,10 +43,9 @@ class SymbolTable
     /**
      * Add a symbol to the symbol table.
      */
-    public function addSymbol(string $name, string $type, mixed $value = null): Symbol
+    public function addSymbol(string $name, string $type): Symbol
     {
-        // echo "addSymbol {$name} {$type}" . PHP_EOL;
-        return $this->getCurrentScope()->add(new Symbol($name, $type, $value));
+        return $this->getCurrentScope()->add(new Symbol($name, $type));
     }
 
     /**
@@ -158,7 +157,8 @@ class SymbolTable
             return $s->type;
         } elseif ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
             // add/resolve this symbol which is an array/string $var = $expr->var;
-            assert($this->resolveExpr($expr->var, $doc) === 'string');
+            $type = $this->resolveExpr($expr->var, $doc);
+            assert($type === 'string', "$type is not a string");
             assert($expr->dim !== null);
             assert($this->resolveExpr($expr->dim) === 'int');
             // if doc is null type will be from a retrieved value

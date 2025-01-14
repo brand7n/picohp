@@ -54,6 +54,15 @@ class IRGenerationPass /* extends PassInterface??? */
         return $scope;
     }
 
+    protected function getSymbol(\PhpParser\Node $node): ?Symbol
+    {
+        $symbol = $node->getAttribute('symbol');
+        if (!$symbol instanceof Symbol) {
+            return null;
+        }
+        return $symbol;
+    }
+
     public function resolveStmt(\PhpParser\Node\Stmt $stmt): void
     {
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
@@ -109,7 +118,7 @@ class IRGenerationPass /* extends PassInterface??? */
     public function resolveExpr(\PhpParser\Node\Expr $expr, ?\PhpParser\Comment\Doc $doc = null): ValueAbstract
     {
         if ($expr instanceof \PhpParser\Node\Expr\Assign) {
-            $lval = $this->resolveExpr($expr->var);
+            $lval = $this->resolveExpr($expr->var); // TODO: flag left side of expression
             $rval = $this->resolveExpr($expr->expr);
             $this->builder->createStore($rval, $lval);
             return $rval;
@@ -227,8 +236,20 @@ class IRGenerationPass /* extends PassInterface??? */
             /** @phpstan-ignore-next-line */
             return $this->builder->createCall($expr->name->name, $args, Type::INT);
         } elseif ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
-            assert($expr->dim !== null);
-            return $this->builder->createGetElementPtr($this->resolveExpr($expr->var), $this->resolveExpr($expr->dim));
+            assert($expr->dim !== null, "array append not implemented");
+            // TODO: this won't work if the assignment is not a declaration
+            $s = $this->getSymbol($expr->var);
+            if (!is_null($s)) { // load
+                return $this->builder->createGetElementPtr($this->resolveExpr($expr->var), $this->resolveExpr($expr->dim));
+            }
+            // store
+            // TODO: we need to lookup in all encapsulating scopes
+            assert($expr->var instanceof \PhpParser\Node\Expr\Variable);
+            assert($this->currentScope !== null);
+            assert(is_string($expr->var->name));
+            $s = $this->currentScope->lookup($expr->var->name);
+            assert($s !== null && $s->value !== null);
+            return $this->builder->createLoad($this->builder->createGetElementPtr($s->value, $this->resolveExpr($expr->dim)));
         } else {
             throw new \Exception("unknown node type in expr: " . get_class($expr));
         }

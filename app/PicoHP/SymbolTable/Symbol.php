@@ -2,13 +2,15 @@
 
 namespace App\PicoHP\SymbolTable;
 
+use App\PicoHP\LLVM\ValueAbstract;
+
 class Symbol
 {
     public string $name;
     public string $type;
-    public mixed $value;
+    public ?ValueAbstract $value;
 
-    public function __construct(string $name, string $type, mixed $value = null)
+    public function __construct(string $name, string $type, ?ValueAbstract $value = null)
     {
         $this->name = $name;
         $this->type = $type;

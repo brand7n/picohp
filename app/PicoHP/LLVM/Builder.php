@@ -88,7 +88,7 @@ class Builder
         return $resultVal;
     }
 
-    public function createLoad(AllocaInst $loadptr): ValueAbstract
+    public function createLoad(ValueAbstract $loadptr): ValueAbstract
     {
         $type = $loadptr->getType();
         $resultVal = new Instruction("{$loadptr->getName()}_load", $type);

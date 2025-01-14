@@ -8,15 +8,19 @@ class Test
     public static int $value = 0;
     public static function test1(): int
     {
-        echo start();
-        return start();
+        /** @var string */
+        $a[5] = 4;
+        //echo start();
+        echo $a[5];
+        //return start();
+        return 1;
     }
 }
 
 function start(): int
 {
     /** @var int */
-    $a = 4 * 5 + 3;
+    $a = 1234 * 5 + 0xf3;
     return $a;
 }
 echo $glob;
