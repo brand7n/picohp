@@ -3,7 +3,7 @@
 namespace App\PicoHP;
 
 use Illuminate\Support\Arr;
-use App\PicoHP\SymbolTable\{Scope, Symbol, DocTypeParser};
+use App\PicoHP\SymbolTable\{Scope, Symbol, DocTypeParser, PicoHPData};
 
 class SymbolTable
 {
@@ -99,19 +99,21 @@ class SymbolTable
 
     public function resolveStmt(\PhpParser\Node\Stmt $stmt): void
     {
+        $pData = $this->getPicoData($stmt);
+
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
             $scope = $this->getCurrentScope();
             if ($stmt->name->name !== 'main') {
                 $scope = $this->enterScope();
             }
-            $stmt->setAttribute("scope", $scope);
+            $pData->setScope($scope);
             $this->resolveParams($stmt->params);
             $this->resolveStmts($stmt->stmts);
             if ($stmt->name->name !== 'main') {
                 $this->exitScope();
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Block) {
-            $stmt->setAttribute("scope", $this->enterScope());
+            $pData->setScope($this->enterScope());
             $this->resolveStmts($stmt->stmts);
             $this->exitScope();
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Expression) {
@@ -123,6 +125,8 @@ class SymbolTable
             if (!is_null($stmt->expr)) {
                 $this->resolveExpr($stmt->expr);
             }
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Nop) {
+
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Echo_) {
             foreach ($stmt->exprs as $expr) {
                 $this->resolveExpr($expr);
@@ -133,31 +137,34 @@ class SymbolTable
         }
     }
 
-    public function resolveExpr(\PhpParser\Node\Expr $expr, ?\PhpParser\Comment\Doc $doc = null): string
+    public function resolveExpr(\PhpParser\Node\Expr $expr, ?\PhpParser\Comment\Doc $doc = null, bool $lVal = false): string
     {
+        $pData = $this->getPicoData($expr);
+
         if ($expr instanceof \PhpParser\Node\Expr\Assign) {
-            $ltype = $this->resolveExpr($expr->var, $doc);
+            $ltype = $this->resolveExpr($expr->var, $doc, lVal: true);
             $rtype = $this->resolveExpr($expr->expr);
             $line = $this->getLine($expr);
             assert($ltype === $rtype, "line {$line}, type mismatch in assignment");
             return $rtype;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Variable) {
+            $pData->lVal = $lVal;
             assert(is_string($expr->name));
             $s = $this->lookupCurrentScope($expr->name);
 
             if (!is_null($doc) && is_null($s)) {
                 $type = $this->docTypeParser->parseType($doc->getText());
-                $s = $this->addSymbol($expr->name, $type);
-                $expr->setAttribute("symbol", $s);
+                $pData->symbol = $this->addSymbol($expr->name, $type);
                 return $type;
             }
 
-            $s = $this->lookup($expr->name);
-            assert(!is_null($s));
-            return $s->type;
+            $pData->symbol = $this->lookup($expr->name);
+            assert(!is_null($pData->symbol));
+            return $pData->symbol->type;
         } elseif ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
+            $pData->lVal = $lVal;
             // add/resolve this symbol which is an array/string $var = $expr->var;
-            $type = $this->resolveExpr($expr->var, $doc);
+            $type = $this->resolveExpr($expr->var, $doc, lVal: $lVal);
             assert($type === 'string', "$type is not a string");
             assert($expr->dim !== null);
             assert($this->resolveExpr($expr->dim) === 'int');
@@ -209,8 +216,10 @@ class SymbolTable
             }
             return "string";
         } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Int_) {
+            $this->resolveExpr($expr->expr);
             return "int";
         } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Double) {
+            $this->resolveExpr($expr->expr);
             return "float";
         } elseif ($expr instanceof \PhpParser\Node\Expr\ConstFetch) {
             return "bool";
@@ -248,5 +257,13 @@ class SymbolTable
             assert(is_int($line));
         }
         return $line;
+    }
+
+    protected function getPicoData(\PhpParser\Node $node): PicoHPData
+    {
+        if (!$node->hasAttribute("picoHP")) {
+            $node->setAttribute("picoHP", new PicoHPData($this->getCurrentScope()));
+        }
+        return PicoHPData::getPData($node);
     }
 }

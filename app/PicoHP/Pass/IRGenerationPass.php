@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace App\PicoHP\Pass;
 
 use App\PicoHP\LLVM\{Module, Builder, Function_, ValueAbstract, Type};
-use App\PicoHP\LLVM\Value\{Constant, AllocaInst, Void_};
-use App\PicoHP\SymbolTable\{Scope, Symbol};
+use App\PicoHP\LLVM\Value\{Constant, Void_};
+use App\PicoHP\SymbolTable\{Symbol, PicoHPData};
 use Illuminate\Support\Collection;
 
 class IRGenerationPass /* extends PassInterface??? */
 {
     public Module $module;
     protected Builder $builder;
-    protected ?Scope $currentScope = null;
 
     /**
      * @var array<\PhpParser\Node> $stmts
@@ -32,44 +31,29 @@ class IRGenerationPass /* extends PassInterface??? */
 
     public function exec(): void
     {
-        $this->resolveStmts($this->stmts);
+        $this->buildStmts($this->stmts);
     }
 
     /**
      * @param array<\PhpParser\Node> $stmts
      */
-    public function resolveStmts(array $stmts): void
+    public function buildStmts(array $stmts): void
     {
         foreach ($stmts as $stmt) {
             assert($stmt instanceof \PhpParser\Node\Stmt);
-            $this->resolveStmt($stmt);
+            $this->buildStmt($stmt);
         }
     }
 
-    protected function getScope(\PhpParser\Node $node): Scope
+    public function buildStmt(\PhpParser\Node\Stmt $stmt): void
     {
-        $scope = $node->getAttribute('scope');
-        assert($scope instanceof Scope, "Scope not found.");
-        $this->currentScope = $scope;
-        return $scope;
-    }
+        $pData = PicoHPData::getPData($stmt);
 
-    protected function getSymbol(\PhpParser\Node $node): ?Symbol
-    {
-        $symbol = $node->getAttribute('symbol');
-        if (!$symbol instanceof Symbol) {
-            return null;
-        }
-        return $symbol;
-    }
-
-    public function resolveStmt(\PhpParser\Node\Stmt $stmt): void
-    {
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
             $function = new Function_($stmt->name->toString(), $this->module);
             $this->builder->setInsertPoint($function);
-            $this->resolveParams($stmt->params);
-            $scope = $this->getScope($stmt);
+            $this->buildParams($stmt->params);
+            $scope = $pData->getScope();
             foreach ($scope->symbols as $symbol) {
                 $type = null;
                 switch ($symbol->type) {
@@ -89,25 +73,23 @@ class IRGenerationPass /* extends PassInterface??? */
                 assert($type !== null);
                 $symbol->value = $this->builder->createAlloca($symbol->name, $type);
             }
-            $this->resolveStmts($stmt->stmts);
+            $this->buildStmts($stmt->stmts);
             $this->builder->endFunction();
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Block) {
-            $this->resolveStmts($stmt->stmts);
-        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Class_) {
-            $this->resolveStmts($stmt->stmts);
+            $this->buildStmts($stmt->stmts);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Expression) {
             $doc = $stmt->getDocComment();
-            $this->resolveExpr($stmt->expr, $doc);
+            $this->buildExpr($stmt->expr, $doc);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Return_) {
             if (!is_null($stmt->expr)) {
-                $val = $this->resolveExpr($stmt->expr);
+                $val = $this->buildExpr($stmt->expr);
                 $this->builder->createInstruction('ret', [$val], false);
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Property) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Nop) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Echo_) {
             foreach ($stmt->exprs as $expr) {
-                $val = $this->resolveExpr($expr);
+                $val = $this->buildExpr($expr);
                 $this->builder->createCallPrintf($val);
             }
         } else {
@@ -115,29 +97,24 @@ class IRGenerationPass /* extends PassInterface??? */
         }
     }
 
-    public function resolveExpr(\PhpParser\Node\Expr $expr, ?\PhpParser\Comment\Doc $doc = null): ValueAbstract
+    public function buildExpr(\PhpParser\Node\Expr $expr, ?\PhpParser\Comment\Doc $doc = null): ValueAbstract
     {
+        $pData = PicoHPData::getPData($expr);
+
         if ($expr instanceof \PhpParser\Node\Expr\Assign) {
-            $lval = $this->resolveExpr($expr->var); // TODO: flag left side of expression
-            $rval = $this->resolveExpr($expr->expr);
+            $lval = $this->buildExpr($expr->var);
+            $rval = $this->buildExpr($expr->expr);
             $this->builder->createStore($rval, $lval);
             return $rval;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Variable) {
-            // if a symbol is present then space should already be allocated from when we entered this scope
-            $symbol = $expr->getAttribute('symbol');
-            if ($symbol instanceof Symbol && $symbol->value instanceof AllocaInst) {
-                return $symbol->value;
+            $value = $pData->getValue();
+            if ($pData->lVal) {
+                return $value;
             }
-
-            // otherwise we are referencing an existing value we need to load
-            assert($this->currentScope instanceof Scope);
-            assert(is_string($expr->name));
-            $symbol = $this->currentScope->lookup($expr->name);
-            assert(!is_null($symbol) && $symbol->value instanceof AllocaInst);
-            return $this->builder->createLoad($symbol->value);
+            return $this->builder->createLoad($value);
         } elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp) {
-            $lval = $this->resolveExpr($expr->left);
-            $rval = $this->resolveExpr($expr->right);
+            $lval = $this->buildExpr($expr->left);
+            $rval = $this->buildExpr($expr->right);
             switch ($expr->getOperatorSigil()) {
                 case '+':
                     $val = $this->builder->createInstruction('add', [$lval, $rval]);
@@ -177,7 +154,7 @@ class IRGenerationPass /* extends PassInterface??? */
             }
             return $val;
         } elseif ($expr instanceof \PhpParser\Node\Expr\UnaryMinus) {
-            return $this->builder->createInstruction('sub', [new Constant(0, Type::INT), $this->resolveExpr($expr->expr)]);
+            return $this->builder->createInstruction('sub', [new Constant(0, Type::INT), $this->buildExpr($expr->expr)]);
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Int_) {
             return new Constant($expr->value, Type::INT);
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Float_) {
@@ -189,7 +166,7 @@ class IRGenerationPass /* extends PassInterface??? */
                 if ($part instanceof \PhpParser\Node\InterpolatedStringPart) {
 
                 } else {
-                    return $this->resolveExpr($part);
+                    return $this->buildExpr($part);
                 }
             }
             return new Void_();
@@ -198,29 +175,29 @@ class IRGenerationPass /* extends PassInterface??? */
             return new Constant($constName === 'true' ? 1 : 0, Type::BOOL);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Int_) {
             // TODO: we seem to be introducing an extra load
-            $val = $this->resolveExpr($expr->expr);
+            $val = $this->buildExpr($expr->expr);
 
             switch ($val->getType()) {
                 case Type::INT->value:
                     return $val;
                 case Type::FLOAT->value:
-                    return $this->builder->createFpToSi($this->resolveExpr($expr->expr));
+                    return $this->builder->createFpToSi($this->buildExpr($expr->expr));
                 case Type::BOOL->value:
-                    return $this->builder->createZext($this->resolveExpr($expr->expr));
+                    return $this->builder->createZext($this->buildExpr($expr->expr));
                 default:
                     throw new \Exception("casting to int from unknown type");
             }
         } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Double) {
             // TODO: we seem to be introducing an extra load
-            $val = $this->resolveExpr($expr->expr);
+            $val = $this->buildExpr($expr->expr);
 
             switch ($val->getType()) {
                 case Type::INT->value:
-                    return $this->builder->createSiToFp($this->resolveExpr($expr->expr));
+                    return $this->builder->createSiToFp($this->buildExpr($expr->expr));
                 case Type::FLOAT->value:
                     return $val;
                     // case Type::BOOL->value:
-                    //     return $this->builder->createZext($this->resolveExpr($expr->expr));
+                    //     return $this->builder->createZext($this->buildExpr($expr->expr));
                 default:
                     throw new \Exception("casting to float from unknown type");
             }
@@ -228,7 +205,7 @@ class IRGenerationPass /* extends PassInterface??? */
             $args = (new Collection($expr->args))
                 ->map(function ($arg): ValueAbstract {
                     assert($arg instanceof \PhpParser\Node\Arg);
-                    return $this->resolveExpr($arg->value);
+                    return $this->buildExpr($arg->value);
                 })
                 ->toArray();
             assert($expr->name instanceof \PhpParser\Node\Name);
@@ -237,19 +214,19 @@ class IRGenerationPass /* extends PassInterface??? */
             return $this->builder->createCall($expr->name->name, $args, Type::INT);
         } elseif ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
             assert($expr->dim !== null, "array append not implemented");
-            // TODO: this won't work if the assignment is not a declaration
-            $s = $this->getSymbol($expr->var);
-            if (!is_null($s)) { // load
-                return $this->builder->createGetElementPtr($this->resolveExpr($expr->var), $this->resolveExpr($expr->dim));
+            $varData = PicoHPData::getPData($expr->var);
+            if ($pData->lVal === true) {
+                return $this->builder->createGetElementPtr(
+                    $varData->getValue(),
+                    $this->buildExpr($expr->dim)
+                );
             }
-            // store
-            // TODO: we need to lookup in all encapsulating scopes
-            assert($expr->var instanceof \PhpParser\Node\Expr\Variable);
-            assert($this->currentScope !== null);
-            assert(is_string($expr->var->name));
-            $s = $this->currentScope->lookup($expr->var->name);
-            assert($s !== null && $s->value !== null);
-            return $this->builder->createLoad($this->builder->createGetElementPtr($s->value, $this->resolveExpr($expr->dim)));
+            return $this->builder->createLoad(
+                $this->builder->createGetElementPtr(
+                    $varData->getValue(),
+                    $this->buildExpr($expr->dim)
+                )
+            );
         } else {
             throw new \Exception("unknown node type in expr: " . get_class($expr));
         }
@@ -258,14 +235,14 @@ class IRGenerationPass /* extends PassInterface??? */
     /**
      * @param array<\PhpParser\Node\Param> $params
      */
-    public function resolveParams(array $params): void
+    public function buildParams(array $params): void
     {
         foreach ($params as $param) {
-            $this->resolveParam($param);
+            $this->buildParam($param);
         }
     }
 
-    public function resolveParam(\PhpParser\Node\Param $param): void
+    public function buildParam(\PhpParser\Node\Param $param): void
     {
     }
 }
