@@ -80,15 +80,15 @@ class Build extends Command
         assert($f !== false);
         $pass->module->print($f);
 
-        $optimizedIR = "{$buildPath}/optimized.ll";
+        $optimizedIR = $llvmIRoutput;//"{$buildPath}/optimized.ll";
         $exe = "{$buildPath}/a.out";
 
         $llvmPath = config('app.llvm_path');
         assert(is_string($llvmPath));
         $llvmPath .= "/";
         $result = 0;
-        exec("{$llvmPath}/opt -Os -S -o {$optimizedIR} {$llvmIRoutput}", result_code: $result);
-        assert($result === 0);
+        //exec("{$llvmPath}/opt -Os -S -o {$optimizedIR} {$llvmIRoutput}", result_code: $result);
+        //assert($result === 0);
 
         exec("{$llvmPath}/clang -o {$exe} {$optimizedIR}", result_code: $result);
         assert($result === 0);
