@@ -19,7 +19,7 @@ class Build extends Command
      *
      * @var string
      */
-    protected $signature = 'build {filename}';
+    protected $signature = 'build {filename} {--out=a.out} {--with-opt-ll=off} {--debug}';
 
     /**
      * The console command description.
@@ -49,10 +49,12 @@ class Build extends Command
         $transformedCode = "{$buildPath}/transformed_code.php";
         $llvmIRoutput = "{$buildPath}/out.ll";
 
-        exec("rm -f {$buildPath}/a.out {$buildPath}/*.json {$buildPath}/*.ll");
+        exec("rm -f {$buildPath}/*");
 
-        // for debugging
-        file_put_contents($astOutput, json_encode($ast, JSON_PRETTY_PRINT));
+        $debug = $this->option('debug') === true;
+        if ($debug) {
+            file_put_contents($astOutput, json_encode($ast, JSON_PRETTY_PRINT));
+        }
 
         $traverser = new NodeTraverser();
         $traverser->addVisitor(new ClassToFunctionVisitor());
@@ -62,33 +64,43 @@ class Build extends Command
         $traverser->addVisitor(new GlobalToMainVisitor());
         $transformedAst = $traverser->traverse($transformedAst);
 
-        $prettyPrinter = new Standard();
-        file_put_contents($transformedCode, $prettyPrinter->prettyPrintFile($transformedAst));
+        if ($debug) {
+            $prettyPrinter = new Standard();
+            file_put_contents($transformedCode, $prettyPrinter->prettyPrintFile($transformedAst));
+        }
 
         $symbolTable = new \App\PicoHP\SymbolTable();
         $symbolTable->resolveStmts($transformedAst);
 
-        // for debugging
-        $astWithSymbolOutput = "{$buildPath}/ast_sym.json";
-        file_put_contents($astWithSymbolOutput, json_encode($transformedAst, JSON_PRETTY_PRINT));
+        if ($debug) {
+            $astWithSymbolOutput = "{$buildPath}/ast_sym.json";
+            file_put_contents($astWithSymbolOutput, json_encode($transformedAst, JSON_PRETTY_PRINT));
+        }
 
         $pass = new \App\PicoHP\Pass\IRGenerationPass($transformedAst);
         $pass->exec();
 
-        // to test with llvm
         $f = fopen($llvmIRoutput, 'w');
         assert($f !== false);
         $pass->module->print($f);
 
-        $optimizedIR = $llvmIRoutput;//"{$buildPath}/optimized.ll";
-        $exe = "{$buildPath}/a.out";
+        $outfile = $this->option('out');
+        assert(is_string($outfile));
+        $exe = "{$buildPath}/{$outfile}";
 
         $llvmPath = config('app.llvm_path');
         assert(is_string($llvmPath));
         $llvmPath .= "/";
         $result = 0;
-        //exec("{$llvmPath}/opt -Os -S -o {$optimizedIR} {$llvmIRoutput}", result_code: $result);
-        //assert($result === 0);
+
+        if ($this->option('with-opt-ll') === 'off') {
+            $optimizedIR = $llvmIRoutput;
+        } else {
+            $optParam = is_string($this->option('with-opt-ll')) ? $this->option('with-opt-ll') : 's';
+            $optimizedIR = "{$buildPath}/optimized.ll";
+            exec("{$llvmPath}/opt -O{$optParam} -S -o {$optimizedIR} {$llvmIRoutput}", result_code: $result);
+            assert($result === 0);
+        }
 
         exec("{$llvmPath}/clang -o {$exe} {$optimizedIR}", result_code: $result);
         assert($result === 0);
