@@ -15,7 +15,9 @@ jobs:
     - uses: shivammathur/setup-php@v2
       with:
         php-version: pre-installed
+        ini-file: development
         ini-values: zend.assertions=1, assert.exception=1
+        coverage: pcov
     - uses: actions/checkout@v4
     - name: Verify PHP Install
       run: php -i
