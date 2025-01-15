@@ -12,10 +12,9 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-    - uses: shivammathur/setup-php@15c43e89cdef867065b0213be354c2841860869e
+    - uses: shivammathur/setup-php@v2
       with:
         php-version: pre-installed
-        ini-file: development
         ini-values: zend.assertions=1, assert.exception=1
     - uses: actions/checkout@v4
     - name: Verify PHP Install
