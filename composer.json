@@ -24,6 +24,7 @@
         "phpstan/phpstan-strict-rules": "^2.0"
     },
     "require-dev": {
+        "brainmaestro/composer-git-hooks": "^3.0",
         "laravel/pint": "^1.18.1",
         "mockery/mockery": "^1.6.12",
         "pestphp/pest": "^3.5.1"
@@ -50,9 +51,25 @@
     },
     "scripts": {
         "phpstan": "php -d memory_limit=-1 vendor/bin/phpstan analyse --configuration phpstan.neon --debug",
-        "pint": "vendor/bin/pint"
+        "test": "vendor/bin/pest",
+        "pint": "vendor/bin/pint",
+        "all": [
+            "@phpstan",
+            "@test",
+            "@pint"
+        ]
     },
     "minimum-stability": "stable",
     "prefer-stable": true,
-    "bin": ["picohp"]
+    "bin": ["picohp"],
+    "extra": {
+        "hooks": {
+            "config": {
+                "stop-on-failure": ["pre-commit"]
+            },
+            "pre-commit": [
+                "composer run-script all"
+            ]
+        }
+    }
 }
