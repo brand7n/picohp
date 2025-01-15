@@ -102,11 +102,9 @@ class SymbolTable
         $pData = $this->getPicoData($stmt);
 
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
-            $scope = $this->getCurrentScope();
             if ($stmt->name->name !== 'main') {
-                $scope = $this->enterScope();
+                $pData->setScope($this->enterScope());
             }
-            $pData->setScope($scope);
             $this->resolveParams($stmt->params);
             $this->resolveStmts($stmt->stmts);
             if ($stmt->name->name !== 'main') {
@@ -119,7 +117,6 @@ class SymbolTable
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Expression) {
             $doc = $stmt->getDocComment();
             $type = $this->resolveExpr($stmt->expr, $doc);
-            //echo "stmt expr type: {$type}" . PHP_EOL;
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Return_) {
             // TODO: verify return type of function matches expression
             if (!is_null($stmt->expr)) {
@@ -200,6 +197,8 @@ class SymbolTable
             assert($type === "int");
             return "int";
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Int_) {
+            // TODO: github problem?
+            var_dump($pData);
             return "int";
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Float_) {
             return "float";
