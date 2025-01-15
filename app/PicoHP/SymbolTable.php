@@ -159,7 +159,8 @@ class SymbolTable
             $type = $this->resolveExpr($expr->var, $doc, lVal: $lVal);
             assert($type === 'string', "$type is not a string");
             assert($expr->dim !== null);
-            assert($this->resolveExpr($expr->dim) === 'int');
+            $dimType = $this->resolveExpr($expr->dim);
+            assert($dimType === 'int');
             // if doc is null type will be from a retrieved value
             return "int"; // really a char/byte or maybe a single byte string?
         } elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp) {
