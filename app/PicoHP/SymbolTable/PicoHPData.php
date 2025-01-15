@@ -34,10 +34,6 @@ class PicoHPData
     public static function getPData(\PhpParser\Node $node): PicoHPData
     {
         $pData = $node->getAttribute("picoHP");
-        if ($pData === null || !$pData instanceof PicoHPData) {
-            var_dump($node);
-            echo (new \Exception())->getTraceAsString() . PHP_EOL;
-        }
         assert($pData instanceof PicoHPData);
         return $pData;
     }

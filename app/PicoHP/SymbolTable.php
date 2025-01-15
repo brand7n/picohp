@@ -70,14 +70,6 @@ class SymbolTable
         return $this->getCurrentScope()->lookup($name);
     }
 
-    /**
-     * Print the symbol table for debugging purposes.
-     */
-    public function __toString(): string
-    {
-        return var_export($this, true);
-    }
-
     protected function getCurrentScope(): Scope
     {
         $scope = Arr::last($this->scopes);
@@ -197,8 +189,6 @@ class SymbolTable
             assert($type === "int");
             return "int";
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Int_) {
-            // TODO: github problem?
-            var_dump($pData);
             return "int";
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Float_) {
             return "float";
