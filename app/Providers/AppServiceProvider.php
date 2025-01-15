@@ -11,7 +11,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // ensure we throw exceptions in case of assertion failure
+        ini_set('zend.assertions', '1');
+        ini_set('assert.exception', '1');
     }
 
     /**
