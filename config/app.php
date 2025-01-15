@@ -58,6 +58,6 @@ return [
     ],
 
     'llvm_path' => env('LLVM_PATH', '/usr/bin'),
-    'build_path' => env('BUILD_PATH', '/tmp'),
+    'build_path' => env('BUILD_PATH', '/tmp/picoHP'),
 
 ];

@@ -2,52 +2,12 @@
 
 declare(strict_types=1);
 
-use PhpParser\ParserFactory;
 
 it('calls a picoHP lib from PHP', function () {
-    $parser = (new ParserFactory())->createForNewestSupportedVersion();
+    /** @phpstan-ignore-next-line */
+    $this->artisan('build examples/php_ception.php --shared-lib --out=ffitest.so')->assertExitCode(0);
 
-    $code = <<<'CODE'
-    <?php
-
-    function ffitest(): int {
-        /** @var int */
-        $a = 4;
-        /** @var int */
-        $b = 5;
-        /** @var int */
-        $c = 64;
-        /** @var int */
-        $d = 32;
-        return ($b + ($a * 3)) | ($d & ($c / 2));
-    }
-
-    CODE;
-
-    $stmts = $parser->parse($code);
-
-    if (is_null($stmts)) {
-        throw new \Exception("stmts is null");
-    }
-
-    $symbolTable = new \App\PicoHP\SymbolTable();
-    $symbolTable->resolveStmts($stmts);
-
-    $pass = new \App\PicoHP\Pass\IRGenerationPass($stmts);
-    $pass->exec();
-
-    // TODO: write output to storage/build dir?
-    $f = fopen('out.ll', 'w');
-    if ($f === false) {
-        throw new \Exception("unable to open out.ll");
-    }
-    $pass->module->print($f);
-
-    $result = 0;
-    exec('clang -shared -undefined dynamic_lookup -o ffitest.so out.ll', result_code: $result);
-    expect($result)->toBe(0);
-
-    $ffi = FFI::cdef("int ffitest();", "./ffitest.so");
+    $ffi = FFI::cdef("int ffitest();", "./build/ffitest.so");
     /** @phpstan-ignore-next-line */
     expect($ffi->ffitest())->toBe(49);
 });

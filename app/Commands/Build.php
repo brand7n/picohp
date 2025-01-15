@@ -19,7 +19,7 @@ class Build extends Command
      *
      * @var string
      */
-    protected $signature = 'build {filename} {--out=a.out} {--with-opt-ll=off} {--debug}';
+    protected $signature = 'build {filename} {--out=a.out} {--with-opt-ll=off} {--debug} {--shared-lib}';
 
     /**
      * The console command description.
@@ -45,11 +45,14 @@ class Build extends Command
 
         $buildPath = config('app.build_path');
         assert(is_string($buildPath));
+        if (!is_dir($buildPath)) {
+            mkdir($buildPath, 0700, true);
+        } else {
+            exec("rm -f {$buildPath}/*");
+        }
         $astOutput = "{$buildPath}/ast.json";
         $transformedCode = "{$buildPath}/transformed_code.php";
         $llvmIRoutput = "{$buildPath}/out.ll";
-
-        exec("rm -f {$buildPath}/*");
 
         $debug = $this->option('debug') === true;
         if ($debug) {
@@ -102,7 +105,11 @@ class Build extends Command
             assert($result === 0);
         }
 
-        exec("{$llvmPath}/clang -o {$exe} {$optimizedIR}", result_code: $result);
+        $sharedLibOpts = '';
+        if ($this->option('shared-lib') === true) {
+            $sharedLibOpts = '-shared -undefined dynamic_lookup';
+        }
+        exec("{$llvmPath}/clang {$sharedLibOpts} -o {$exe} {$optimizedIR}", result_code: $result);
         assert($result === 0);
     }
 
