@@ -59,6 +59,10 @@ class Build extends Command
             file_put_contents($astOutput, json_encode($ast, JSON_PRETTY_PRINT));
         }
 
+        // TODO: add static analysis pass (psalm, phpstan, etc)
+
+        // TODO: add name resolver visitor
+
         $traverser = new NodeTraverser();
         $traverser->addVisitor(new ClassToFunctionVisitor());
         $transformedAst = $traverser->traverse($ast);
@@ -67,9 +71,13 @@ class Build extends Command
         $traverser->addVisitor(new GlobalToMainVisitor());
         $transformedAst = $traverser->traverse($transformedAst);
 
+        // TODO: transform exceptions?
+
         if ($debug) {
             $prettyPrinter = new Standard();
             file_put_contents($transformedCode, $prettyPrinter->prettyPrintFile($transformedAst));
+
+            // TODO: rerun static analysis on transformed output?
         }
 
         $symbolTable = new \App\PicoHP\SymbolTable();

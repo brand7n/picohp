@@ -8,15 +8,24 @@ use App\PicoHP\LLVM\ValueAbstract;
 
 class Symbol
 {
-    public string $name;
-    public string $type;
+    public string $name; // variable or function name
+    public string $type; // e.g. "int", "string", "float", "mixed", "void"
+    /** @var array<string> */
+    public array $params;
     public ?ValueAbstract $value;
 
-    public function __construct(string $name, string $type, ?ValueAbstract $value = null)
+    /** @param array<string> $params */
+    public function __construct(string $name, string $type, array $params = [], ?ValueAbstract $value = null)
     {
         $this->name = $name;
         $this->type = $type;
         $this->value = $value;
+        $this->params = $params;
+    }
+
+    public function isFunction(): bool
+    {
+        return count($this->params) > 0;
     }
 
     public function __toString(): string

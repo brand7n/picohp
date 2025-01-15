@@ -24,6 +24,7 @@ class Scope
             throw new \Exception("symbol already exists in this scope");
         }
         $this->symbols[$s->name] = $s;
+        //dump($this->symbols);
         return $s;
     }
 

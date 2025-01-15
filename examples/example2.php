@@ -1,6 +1,6 @@
 <?php
 
-function calc(): int
+function calc(int $g): int
 {
     /** @var int */
     $a = 4;
@@ -14,7 +14,8 @@ function calc(): int
     $e = true;
     /** @var float */
     $f = 4.234;
+    echo(g);
     return ($b + ((int)$f * 3)) | ($d & ($c / 2)) + (int)$e;
 }
 
-return calc();
+return calc(5);

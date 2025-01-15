@@ -94,11 +94,14 @@ class SymbolTable
         $pData = $this->getPicoData($stmt);
 
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
+            $this->addSymbol($stmt->name->name, "int");
             if ($stmt->name->name !== 'main') {
                 $pData->setScope($this->enterScope());
             }
+
             $this->resolveParams($stmt->params);
             $this->resolveStmts($stmt->stmts);
+
             if ($stmt->name->name !== 'main') {
                 $this->exitScope();
             }
@@ -213,12 +216,29 @@ class SymbolTable
         } elseif ($expr instanceof \PhpParser\Node\Expr\ConstFetch) {
             return "bool";
         } elseif ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
-            // TODO: resolve the proper return type
-            return "float";
+            $argTypes = $this->resolveArgs($expr->args);
+            assert($expr->name instanceof \PhpParser\Node\Name);
+            $s = $this->lookup($expr->name->name);
+            //assert(is_string($s->type));
+            return "int";//$s->type;
         } else {
             $line = $this->getLine($expr);
             throw new \Exception("line {$line}, unknown node type in expr resolver: " . get_class($expr));
         }
+    }
+
+    /**
+     * @param array<\PhpParser\Node\Arg|\PhpParser\Node\VariadicPlaceholder> $args
+     * @return array<string>
+     */
+    public function resolveArgs(array $args): array
+    {
+        $argTypes = [];
+        foreach ($args as $arg) {
+            assert($arg instanceof \PhpParser\Node\Arg);
+            $argTypes[] = $this->resolveExpr($arg->value);
+        }
+        return $argTypes;
     }
 
     /**
@@ -227,15 +247,10 @@ class SymbolTable
     public function resolveParams(array $params): void
     {
         foreach ($params as $param) {
-            $this->resolveParam($param);
+            assert($param->var instanceof \PhpParser\Node\Expr\Variable);
+            assert(is_string($param->var->name));
+            $this->addSymbol($param->var->name, "int");
         }
-    }
-
-    public function resolveParam(\PhpParser\Node\Param $param): void
-    {
-        // TODO: fix this
-        // for now supply the emptpy Doc node so the parameter is added to the symbol table
-        $this->resolveExpr($param->var, new \PhpParser\Comment\Doc(''));
     }
 
     protected function getLine(\PhpParser\Node $node): int
