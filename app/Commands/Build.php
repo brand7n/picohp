@@ -75,6 +75,7 @@ class Build extends Command
         $astWithSymbolOutput = "{$buildPath}/ast_sym.json";
         file_put_contents($astWithSymbolOutput, json_encode($transformedAst, JSON_PRETTY_PRINT));
 
+        echo json_encode($transformedAst, JSON_PRETTY_PRINT) . PHP_EOL;
         $pass = new \App\PicoHP\Pass\IRGenerationPass($transformedAst);
         $pass->exec();
 
