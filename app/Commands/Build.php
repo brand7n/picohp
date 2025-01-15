@@ -46,7 +46,6 @@ class Build extends Command
         $buildPath = config('app.build_path');
         assert(is_string($buildPath));
         $astOutput = "{$buildPath}/ast.json";
-        $transformedAstOutput = "{$buildPath}/transformed_ast.json";
         $transformedCode = "{$buildPath}/transformed_code.php";
         $llvmIRoutput = "{$buildPath}/out.ll";
 
@@ -63,8 +62,6 @@ class Build extends Command
         $traverser->addVisitor(new GlobalToMainVisitor());
         $transformedAst = $traverser->traverse($transformedAst);
 
-        // for debugging
-        file_put_contents($transformedAstOutput, json_encode($transformedAst, JSON_PRETTY_PRINT));
         $prettyPrinter = new Standard();
         file_put_contents($transformedCode, $prettyPrinter->prettyPrintFile($transformedAst));
 
@@ -75,7 +72,6 @@ class Build extends Command
         $astWithSymbolOutput = "{$buildPath}/ast_sym.json";
         file_put_contents($astWithSymbolOutput, json_encode($transformedAst, JSON_PRETTY_PRINT));
 
-        echo json_encode($transformedAst, JSON_PRETTY_PRINT) . PHP_EOL;
         $pass = new \App\PicoHP\Pass\IRGenerationPass($transformedAst);
         $pass->exec();
 
