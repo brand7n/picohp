@@ -117,7 +117,7 @@ class Build extends Command
         if ($this->option('shared-lib') === true) {
             $sharedLibOpts = '-shared -undefined dynamic_lookup';
         }
-        exec("{$llvmPath}/clang {$sharedLibOpts} -o {$exe} {$optimizedIR}", result_code: $result);
+        exec("{$llvmPath}/clang -Wno-override-module {$sharedLibOpts} -o {$exe} {$optimizedIR}", result_code: $result);
         assert($result === 0);
     }
 

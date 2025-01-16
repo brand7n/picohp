@@ -51,12 +51,16 @@
     },
     "scripts": {
         "phpstan": "php -d memory_limit=-1 vendor/bin/phpstan analyse --configuration phpstan.neon --debug",
-        "test": "vendor/bin/pest",
-        "pint": "vendor/bin/pint",
+        "pest": "vendor/bin/pest",
+        "check": [
+            "@phpstan",
+            "@pest",
+            "vendor/bin/pint --test"
+        ],
         "all": [
             "@phpstan",
-            "@test",
-            "@pint"
+            "@pest",
+            "vendor/bin/pint"
         ]
     },
     "minimum-stability": "stable",
@@ -69,7 +73,7 @@
             },
             "pre-commit": [
                 "git stash -k",
-                "composer run-script all"
+                "composer run-script check"
             ]
         }
     }

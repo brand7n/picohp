@@ -9,10 +9,13 @@ class PicoHPData
     protected Scope $scope;
     public ?Symbol $symbol;
     public bool $lVal = false;
+    public int $mycount = 0;
+    public static int $count = 1;
 
     public function __construct(Scope $scope)
     {
         $this->scope = $scope;
+        $this->mycount = self::$count++; // TODO: reset every function, hash w/ name, what???
     }
 
     public function setScope(Scope $scope): void
