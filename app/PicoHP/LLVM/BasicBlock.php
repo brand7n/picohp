@@ -2,13 +2,13 @@
 
 namespace App\PicoHP\LLVM;
 
+use Illuminate\Support\Str;
 use App\PicoHP\Tree\{NodeInterface, NodeTrait};
 
 class BasicBlock implements NodeInterface
 {
     use NodeTrait;
 
-    // TODO: always end with branch or return
     protected string $name;
 
     /**
@@ -37,6 +37,15 @@ class BasicBlock implements NodeInterface
      */
     public function getLines(): array
     {
+        $this->verify();
         return $this->lines;
+    }
+
+    public function verify(): void
+    {
+        $lastLine = end($this->lines);
+        if ($lastLine === false || !Str::startsWith(trim($lastLine->toString()), ['ret', 'br'])) {
+            throw new \RuntimeException('Basic block must end with ret or br');
+        }
     }
 }
