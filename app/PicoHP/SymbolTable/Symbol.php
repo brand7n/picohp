@@ -22,19 +22,4 @@ class Symbol
         $this->value = $value;
         $this->params = $params;
     }
-
-    public function isFunction(): bool
-    {
-        return count($this->params) > 0;
-    }
-
-    public function __toString(): string
-    {
-        return sprintf(
-            "Symbol(name: %s, type: %s, value: %s)",
-            $this->name,
-            $this->type,
-            var_export($this->value, true),
-        );
-    }
 }

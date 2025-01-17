@@ -19,9 +19,4 @@ class AllocaInst extends Instruction
     {
         return "%{$this->getName()}_localptr{$this->count}";
     }
-
-    public static function resetCounter(): void
-    {
-        static::$counter = 1;
-    }
 }

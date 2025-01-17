@@ -28,6 +28,8 @@ it('can manipulate a tree with the tree trait', function () {
     $child2 = new TestNode('child2');
 
     $root->addChild($child1);
+    $root = $child1->getRoot();
+    assert($root instanceof TestNode);
     $root->addChild($child2);
 
     expect($root->getName())->toBe('root');
@@ -38,4 +40,8 @@ it('can manipulate a tree with the tree trait', function () {
     $parent = $child1->getParent();
     assert($parent instanceof TestNode);
     expect($parent->getName())->toBe('root');
+
+    $root->removeChild($child1);
+    $root->removeChild($child2);
+    expect($root->hasChildren())->toBeFalse();
 });

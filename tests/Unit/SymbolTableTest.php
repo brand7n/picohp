@@ -23,3 +23,10 @@ it('can store symbols in the symbol table', function () {
     }
     expect($s->type)->toBe("int");
 });
+
+it('doesn\'t store the same symbol twice', function () {
+    $symbolTable = new SymbolTable();
+
+    $symbolTable->addSymbol("x", "int");
+    $symbolTable->addSymbol("x", "int");
+})->throws(\Exception::class, "symbol already exists in this scope");
