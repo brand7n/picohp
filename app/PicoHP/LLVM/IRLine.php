@@ -2,26 +2,19 @@
 
 namespace App\PicoHP\LLVM;
 
-use App\PicoHP\Tree\{NodeInterface, NodeTrait};
-
-class IRLine implements NodeInterface
+class IRLine
 {
-    use NodeTrait;
+    private string $text;
+    private int $indent;
 
-    private string $name;
-
-    public function __construct(string $name)
+    public function __construct(string $text = '', int $indent = 0)
     {
-        $this->name = $name;
-    }
-
-    public function getName(): string
-    {
-        return $this->name;
+        $this->text = $text;
+        $this->indent = $indent;
     }
 
     public function toString(): string
     {
-        return $this->name;
+        return str_repeat(' ', $this->indent * 4) . $this->text;
     }
 }

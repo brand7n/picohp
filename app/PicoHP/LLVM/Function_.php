@@ -11,7 +11,6 @@ class Function_ implements NodeInterface
     use NodeTrait;
 
     protected string $name;
-    protected ?BasicBlock $currentBasicBlock = null;
 
     public function __construct(string $name)
     {
@@ -22,7 +21,6 @@ class Function_ implements NodeInterface
     {
         $bb = new BasicBlock($name);
         $this->addChild($bb);
-        $this->currentBasicBlock = $bb;
         return $bb;
     }
 
@@ -40,12 +38,7 @@ class Function_ implements NodeInterface
         $code[] = new IRLine("define dso_local i32 @{$this->name}() {");
         foreach ($this->getChildren() as $bb) {
             assert($bb instanceof BasicBlock);
-            $code[] = new IRLine($bb->getName() . ":");
-            $lines = $bb->getChildren();
-            foreach ($lines as $line) {
-                assert($line instanceof IRLine);
-                $code[] = $line;
-            }
+            $code = array_merge($code, $bb->getLines());
         }
         $code[] = new IRLine("}");
         return $code;

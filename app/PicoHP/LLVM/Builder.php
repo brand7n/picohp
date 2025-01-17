@@ -139,11 +139,40 @@ class Builder
 
     protected function addLine(string $line = '', int $indent = 0): void
     {
-        $line = str_repeat(' ', $indent * 4) . $line;
         if ($this->currentBasicBlock !== null) {
-            $this->currentBasicBlock->addLine(new IRLine($line));
+            $this->currentBasicBlock->addLine(new IRLine($line, $indent));
         } else {
             $this->module->addLine(new IRLine($line));
         }
     }
 }
+
+/*
+    {
+        // $this->addLine('define void @poke(i32 %addr, i32 %value) {');
+        // $this->addLine('    %ptr = inttoptr i32 %addr to ptr');
+        // $this->addLine('    store i32 %value, i32* %ptr');
+        // $this->addLine('    ret void');
+        // $this->addLine('}');
+        // $this->addLine('define i32 @peek(i32 %addr) {');
+        // $this->addLine('    %ptr = inttoptr i32 %addr to ptr');
+        // $this->addLine('    %val = load i32, i32* %ptr');
+        // $this->addLine('    ret i32 %val');
+        // $this->addLine('}');
+        // $this->addLine('define i32 @float_to_fixed(float %value, i32 %fractional_bits) {');
+        // $this->addLine('    %scaling_factor = shl i32 1, %fractional_bits');
+        // $this->addLine('    %scaling_factor_float = sitofp i32 %scaling_factor to float');
+        // $this->addLine('    %scaled_value = fmul float %value, %scaling_factor_float');
+        // $this->addLine('    %fixed_point = fptosi float %scaled_value to i32');
+        // $this->addLine('    ret i32 %fixed_point');
+        // $this->addLine('}');
+        // $this->addLine('define float @fixed_to_float(i32 %fixed_point, i32 %fractional_bits) {');
+        // $this->addLine('    %scaling_factor = shl i32 1, %fractional_bits');
+        // $this->addLine('    %scaling_factor_float = sitofp i32 %scaling_factor to float');
+        // $this->addLine('    %float_value = sitofp i32 %fixed_point to float');
+        // $this->addLine('    %result = fdiv float %float_value, %scaling_factor_float');
+        // $this->addLine('    ret float %result');
+        // $this->addLine('}');
+        // $this->addLine();
+    }
+*/
