@@ -39,26 +39,3 @@ abstract class ValueAbstract
 
     abstract public function render(): string;
 }
-/*
-
-// Function to generate LLVM IR function definition
-class FunctionDefinition {
-    private $name;
-    private $returnType;
-    private $args = [];
-
-    public function __construct($name, $returnType) {
-        $this->name = $name;
-        $this->returnType = $returnType;
-    }
-
-    public function addArgument($type) {
-        $this->args[] = $type;
-    }
-
-    public function __toString() {
-        $argTypes = implode(", ", $this->args);
-        return "define {$this->returnType} @{$this->name}({$argTypes}) {\n";
-    }
-}
-*/

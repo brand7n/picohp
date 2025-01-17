@@ -9,21 +9,16 @@ class TestNode implements NodeInterface
 {
     use NodeTrait;
 
-    private string $value;
+    private string $name;
 
-    public function __construct(string $value)
+    public function __construct(string $name)
     {
-        $this->setValue($value);
+        $this->name = $name;
     }
 
-    public function setValue(string $value): void
+    public function getName(): string
     {
-        $this->value = $value;
-    }
-
-    public function getValue(): string
-    {
-        return $this->value;
+        return $this->name;
     }
 }
 
@@ -35,12 +30,12 @@ it('can manipulate a tree with the tree trait', function () {
     $root->addChild($child1);
     $root->addChild($child2);
 
-    expect($root->getValue())->toBe('root');
-    expect($child1->getValue())->toBe('child1');
-    expect($child2->getValue())->toBe('child2');
+    expect($root->getName())->toBe('root');
+    expect($child1->getName())->toBe('child1');
+    expect($child2->getName())->toBe('child2');
 
     expect($root->hasChildren())->toBeTrue();
     $parent = $child1->getParent();
     assert($parent instanceof TestNode);
-    expect($parent->getValue())->toBe('root');
+    expect($parent->getName())->toBe('root');
 });

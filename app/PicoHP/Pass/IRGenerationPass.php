@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\PicoHP\Pass;
 
-use App\PicoHP\LLVM\{Module, Builder, Function_, ValueAbstract, Type};
+use App\PicoHP\LLVM\{Module, Builder, ValueAbstract, Type};
 use App\PicoHP\LLVM\Value\{Constant, Void_};
 use App\PicoHP\SymbolTable\{Symbol, PicoHPData};
 use Illuminate\Support\Collection;
@@ -50,8 +50,9 @@ class IRGenerationPass /* extends PassInterface??? */
         $pData = PicoHPData::getPData($stmt);
 
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
-            $function = new Function_($stmt->name->toString(), $this->module);
-            $this->builder->setInsertPoint($function);
+            $function = $this->module->addFunction($stmt->name->toString());
+            $bb = $function->addBasicBlock("entry");
+            $this->builder->setInsertPoint($bb);
             $this->buildParams($stmt->params);
             $scope = $pData->getScope();
             foreach ($scope->symbols as $symbol) {
@@ -74,7 +75,6 @@ class IRGenerationPass /* extends PassInterface??? */
                 $symbol->value = $this->builder->createAlloca($symbol->name, $type);
             }
             $this->buildStmts($stmt->stmts);
-            $this->builder->endFunction();
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Block) {
             $this->buildStmts($stmt->stmts);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Expression) {

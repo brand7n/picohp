@@ -7,10 +7,10 @@ namespace App\PicoHP\Tree;
 interface NodeInterface
 {
     // Set the string value
-    public function setValue(string $value): void;
+    // public function setValue(string $value): void;
 
     // Get the string value
-    public function getValue(): string;
+    public function getName(): string;
 
     public function getParent(): ?NodeInterface;
 
