@@ -53,6 +53,8 @@
     "scripts": {
         "phpstan": "php -d memory_limit=-1 vendor/bin/phpstan analyse --configuration phpstan.neon --debug",
         "pest": "vendor/bin/pest",
+        "coverage": "vendor/bin/pest --coverage",
+        "pint": "vendor/bin/pint",
         "check": [
             "@phpstan",
             "@pest",
@@ -61,7 +63,7 @@
         "all": [
             "@phpstan",
             "@pest",
-            "vendor/bin/pint"
+            "@pint"
         ]
     },
     "minimum-stability": "stable",
