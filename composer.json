@@ -26,6 +26,7 @@
     "require-dev": {
         "brainmaestro/composer-git-hooks": "^3.0",
         "laravel/pint": "^1.18.1",
+        "laravel/tinker": "^2.10",
         "mockery/mockery": "^1.6.12",
         "pestphp/pest": "^3.5.1"
     },
