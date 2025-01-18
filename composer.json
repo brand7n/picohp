@@ -54,6 +54,10 @@
         "phpstan": "php -d memory_limit=-1 vendor/bin/phpstan analyse --configuration phpstan.neon --debug",
         "pest": "vendor/bin/pest",
         "coverage": "vendor/bin/pest --coverage",
+        "mutate": [
+            "Composer\\Config::disableProcessTimeout",
+            "vendor/bin/pest --mutate"
+        ],
         "pint": "vendor/bin/pint",
         "check": [
             "@phpstan",
