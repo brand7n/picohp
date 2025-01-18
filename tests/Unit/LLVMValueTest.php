@@ -67,7 +67,7 @@ it('can create a void value', function () {
     $void->render();
 })->throws(\RuntimeException::class, 'Cannot render a void value');
 
-// Copilot generated test:
+// partially generated from Copilot:
 it('generates IR using LLVM Values with branches and phi nodes', function () {
     // Example of using the system
     $module = new Module("test_module");

@@ -129,6 +129,9 @@ class SymbolTable
             if (!is_null($stmt->else)) {
                 $this->resolveStmts($stmt->else->stmts);
             }
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\While_) {
+            $this->resolveExpr($stmt->cond);
+            $this->resolveStmts($stmt->stmts);
         } else {
             $line = $this->getLine($stmt);
             throw new \Exception("line: {$line}, unknown node type in stmt resolver: " . get_class($stmt));

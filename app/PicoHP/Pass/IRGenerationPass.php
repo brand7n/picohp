@@ -112,6 +112,22 @@ class IRGenerationPass /* extends PassInterface??? */
             }
             $this->builder->createBranch([$endLabel]);
             $this->builder->setInsertPoint($endBB);
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\While_) {
+            assert($this->currentFunction !== null);
+            $condBB = $this->currentFunction->addBasicBlock("cond{$pData->mycount}");
+            $bodyBB = $this->currentFunction->addBasicBlock("body{$pData->mycount}");
+            $endBB = $this->currentFunction->addBasicBlock("end{$pData->mycount}");
+            $condLabel = new Label($condBB->getName());
+            $bodyLabel = new Label($bodyBB->getName());
+            $endLabel = new Label($endBB->getName());
+            $this->builder->createBranch([$condLabel]);
+            $this->builder->setInsertPoint($condBB);
+            $cond = $this->buildExpr($stmt->cond);
+            $this->builder->createBranch([$cond, $bodyLabel, $endLabel]);
+            $this->builder->setInsertPoint($bodyBB);
+            $this->buildStmts($stmt->stmts);
+            $this->builder->createBranch([$condLabel]);
+            $this->builder->setInsertPoint($endBB);
         } else {
             throw new \Exception("unknown node type in stmt: " . get_class($stmt));
         }
