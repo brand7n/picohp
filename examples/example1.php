@@ -28,6 +28,11 @@ class Test
 function start(): int
 {
     /** @var int */
+    $a = 5;
+    while ($a > 0) {
+        $a = $a - 1;
+        echo $a;
+    }
     $a = 1234 * 5 + 0xf3;
     return $a;
 }
