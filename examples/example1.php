@@ -8,10 +8,16 @@ class Test
     public static int $value = 0;
     public static function test1(): int
     {
+        {
+            echo 1234 << 1;
+        }
+        /** @var int */
+        $c = (int)(1 < 2) / (int)(int)(2 > 1) - (int)(1 == 1);
+        echo "Hello: {$c}";
         echo(1.234);
-        echo((float)1);
+        echo((float)(float)(1 >> 2));
         /** @var string */
-        $a[5] = 4;
+        $a[5] = -4;
         //echo start();
         echo $a[5];
         //return start();
