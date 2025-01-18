@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\PicoHP\LLVM;
 
 use Illuminate\Support\Collection;
-use App\PicoHP\LLVM\Value\{Instruction, Void_, AllocaInst, Global_};
+use App\PicoHP\LLVM\Value\{Instruction, Void_, AllocaInst, Global_, Label};
 
 class Builder
 {
@@ -48,6 +48,22 @@ class Builder
             $this->addLine("{$opcode} i32 {$operandString}", 1);
         }
         return $resultVal;
+    }
+    /**
+     * @param array<ValueAbstract> $operands
+     */
+    public function createBranch(array $operands): ValueAbstract
+    {
+        if (count($operands) === 1) {
+            assert($operands[0] instanceof Label);
+            $this->addLine("br label {$operands[0]->render()}", 1);
+        } elseif (count($operands) === 3) {
+            assert($operands[1] instanceof Label && $operands[2] instanceof Label);
+            $this->addLine("br i1 {$operands[0]->render()}, label {$operands[1]->render()}, label {$operands[2]->render()}", 1);
+        } else {
+            throw new \RuntimeException('Invalid branch operands');
+        }
+        return new Void_();
     }
 
     public function createAlloca(string $name, Type $type): ValueAbstract

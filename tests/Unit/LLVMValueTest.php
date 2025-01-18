@@ -96,13 +96,13 @@ it('generates IR using LLVM Values with branches and phi nodes', function () {
     $cmpVal = $builder->createInstruction('icmp eq', [$addVal, $const3]);
 
     // TODO: fix output
-    $builder->createInstruction('br', [$cmpVal, $label2, $label3], false);
+    $builder->createBranch([$cmpVal, $label2, $label3]);
 
     $builder->setInsertPoint($bb2);
-    $builder->createInstruction('br', [$label4], false);
+    $builder->createBranch([$label4]);
 
     $builder->setInsertPoint($bb3);
-    $builder->createInstruction('br', [$label4], false);
+    $builder->createBranch([$label4]);
 
     $builder->setInsertPoint($bb4);
 
@@ -117,6 +117,7 @@ it('generates IR using LLVM Values with branches and phi nodes', function () {
     $function = $functions[0];
     assert($function instanceof App\PicoHP\LLVM\Function_);
     expect($function->getName())->toBe('main');
+    expect(count($function->getChildren()))->toBe(4);
     // dump($module);
     // $module->print();
 });
