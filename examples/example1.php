@@ -31,5 +31,18 @@ function start(): int
     $a = 1234 * 5 + 0xf3;
     return $a;
 }
+
+if ($glob > 0) {
+    start();
+} else {
+    Test::test1();
+}
+
+if (Test::$value > 0) {
+    start();
+} else {
+    Test::test1();
+}
+
 echo $glob;
 echo Test::test1();

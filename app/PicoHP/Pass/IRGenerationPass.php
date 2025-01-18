@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\PicoHP\Pass;
 
 use App\PicoHP\LLVM\{Module, Builder, ValueAbstract, Type};
-use App\PicoHP\LLVM\Value\{Constant, Void_};
+use App\PicoHP\LLVM\Value\{Constant, Void_, Label};
 use App\PicoHP\SymbolTable\{Symbol, PicoHPData};
 use Illuminate\Support\Collection;
 
@@ -13,6 +13,7 @@ class IRGenerationPass /* extends PassInterface??? */
 {
     public Module $module;
     protected Builder $builder;
+    protected ?\App\PicoHP\LLVM\Function_ $currentFunction = null;
 
     /**
      * @var array<\PhpParser\Node> $stmts
@@ -50,8 +51,8 @@ class IRGenerationPass /* extends PassInterface??? */
         $pData = PicoHPData::getPData($stmt);
 
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
-            $function = $this->module->addFunction($stmt->name->toString());
-            $bb = $function->addBasicBlock("entry");
+            $this->currentFunction = $this->module->addFunction($stmt->name->toString());
+            $bb = $this->currentFunction->addBasicBlock("entry");
             $this->builder->setInsertPoint($bb);
             $this->buildParams($stmt->params);
             $scope = $pData->getScope();
@@ -92,6 +93,25 @@ class IRGenerationPass /* extends PassInterface??? */
                 $val = $this->buildExpr($expr);
                 $this->builder->createCallPrintf($val);
             }
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\If_) {
+            $cond = $this->buildExpr($stmt->cond);
+            assert($this->currentFunction !== null);
+            $thenBB = $this->currentFunction->addBasicBlock("then{$pData->mycount}");
+            $elseBB = $this->currentFunction->addBasicBlock("else{$pData->mycount}");
+            $endBB = $this->currentFunction->addBasicBlock("end{$pData->mycount}");
+            $thenLabel = new Label($thenBB->getName());
+            $elseLabel = new Label($elseBB->getName());
+            $endLabel = new Label($endBB->getName());
+            $this->builder->createBranch([$cond, $thenLabel, $elseLabel]);
+            $this->builder->setInsertPoint($thenBB);
+            $this->buildStmts($stmt->stmts);
+            $this->builder->createBranch([$endLabel]);
+            $this->builder->setInsertPoint($elseBB);
+            if (!is_null($stmt->else)) {
+                $this->buildStmts($stmt->else->stmts);
+            }
+            $this->builder->createBranch([$endLabel]);
+            $this->builder->setInsertPoint($endBB);
         } else {
             throw new \Exception("unknown node type in stmt: " . get_class($stmt));
         }

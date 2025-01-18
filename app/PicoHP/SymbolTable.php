@@ -123,6 +123,12 @@ class SymbolTable
             foreach ($stmt->exprs as $expr) {
                 $this->resolveExpr($expr);
             }
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\If_) {
+            $this->resolveExpr($stmt->cond);
+            $this->resolveStmts($stmt->stmts);
+            if (!is_null($stmt->else)) {
+                $this->resolveStmts($stmt->else->stmts);
+            }
         } else {
             $line = $this->getLine($stmt);
             throw new \Exception("line: {$line}, unknown node type in stmt resolver: " . get_class($stmt));
