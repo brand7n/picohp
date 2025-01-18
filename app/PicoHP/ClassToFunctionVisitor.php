@@ -63,20 +63,30 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
         }
 
         // Convert static property access (e.g., MyClass::$property)
-        if ($node instanceof Node\Expr\StaticPropertyFetch) {
-            if ($node->class instanceof Node\Name && $node->class->toString() === $this->className) {
-                assert($node->name instanceof Node\VarLikeIdentifier);
+        if ($node instanceof Node\Expr\StaticPropertyFetch || $node instanceof Node\Expr\ClassConstFetch) {
+            if ($node->class instanceof Node\Name && ($node->class->toString() === $this->className || $node->class->toString() === 'self')) {
+                assert($node->name instanceof Node\VarLikeIdentifier || $node->name instanceof Node\Identifier);
                 return new Node\Expr\Variable("{$this->className}_{$node->name->toString()}");
             }
+            // @codeCoverageIgnoreStart
+            assert($node->class instanceof Node\Name);
+            throw new \Exception("Unexpected class name: {$node->class->toString()}");
+            // @codeCoverageIgnoreEnd
         }
 
         // Convert static method calls (e.g., MyClass::methodName())
         if ($node instanceof Node\Expr\StaticCall) {
+            // TODO: handle self::
             if ($node->class instanceof Node\Name && $node->class->toString() === $this->className) {
                 assert($node->name instanceof Node\Identifier);
                 $name = new Node\Name("{$this->className}_{$node->name}");
+                // TODO: handle arguments
                 return new Node\Expr\FuncCall($name);
             }
+            // @codeCoverageIgnoreStart
+            assert($node->class instanceof Node\Name);
+            throw new \Exception("Unexpected class name: {$node->class->toString()}");
+            // @codeCoverageIgnoreEnd
         }
 
         // Remove the class scope entirely

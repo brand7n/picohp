@@ -131,12 +131,12 @@ class Builder
         return $resultVal;
     }
 
-    public function createGlobal(string $name, ValueAbstract $val): ValueAbstract
-    {
-        $resultVal = new Global_($name, $val->getType());
-        $this->addLine("{$resultVal->render()} = internal global {$val->getType()} {$val->render()}");
-        return $resultVal;
-    }
+    // public function createGlobal(string $name, ValueAbstract $val): ValueAbstract
+    // {
+    //     $resultVal = new Global_($name, $val->getType());
+    //     $this->addLine("{$resultVal->render()} = internal global {$val->getType()} {$val->render()}");
+    //     return $resultVal;
+    // }
 
     protected function addLine(string $line = '', int $indent = 0): void
     {

@@ -8,6 +8,8 @@ class Test
     public static int $value = 0;
     public static function test1(): int
     {
+        echo(1.234);
+        echo((float)1);
         /** @var string */
         $a[5] = 4;
         //echo start();

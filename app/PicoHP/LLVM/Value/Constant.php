@@ -19,7 +19,7 @@ class Constant extends ValueAbstract
     }
 
     // Get the constant value
-    protected function getValue(): int|float
+    public function getValue(): int|float
     {
         return $this->value;
     }

@@ -15,6 +15,6 @@ class Void_ extends ValueAbstract
 
     public function render(): string
     {
-        throw new \Exception("don't render void");
+        throw new \RuntimeException('Cannot render a void value');
     }
 }

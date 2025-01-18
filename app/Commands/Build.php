@@ -46,7 +46,9 @@ class Build extends Command
         $buildPath = config('app.build_path');
         assert(is_string($buildPath));
         if (!is_dir($buildPath)) {
+            // @codeCoverageIgnoreStart
             mkdir($buildPath, 0700, true);
+            // @codeCoverageIgnoreEnd
         } else {
             exec("rm -f {$buildPath}/*");
         }
@@ -107,10 +109,12 @@ class Build extends Command
         if ($this->option('with-opt-ll') === 'off') {
             $optimizedIR = $llvmIRoutput;
         } else {
+            // @codeCoverageIgnoreStart
             $optParam = is_string($this->option('with-opt-ll')) ? $this->option('with-opt-ll') : 's';
             $optimizedIR = "{$buildPath}/optimized.ll";
             exec("{$llvmPath}/opt -O{$optParam} -S -o {$optimizedIR} {$llvmIRoutput}", result_code: $result);
             assert($result === 0);
+            // @codeCoverageIgnoreEnd
         }
 
         $sharedLibOpts = '';
