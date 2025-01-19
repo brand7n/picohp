@@ -43,9 +43,9 @@ class SymbolTable
     /**
      * Add a symbol to the symbol table.
      */
-    public function addSymbol(string $name, string $type): Symbol
+    public function addSymbol(string $name, string $type, bool $func = false): Symbol
     {
-        return $this->getCurrentScope()->add(new Symbol($name, $type));
+        return $this->getCurrentScope()->add(new Symbol($name, $type, func: $func));
     }
 
     /**
@@ -94,12 +94,12 @@ class SymbolTable
         $pData = $this->getPicoData($stmt);
 
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
-            $this->addSymbol($stmt->name->name, "int");
+            $pData->symbol = $this->addSymbol($stmt->name->name, "int", func: true);
             if ($stmt->name->name !== 'main') {
                 $pData->setScope($this->enterScope());
             }
 
-            $this->resolveParams($stmt->params);
+            $pData->getSymbol()->params = $this->resolveParams($stmt->params);
             $this->resolveStmts($stmt->stmts);
 
             if ($stmt->name->name !== 'main') {
@@ -253,14 +253,20 @@ class SymbolTable
 
     /**
      * @param array<\PhpParser\Node\Param> $params
+     * @return array<string>
      */
-    public function resolveParams(array $params): void
+    public function resolveParams(array $params): array
     {
+        $paramTypes = [];
         foreach ($params as $param) {
+            $pData = $this->getPicoData($param);
             assert($param->var instanceof \PhpParser\Node\Expr\Variable);
             assert(is_string($param->var->name));
-            $this->addSymbol($param->var->name, "int");
+            assert($param->type instanceof \PhpParser\Node\Identifier);
+            $pData->symbol = $this->addSymbol($param->var->name, $param->type->name);
+            $paramTypes[] = $param->type->name;
         }
+        return $paramTypes;
     }
 
     protected function getLine(\PhpParser\Node $node): int

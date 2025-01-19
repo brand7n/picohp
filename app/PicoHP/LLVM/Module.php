@@ -27,9 +27,12 @@ class Module implements NodeInterface
         Instruction::resetCounter();
     }
 
-    public function addFunction(string $name): Function_
+    /**
+     * @param array<string> $params
+     */
+    public function addFunction(string $name, array $params = []): Function_
     {
-        $f = new Function_($name);
+        $f = new Function_($name, $params);
         $this->addChild($f);
         return $f;
     }

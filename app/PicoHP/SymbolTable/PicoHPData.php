@@ -34,6 +34,12 @@ class PicoHPData
         return $this->symbol->value;
     }
 
+    public function getSymbol(): Symbol
+    {
+        assert($this->symbol !== null);
+        return $this->symbol;
+    }
+
     public static function getPData(\PhpParser\Node $node): PicoHPData
     {
         $pData = $node->getAttribute("picoHP");

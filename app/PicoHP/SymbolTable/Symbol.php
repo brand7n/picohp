@@ -13,13 +13,15 @@ class Symbol
     /** @var array<string> */
     public array $params;
     public ?ValueAbstract $value;
+    public bool $func;
 
     /** @param array<string> $params */
-    public function __construct(string $name, string $type, array $params = [], ?ValueAbstract $value = null)
+    public function __construct(string $name, string $type, array $params = [], ?ValueAbstract $value = null, bool $func = false)
     {
         $this->name = $name;
         $this->type = $type;
         $this->value = $value;
         $this->params = $params;
+        $this->func = $func;
     }
 }

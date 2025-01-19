@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\PicoHP\Pass;
 
 use App\PicoHP\LLVM\{Module, Builder, ValueAbstract, Type};
-use App\PicoHP\LLVM\Value\{Constant, Void_, Label};
+use App\PicoHP\LLVM\Value\{Constant, Void_, Label, Param};
 use App\PicoHP\SymbolTable\{Symbol, PicoHPData};
 use Illuminate\Support\Collection;
 
@@ -51,12 +51,16 @@ class IRGenerationPass /* extends PassInterface??? */
         $pData = PicoHPData::getPData($stmt);
 
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
-            $this->currentFunction = $this->module->addFunction($stmt->name->toString());
+            $funcSymbol = $pData->getSymbol();
+            assert($funcSymbol->func === true);
+            $this->currentFunction = $this->module->addFunction($stmt->name->toString(), $funcSymbol->params);
             $bb = $this->currentFunction->addBasicBlock("entry");
             $this->builder->setInsertPoint($bb);
-            $this->buildParams($stmt->params);
             $scope = $pData->getScope();
             foreach ($scope->symbols as $symbol) {
+                if ($symbol->func) {
+                    continue;
+                }
                 $type = null;
                 switch ($symbol->type) {
                     case 'int':
@@ -75,8 +79,32 @@ class IRGenerationPass /* extends PassInterface??? */
                 assert($type !== null);
                 $symbol->value = $this->builder->createAlloca($symbol->name, $type);
             }
+            $this->buildParams($stmt->params);
             $this->buildStmts($stmt->stmts);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Block) {
+            $scope = $pData->getScope();
+            foreach ($scope->symbols as $symbol) {
+                if ($symbol->func) {
+                    continue;
+                }
+                $type = null;
+                switch ($symbol->type) {
+                    case 'int':
+                        $type = Type::INT;
+                        break;
+                    case 'float':
+                        $type = Type::FLOAT;
+                        break;
+                    case 'bool':
+                        $type = Type::BOOL;
+                        break;
+                    case 'string':
+                        $type = Type::STRING;
+                        break;
+                }
+                assert($type !== null);
+                $symbol->value = $this->builder->createAlloca($symbol->name, $type);
+            }
             $this->buildStmts($stmt->stmts);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Expression) {
             $doc = $stmt->getDocComment();
@@ -238,6 +266,7 @@ class IRGenerationPass /* extends PassInterface??? */
                     throw new \Exception("casting to float from unknown type");
             }
         } elseif ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
+            // TODO: make sure args match function signature
             $args = (new Collection($expr->args))
                 ->map(function ($arg): ValueAbstract {
                     assert($arg instanceof \PhpParser\Node\Arg);
@@ -273,12 +302,26 @@ class IRGenerationPass /* extends PassInterface??? */
      */
     public function buildParams(array $params): void
     {
+        $count = 0;
         foreach ($params as $param) {
-            $this->buildParam($param);
+            $pData = PicoHPData::getPData($param);
+            switch ($pData->getSymbol()->type) {
+                case 'int':
+                    $type = Type::INT;
+                    break;
+                case 'float':
+                    $type = Type::FLOAT;
+                    break;
+                case 'bool':
+                    $type = Type::BOOL;
+                    break;
+                case 'string':
+                    $type = Type::STRING;
+                    break;
+                default:
+                    throw new \Exception("unknown type {$pData->getSymbol()->type}");
+            }
+            $this->builder->createStore(new Param($count++, $type->value), $pData->getValue());
         }
-    }
-
-    public function buildParam(\PhpParser\Node\Param $param): void
-    {
     }
 }
