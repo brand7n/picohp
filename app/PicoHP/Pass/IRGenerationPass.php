@@ -53,7 +53,7 @@ class IRGenerationPass /* extends PassInterface??? */
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
             $funcSymbol = $pData->getSymbol();
             assert($funcSymbol->func === true);
-            $this->currentFunction = $this->module->addFunction($stmt->name->toString(), $funcSymbol->params);
+            $this->currentFunction = $this->module->addFunction($stmt->name->toString(), $funcSymbol->params, $funcSymbol->type);
             $bb = $this->currentFunction->addBasicBlock("entry");
             $this->builder->setInsertPoint($bb);
             $scope = $pData->getScope();

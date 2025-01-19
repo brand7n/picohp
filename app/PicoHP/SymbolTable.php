@@ -94,7 +94,12 @@ class SymbolTable
         $pData = $this->getPicoData($stmt);
 
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
-            $pData->symbol = $this->addSymbol($stmt->name->name, "int", func: true);
+            $returnType = 'int';
+            if (!is_null($stmt->returnType)) {
+                assert($stmt->returnType instanceof \PhpParser\Node\Identifier);
+                $returnType = $stmt->returnType->name;
+            }
+            $pData->symbol = $this->addSymbol($stmt->name->name, $returnType, func: true);
             if ($stmt->name->name !== 'main') {
                 $pData->setScope($this->enterScope());
             }

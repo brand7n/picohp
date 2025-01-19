@@ -38,15 +38,17 @@ class Builder
      */
     public function createInstruction(string $opcode, array $operands, bool $emitResult = true, Type $resultType = Type::INT): ValueAbstract
     {
+        assert(count($operands) > 0);
+        $type = $operands[0]->getType();
         $operandString = (new Collection($operands))
             ->map(fn ($operand): string => $operand->render())
             ->join(', ');
         $resultVal = new Void_();
         if ($emitResult) {
             $resultVal = new Instruction($opcode, $resultType->value);
-            $this->addLine("{$resultVal->render()} = {$opcode} i32 {$operandString}", 1);
+            $this->addLine("{$resultVal->render()} = {$opcode} {$type} {$operandString}", 1);
         } else {
-            $this->addLine("{$opcode} i32 {$operandString}", 1);
+            $this->addLine("{$opcode} {$type} {$operandString}", 1);
         }
         return $resultVal;
     }

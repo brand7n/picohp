@@ -53,6 +53,7 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
             // Transform static methods: no `$state` parameter
             $stmts = $node->stmts;
             assert($stmts !== null);
+            // TODO: return type
             return new Node\Stmt\Function_(
                 "{$this->className}_{$methodName}",
                 [
@@ -80,7 +81,7 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
             if ($node->class instanceof Node\Name && $node->class->toString() === $this->className) {
                 assert($node->name instanceof Node\Identifier);
                 $name = new Node\Name("{$this->className}_{$node->name}");
-                // TODO: handle arguments
+                // TODO: handle arguments/return value
                 return new Node\Expr\FuncCall($name);
             }
             // @codeCoverageIgnoreStart

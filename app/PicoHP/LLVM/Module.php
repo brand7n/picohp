@@ -30,9 +30,9 @@ class Module implements NodeInterface
     /**
      * @param array<string> $params
      */
-    public function addFunction(string $name, array $params = []): Function_
+    public function addFunction(string $name, array $params = [], ?string $returnType = null): Function_
     {
-        $f = new Function_($name, $params);
+        $f = new Function_($name, $params, $returnType);
         $this->addChild($f);
         return $f;
     }

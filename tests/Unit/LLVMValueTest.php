@@ -9,7 +9,7 @@ it('generates IR using LLVM Values', function () {
     // Example of using the system
     $module = new Module("test_module");
     $builder = $module->getBuilder();
-    $function = $module->addFunction("main");
+    $function = $module->addFunction("main", returnType: 'int');
     $bb = $function->addBasicBlock("entry");
     expect($bb->getName())->toBe('entry');
     $builder->setInsertPoint($bb);

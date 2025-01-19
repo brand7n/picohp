@@ -26,18 +26,17 @@ class Test
         /** @var string */
         $a[5] = -4;
         echo $a[5];
-        return 1;
+        return $c;
     }
 }
 
-function start(int $a, int $b): int
+function start(int $a, int $b): float
 {
     while ($a > 0) {
         $a = $a - 1;
         echo $a;
     }
-    $a = 1234 * 5 + 0xf3;
-    return $a;
+    return (float)(1234 * 5 + 0xf3);
 }
 
 if ($glob > 0) {
