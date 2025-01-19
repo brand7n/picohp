@@ -9,7 +9,7 @@ use App\PicoHP\LLVM\Value\{Constant, Void_, Label, Param};
 use App\PicoHP\SymbolTable\{Symbol, PicoHPData};
 use Illuminate\Support\Collection;
 
-class IRGenerationPass /* extends PassInterface??? */
+class IRGenerationPass implements \App\PicoHP\PassInterface
 {
     public Module $module;
     protected Builder $builder;

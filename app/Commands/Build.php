@@ -11,6 +11,7 @@ use PhpParser\NodeTraverser;
 use PhpParser\PrettyPrinter\Standard;
 use App\PicoHP\ClassToFunctionVisitor;
 use App\PicoHP\GlobalToMainVisitor;
+use App\PicoHP\Pass\{IRGenerationPass, SemanticAnalysisPass};
 
 class Build extends Command
 {
@@ -63,7 +64,7 @@ class Build extends Command
 
         // TODO: add static analysis pass (psalm, phpstan, etc)
 
-        // TODO: add name resolver visitor
+        // TODO: add name resolver visitor?
 
         $traverser = new NodeTraverser();
         $traverser->addVisitor(new ClassToFunctionVisitor());
@@ -82,15 +83,15 @@ class Build extends Command
             // TODO: rerun static analysis on transformed output?
         }
 
-        $symbolTable = new \App\PicoHP\SymbolTable();
-        $symbolTable->resolveStmts($transformedAst);
+        $pass = new SemanticAnalysisPass($transformedAst);
+        $pass->exec();
 
         if ($debug) {
             $astWithSymbolOutput = "{$buildPath}/ast_sym.json";
             file_put_contents($astWithSymbolOutput, json_encode($transformedAst, JSON_PRETTY_PRINT));
         }
 
-        $pass = new \App\PicoHP\Pass\IRGenerationPass($transformedAst);
+        $pass = new IRGenerationPass($transformedAst);
         $pass->exec();
 
         $f = fopen($llvmIRoutput, 'w');

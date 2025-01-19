@@ -79,7 +79,6 @@
                 "stop-on-failure": ["pre-commit"]
             },
             "pre-commit": [
-                "git stash -k",
                 "composer run-script check"
             ]
         }
