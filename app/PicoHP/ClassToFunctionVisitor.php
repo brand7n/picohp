@@ -6,10 +6,14 @@ namespace App\PicoHP;
 
 use PhpParser\Node;
 use PhpParser\NodeVisitorAbstract;
+use PhpParser\NodeTraverser;
 
 class ClassToFunctionVisitor extends NodeVisitorAbstract
 {
     protected ?string $className = null;
+
+    /** @var Node\Stmt[] */
+    protected array $globalStatements = [];
 
     /** @return null|int|Node|Node[] */
     public function enterNode(Node $node)
@@ -25,27 +29,6 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
     /** @return null|int|Node|Node[] */
     public function leaveNode(Node $node)
     {
-        // Check if the node is a static property declaration
-        if ($node instanceof Node\Stmt\Property && $node->isStatic()) {
-            $globalStatements = [];
-
-            foreach ($node->props as $property) {
-                assert($property->default !== null);
-                // Create a global variable with the same name and value
-                $stmt = new Node\Stmt\Expression(
-                    new Node\Expr\Assign(
-                        new Node\Expr\Variable("{$this->className}_{$property->name->toString()}"),
-                        $property->default
-                    )
-                );
-                $stmt->setDocComment(new \PhpParser\Comment\Doc('/** @var int */'));
-                $globalStatements[] = $stmt;
-            }
-
-            // Return the global variable declarations to replace the static properties
-            return $globalStatements;
-        }
-
         // Transform methods into functions
         if ($node instanceof Node\Stmt\ClassMethod && $node->isStatic()) {
             $methodName = $node->name->name;
@@ -53,26 +36,15 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
             // Transform static methods: no `$state` parameter
             $stmts = $node->stmts;
             assert($stmts !== null);
-            // TODO: return type
-            return new Node\Stmt\Function_(
+            $this->globalStatements[] = new Node\Stmt\Function_(
                 "{$this->className}_{$methodName}",
                 [
                     'params' => $node->params,
                     'stmts' => $stmts,
+                    'returnType' => $node->returnType,
                 ]
             );
-        }
-
-        // Convert static property access (e.g., MyClass::$property)
-        if ($node instanceof Node\Expr\StaticPropertyFetch || $node instanceof Node\Expr\ClassConstFetch) {
-            if ($node->class instanceof Node\Name && ($node->class->toString() === $this->className || $node->class->toString() === 'self')) {
-                assert($node->name instanceof Node\VarLikeIdentifier || $node->name instanceof Node\Identifier);
-                return new Node\Expr\Variable("{$this->className}_{$node->name->toString()}");
-            }
-            // @codeCoverageIgnoreStart
-            assert($node->class instanceof Node\Name);
-            throw new \Exception("Unexpected class name: {$node->class->toString()}");
-            // @codeCoverageIgnoreEnd
+            return NodeTraverser::REMOVE_NODE;
         }
 
         // Convert static method calls (e.g., MyClass::methodName())
@@ -90,10 +62,26 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
             // @codeCoverageIgnoreEnd
         }
 
-        // Remove the class scope entirely
-        if ($node instanceof Node\Stmt\Class_) {
-            return $node->stmts; // Return only the class body
-        }
         return null;
+    }
+
+    /**
+     * Called after the AST has been traversed.
+     *
+     * @param Node[] $nodes
+     * @return Node[]
+     */
+    public function afterTraverse(array $nodes): array
+    {
+        // Handle `declare` statements (keep them at the very top)
+        $declareNodes = array_filter($nodes, fn ($node) => $node instanceof Node\Stmt\Declare_);
+        $otherNodes = array_filter($nodes, fn ($node) => !$node instanceof Node\Stmt\Declare_);
+
+        // Prepend the `main` function after `declare` statements
+        return array_merge(
+            $declareNodes,
+            $this->globalStatements,
+            $otherNodes,
+        );
     }
 }

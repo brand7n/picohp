@@ -49,7 +49,7 @@ it('converts a class into functions', function () {
     //dump($transformedAst);
     $printer = new Standard();
     //echo $printer->prettyPrintFile($transformedAst) . PHP_EOL;
-    expect(count($transformedAst))->toBe(12);
+    expect(count($transformedAst))->toBe(7);
 });
 
 //     // Step 2: Transform the AST

@@ -10,8 +10,6 @@ use PhpParser\NodeTraverser;
 
 class GlobalToMainVisitor extends NodeVisitorAbstract
 {
-    protected ?string $className = null;
-
     /** @var Node\Stmt[] */
     protected array $globalStatements = [];
 

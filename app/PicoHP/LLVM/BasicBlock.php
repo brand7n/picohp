@@ -45,7 +45,7 @@ class BasicBlock implements NodeInterface
     {
         $lastLine = end($this->lines);
         if ($lastLine === false || !Str::startsWith(trim($lastLine->toString()), ['ret', 'br'])) {
-            throw new \RuntimeException('Basic block must end with ret or br');
+            throw new \RuntimeException("Basic block {$this->name} must end with ret or br");
         }
     }
 }

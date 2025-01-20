@@ -89,19 +89,44 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\While_) {
             $this->resolveExpr($stmt->cond);
             $this->resolveStmts($stmt->stmts);
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Do_) {
+            $this->resolveStmts($stmt->stmts);
+            $this->resolveExpr($stmt->cond);
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\For_) {
+            foreach ($stmt->init as $init) {
+                $this->resolveExpr($init);
+            }
+            foreach ($stmt->cond as $cond) {
+                assert($this->resolveExpr($cond) === 'bool');
+            }
+            foreach ($stmt->loop as $loop) {
+                $this->resolveExpr($loop);
+            }
+            $this->resolveStmts($stmt->stmts);
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Foreach_) {
+
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Class_) {
+            $pData->setScope($this->symbolTable->enterScope());
+            $this->resolveStmts($stmt->stmts);
+            $this->symbolTable->exitScope();
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Property) {
+            assert($stmt->type instanceof \PhpParser\Node\Identifier);
+            foreach ($stmt->props as $prop) {
+                $this->resolveProperty($prop, $pData, $stmt->type->name);
+            }
         } else {
             $line = $this->getLine($stmt);
             throw new \Exception("line: {$line}, unknown node type in stmt resolver: " . get_class($stmt));
         }
     }
 
-    public function resolveExpr(\PhpParser\Node\Expr $expr, ?\PhpParser\Comment\Doc $doc = null, bool $lVal = false): string
+    public function resolveExpr(\PhpParser\Node\Expr $expr, ?\PhpParser\Comment\Doc $doc = null, bool $lVal = false, ?string $rType = null): string
     {
         $pData = $this->getPicoData($expr);
 
         if ($expr instanceof \PhpParser\Node\Expr\Assign) {
-            $ltype = $this->resolveExpr($expr->var, $doc, lVal: true);
             $rtype = $this->resolveExpr($expr->expr);
+            $ltype = $this->resolveExpr($expr->var, $doc, lVal: true, rType: $rtype);
             $line = $this->getLine($expr);
             assert($ltype === $rtype, "line {$line}, type mismatch in assignment");
             return $rtype;
@@ -114,10 +139,14 @@ class SemanticAnalysisPass implements PassInterface
                 $type = $this->docTypeParser->parseType($doc->getText());
                 $pData->symbol = $this->symbolTable->addSymbol($expr->name, $type);
                 return $type;
+            } elseif (!is_null($rType) && is_null($s)) {
+                $pData->symbol = $this->symbolTable->addSymbol($expr->name, $rType);
+                return $rType;
             }
 
             $pData->symbol = $this->symbolTable->lookup($expr->name);
-            assert(!is_null($pData->symbol));
+            $line = $this->getLine($expr);
+            assert(!is_null($pData->symbol), "line {$line}, symbol not found: {$expr->name}");
             return $pData->symbol->type;
         } elseif ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
             $pData->lVal = $lVal;
@@ -224,6 +253,14 @@ class SemanticAnalysisPass implements PassInterface
             $paramTypes[] = $param->type->name;
         }
         return $paramTypes;
+    }
+
+    public function resolveProperty(\PhpParser\Node\Stmt\PropertyProperty $prop, PicoHPData $pData, string $type): void
+    {
+        if ($prop->default !== null) {
+            assert($this->resolveExpr($prop->default) === $type);
+        }
+        $pData->symbol = $this->symbolTable->addSymbol($prop->name, $type);
     }
 
     protected function getLine(\PhpParser\Node $node): int

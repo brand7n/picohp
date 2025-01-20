@@ -156,6 +156,50 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->buildStmts($stmt->stmts);
             $this->builder->createBranch([$condLabel]);
             $this->builder->setInsertPoint($endBB);
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Class_) {
+            // TODO: generate struct type
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Do_) {
+            assert($this->currentFunction !== null);
+            $condBB = $this->currentFunction->addBasicBlock("cond{$pData->mycount}");
+            $bodyBB = $this->currentFunction->addBasicBlock("body{$pData->mycount}");
+            $endBB = $this->currentFunction->addBasicBlock("end{$pData->mycount}");
+            $condLabel = new Label($condBB->getName());
+            $bodyLabel = new Label($bodyBB->getName());
+            $endLabel = new Label($endBB->getName());
+            $this->builder->createBranch([$bodyLabel]);
+            $this->builder->setInsertPoint($bodyBB);
+            $this->buildStmts($stmt->stmts);
+            $this->builder->createBranch([$condLabel]);
+            $this->builder->setInsertPoint($condBB);
+            $cond = $this->buildExpr($stmt->cond);
+            $this->builder->createBranch([$cond, $bodyLabel, $endLabel]);
+            $this->builder->setInsertPoint($endBB);
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\For_) {
+            assert($this->currentFunction !== null);
+            $condBB = $this->currentFunction->addBasicBlock("cond{$pData->mycount}");
+            $bodyBB = $this->currentFunction->addBasicBlock("body{$pData->mycount}");
+            $endBB = $this->currentFunction->addBasicBlock("end{$pData->mycount}");
+            $condLabel = new Label($condBB->getName());
+            $bodyLabel = new Label($bodyBB->getName());
+            $endLabel = new Label($endBB->getName());
+            foreach ($stmt->init as $init) {
+                $this->buildExpr($init);
+            }
+            $this->builder->createBranch([$condLabel]);
+            $this->builder->setInsertPoint($condBB);
+            $conds = [];
+            foreach ($stmt->cond as $cond) {
+                $conds[] = $this->buildExpr($cond);
+            }
+            assert(count($conds) > 0);
+            $this->builder->createBranch([$conds[0], $bodyLabel, $endLabel]);
+            $this->builder->setInsertPoint($bodyBB);
+            $this->buildStmts($stmt->stmts);
+            foreach ($stmt->loop as $loop) {
+                $this->buildExpr($loop);
+            }
+            $this->builder->createBranch([$condLabel]);
+            $this->builder->setInsertPoint($endBB);
         } else {
             throw new \Exception("unknown node type in stmt: " . get_class($stmt));
         }

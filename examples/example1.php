@@ -5,8 +5,9 @@ $glob = 5;
 
 class Test
 {
-    public static int $value = 0;
-    public static function test1(bool $b, float $f): int
+    public static int $value1 = 5 + 3;
+    public static float $value2 = 0.1234;
+    public static function test1(bool $b, float $f): float
     {
         {
             echo 1234 << 1;
@@ -18,8 +19,8 @@ class Test
             /** @var bool */
             $c = true;
         }
-        /** @var int */
-        $c = (int)(1 < 2) / (int)(int)(2 > 1) - (int)($b) + (int)($f);
+        /** @var float */
+        $c = (float)((int)(1 < 2) / (int)(int)(2 > 1) - (int)($b) + (int)($f));
         echo "Hello: {$c}";
         echo(1.234);
         echo((float)(float)(1 >> 2));
@@ -36,6 +37,13 @@ function start(int $a, int $b): float
         $a = $a - 1;
         echo $a;
     }
+    for ($i = 0; $i < 10; $i = $i + 1) {
+        echo $i;
+    }
+    do {
+        echo $b;
+        $b = $b - 1;
+    } while ($b > 0);
     return (float)(1234 * 5 + 0xf3);
 }
 
@@ -45,11 +53,11 @@ if ($glob > 0) {
     Test::test1();
 }
 
-if (Test::$value == 0) {
-    start(200, 100);
-} else {
-    Test::test1(true, 1.234);
-}
+// if (Test::$value == 0) {
+//     start(200, 100);
+// } else {
+//     Test::test1(true, 1.234);
+// }
 
 echo $glob;
-echo Test::test1(false, 0.5);
+//echo Test::test1(true, 1.234);

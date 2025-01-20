@@ -55,7 +55,7 @@ it('throws an exception on an invalid block', function () {
     $builder->setInsertPoint($bb);
     $builder->createInstruction('add', [new Constant(1, Type::INT), new Constant(2, Type::INT)]);
     $bb->getLines();
-})->throws(\RuntimeException::class, 'Basic block must end with ret or br');
+})->throws(\RuntimeException::class, 'Basic block entry must end with ret or br');
 
 it('can create a global value', function () {
     $global = new Global_('my_global', Type::INT->value);
