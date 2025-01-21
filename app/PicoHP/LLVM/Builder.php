@@ -105,7 +105,7 @@ class Builder
     public function createSiToFp(ValueAbstract $val): ValueAbstract
     {
         $resultVal = new Instruction("cast", 'float');
-        $this->addLine("{$resultVal->render()} = sitofp i32 {$val->render()} to float", 1);
+        $this->addLine("{$resultVal->render()} = sitofp {$val->getType()} {$val->render()} to float", 1);
         return $resultVal;
     }
 

@@ -5,8 +5,8 @@ $glob = 5;
 
 class Test
 {
-    public static int $value1 = 5 + 3;
-    public static float $value2 = 0.1234;
+    // public static int $value1 = 5 + 3;
+    // public static float $value2 = 0.1234;
     public static function test1(bool $b, float $f): float
     {
         {
@@ -46,6 +46,9 @@ function start(int $a, int $b): float
     } while ($b > 0);
     return (float)(1234 * 5 + 0xf3);
 }
+
+echo (float)false;
+echo (float)true;
 
 if ($glob > 0) {
     start(100, 200);

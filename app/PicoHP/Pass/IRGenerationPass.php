@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\PicoHP\Pass;
 
-use App\PicoHP\LLVM\{Module, Builder, ValueAbstract, Type};
+use App\PicoHP\LLVM\{Module, Builder, ValueAbstract, Type, IRLine};
 use App\PicoHP\LLVM\Value\{Constant, Void_, Label, Param};
 use App\PicoHP\SymbolTable\{Symbol, PicoHPData};
 use Illuminate\Support\Collection;
@@ -114,7 +114,6 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $val = $this->buildExpr($stmt->expr);
                 $this->builder->createInstruction('ret', [$val], false);
             }
-        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Property) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Nop) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Echo_) {
             foreach ($stmt->exprs as $expr) {
@@ -158,6 +157,15 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->builder->setInsertPoint($endBB);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Class_) {
             // TODO: generate struct type
+            assert($stmt->name instanceof \PhpParser\Node\Identifier);
+            $className = $stmt->name->toString();
+            $this->module->addLine(new IRLine("%struct.$className = type {"));
+            $this->buildStmts($stmt->stmts);
+            $this->module->addLine(new IRLine("}"));
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Property) {
+            dump($pData);
+            // this is dumb just join the types
+            $this->module->addLine(new IRLine("i32"));
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Do_) {
             assert($this->currentFunction !== null);
             $condBB = $this->currentFunction->addBasicBlock("cond{$pData->mycount}");
@@ -282,30 +290,28 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $constName = $expr->name->toLowerString();
             return new Constant($constName === 'true' ? 1 : 0, Type::BOOL);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Int_) {
-            // TODO: we seem to be introducing an extra load
             $val = $this->buildExpr($expr->expr);
 
             switch ($val->getType()) {
                 case Type::INT->value:
                     return $val;
                 case Type::FLOAT->value:
-                    return $this->builder->createFpToSi($this->buildExpr($expr->expr));
+                    return $this->builder->createFpToSi($val);
                 case Type::BOOL->value:
-                    return $this->builder->createZext($this->buildExpr($expr->expr));
+                    return $this->builder->createZext($val);
                 default:
                     throw new \Exception("casting to int from unknown type");
             }
         } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Double) {
-            // TODO: we seem to be introducing an extra load
             $val = $this->buildExpr($expr->expr);
 
             switch ($val->getType()) {
                 case Type::INT->value:
-                    return $this->builder->createSiToFp($this->buildExpr($expr->expr));
+                    return $this->builder->createSiToFp($val);
                 case Type::FLOAT->value:
                     return $val;
-                    // case Type::BOOL->value:
-                    //     return $this->builder->createZext($this->buildExpr($expr->expr));
+                case Type::BOOL->value:
+                    return $this->builder->createSiToFp($this->builder->createZext($val));
                 default:
                     throw new \Exception("casting to float from unknown type");
             }
