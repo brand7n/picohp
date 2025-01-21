@@ -55,6 +55,7 @@ return [
 
     'providers' => [
         // App\Providers\AppServiceProvider::class,
+        Laravel\Tinker\TinkerServiceProvider::class,
     ],
 
     'llvm_path' => env('LLVM_PATH', '/usr/bin'),
