@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\PicoHP\Pass;
 
-use App\PicoHP\LLVM\{Module, Builder, ValueAbstract, Type, IRLine};
+use App\PicoHP\{BaseType};
+use App\PicoHP\LLVM\{Module, Builder, ValueAbstract, IRLine};
 use App\PicoHP\LLVM\Value\{Constant, Void_, Label, Param};
 use App\PicoHP\SymbolTable\{Symbol, PicoHPData};
 use Illuminate\Support\Collection;
@@ -53,7 +54,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
             $funcSymbol = $pData->getSymbol();
             assert($funcSymbol->func === true);
-            $this->currentFunction = $this->module->addFunction($stmt->name->toString(), $funcSymbol->params, $funcSymbol->type);
+            $this->currentFunction = $this->module->addFunction($stmt->name->toString(), $funcSymbol->type, $funcSymbol->params);
             $bb = $this->currentFunction->addBasicBlock("entry");
             $this->builder->setInsertPoint($bb);
             $scope = $pData->getScope();
@@ -61,23 +62,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 if ($symbol->func) {
                     continue;
                 }
-                $type = null;
-                switch ($symbol->type) {
-                    case 'int':
-                        $type = Type::INT;
-                        break;
-                    case 'float':
-                        $type = Type::FLOAT;
-                        break;
-                    case 'bool':
-                        $type = Type::BOOL;
-                        break;
-                    case 'string':
-                        $type = Type::STRING;
-                        break;
-                }
-                assert($type !== null);
-                $symbol->value = $this->builder->createAlloca($symbol->name, $type);
+                $symbol->value = $this->builder->createAlloca($symbol->name, $symbol->type->toBase());
             }
             $this->buildParams($stmt->params);
             $this->buildStmts($stmt->stmts);
@@ -87,23 +72,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 if ($symbol->func) {
                     continue;
                 }
-                $type = null;
-                switch ($symbol->type) {
-                    case 'int':
-                        $type = Type::INT;
-                        break;
-                    case 'float':
-                        $type = Type::FLOAT;
-                        break;
-                    case 'bool':
-                        $type = Type::BOOL;
-                        break;
-                    case 'string':
-                        $type = Type::STRING;
-                        break;
-                }
-                assert($type !== null);
-                $symbol->value = $this->builder->createAlloca($symbol->name, $type);
+                $symbol->value = $this->builder->createAlloca($symbol->name, $symbol->type->toBase());
             }
             $this->buildStmts($stmt->stmts);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Expression) {
@@ -257,24 +226,24 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                     $val = $this->builder->createInstruction('ashr', [$lval, $rval]);
                     break;
                 case '==':
-                    $val = $this->builder->createInstruction('icmp eq', [$lval, $rval], resultType: Type::BOOL);
+                    $val = $this->builder->createInstruction('icmp eq', [$lval, $rval], resultType: BaseType::BOOL);
                     break;
                 case '<':
-                    $val = $this->builder->createInstruction('icmp slt', [$lval, $rval], resultType: Type::BOOL);
+                    $val = $this->builder->createInstruction('icmp slt', [$lval, $rval], resultType: BaseType::BOOL);
                     break;
                 case '>':
-                    $val = $this->builder->createInstruction('icmp sgt', [$lval, $rval], resultType: Type::BOOL);
+                    $val = $this->builder->createInstruction('icmp sgt', [$lval, $rval], resultType: BaseType::BOOL);
                     break;
                 default:
                     throw new \Exception("unknown BinaryOp {$expr->getOperatorSigil()}");
             }
             return $val;
         } elseif ($expr instanceof \PhpParser\Node\Expr\UnaryMinus) {
-            return $this->builder->createInstruction('sub', [new Constant(0, Type::INT), $this->buildExpr($expr->expr)]);
+            return $this->builder->createInstruction('sub', [new Constant(0, BaseType::INT), $this->buildExpr($expr->expr)]);
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Int_) {
-            return new Constant($expr->value, Type::INT);
+            return new Constant($expr->value, BaseType::INT);
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Float_) {
-            return new Constant($expr->value, Type::FLOAT);
+            return new Constant($expr->value, BaseType::FLOAT);
         } elseif ($expr instanceof \PhpParser\Node\Scalar\String_) {
             return new Void_(); // TODO: retrieve reference from symbol table?
         } elseif ($expr instanceof \PhpParser\Node\Scalar\InterpolatedString) {
@@ -288,16 +257,16 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             return new Void_();
         } elseif ($expr instanceof \PhpParser\Node\Expr\ConstFetch) {
             $constName = $expr->name->toLowerString();
-            return new Constant($constName === 'true' ? 1 : 0, Type::BOOL);
+            return new Constant($constName === 'true' ? 1 : 0, BaseType::BOOL);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Int_) {
             $val = $this->buildExpr($expr->expr);
 
             switch ($val->getType()) {
-                case Type::INT->value:
+                case BaseType::INT:
                     return $val;
-                case Type::FLOAT->value:
+                case BaseType::FLOAT:
                     return $this->builder->createFpToSi($val);
-                case Type::BOOL->value:
+                case BaseType::BOOL:
                     return $this->builder->createZext($val);
                 default:
                     throw new \Exception("casting to int from unknown type");
@@ -306,11 +275,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $val = $this->buildExpr($expr->expr);
 
             switch ($val->getType()) {
-                case Type::INT->value:
+                case BaseType::INT:
                     return $this->builder->createSiToFp($val);
-                case Type::FLOAT->value:
+                case BaseType::FLOAT:
                     return $val;
-                case Type::BOOL->value:
+                case BaseType::BOOL:
                     return $this->builder->createSiToFp($this->builder->createZext($val));
                 default:
                     throw new \Exception("casting to float from unknown type");
@@ -326,7 +295,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             assert($expr->name instanceof \PhpParser\Node\Name);
             // TODO: figure out why phpstan thinks $args is array<mixed>
             /** @phpstan-ignore-next-line */
-            return $this->builder->createCall($expr->name->name, $args, Type::INT);
+            return $this->builder->createCall($expr->name->name, $args, BaseType::INT);
         } elseif ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
             assert($expr->dim !== null, "array append not implemented");
             $varData = PicoHPData::getPData($expr->var);
@@ -355,23 +324,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         $count = 0;
         foreach ($params as $param) {
             $pData = PicoHPData::getPData($param);
-            switch ($pData->getSymbol()->type) {
-                case 'int':
-                    $type = Type::INT;
-                    break;
-                case 'float':
-                    $type = Type::FLOAT;
-                    break;
-                case 'bool':
-                    $type = Type::BOOL;
-                    break;
-                case 'string':
-                    $type = Type::STRING;
-                    break;
-                default:
-                    throw new \Exception("unknown type {$pData->getSymbol()->type}");
-            }
-            $this->builder->createStore(new Param($count++, $type->value), $pData->getValue());
+            $type = $pData->getSymbol()->type;
+            $this->builder->createStore(new Param($count++, $type->toBase()), $pData->getValue());
         }
     }
 }

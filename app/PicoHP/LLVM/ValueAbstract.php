@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\PicoHP\LLVM;
 
+use App\PicoHP\BaseType;
+
 /*
 TODO: instead of implementing every instruction as a Value, consider larger chunks (like inline functions), or a generic binary_op form
 */
@@ -11,10 +13,10 @@ TODO: instead of implementing every instruction as a Value, consider larger chun
 abstract class ValueAbstract
 {
     protected ?string $name = null;
-    protected string $type;
+    protected BaseType $type;
 
     // Constructor to set the type of the value
-    public function __construct(string $type)
+    public function __construct(BaseType $type)
     {
         $this->type = $type;
     }
@@ -32,7 +34,7 @@ abstract class ValueAbstract
     }
 
     // Get the type of the value
-    public function getType(): string
+    public function getType(): BaseType
     {
         return $this->type;
     }

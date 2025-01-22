@@ -2,24 +2,25 @@
 
 declare(strict_types=1);
 
-use App\PicoHP\LLVM\{Module, Type};
+use App\PicoHP\LLVM\Module;
+use App\PicoHP\{PicoType, BaseType};
 use App\PicoHP\LLVM\Value\{Constant, Instruction, Global_, Void_, Label};
 
 it('generates IR using LLVM Values', function () {
     // Example of using the system
     $module = new Module("test_module");
     $builder = $module->getBuilder();
-    $function = $module->addFunction("main", returnType: 'int');
+    $function = $module->addFunction("main", returnType: PicoType::fromString('int'));
     $bb = $function->addBasicBlock("entry");
     expect($bb->getName())->toBe('entry');
     $builder->setInsertPoint($bb);
 
     Instruction::resetCounter();
 
-    $const1 = new Constant(1, Type::INT);
-    $const2 = new Constant(2, Type::INT);
-    $const3 = new Constant(3, Type::INT);
-    $const4 = new Constant(4, Type::INT);
+    $const1 = new Constant(1, BaseType::INT);
+    $const2 = new Constant(2, BaseType::INT);
+    $const3 = new Constant(3, BaseType::INT);
+    $const4 = new Constant(4, BaseType::INT);
     expect($const1->render())->toBe('1');
     expect($const2->getValue())->toBe(2);
 
@@ -50,15 +51,15 @@ it('generates IR using LLVM Values', function () {
 it('throws an exception on an invalid block', function () {
     $module = new Module("test_module");
     $builder = $module->getBuilder();
-    $function = $module->addFunction("main");
+    $function = $module->addFunction("main", returnType: PicoType::fromString('int'));
     $bb = $function->addBasicBlock("entry");
     $builder->setInsertPoint($bb);
-    $builder->createInstruction('add', [new Constant(1, Type::INT), new Constant(2, Type::INT)]);
+    $builder->createInstruction('add', [new Constant(1, BaseType::INT), new Constant(2, BaseType::INT)]);
     $bb->getLines();
 })->throws(\RuntimeException::class, 'Basic block entry must end with ret or br');
 
 it('can create a global value', function () {
-    $global = new Global_('my_global', Type::INT->value);
+    $global = new Global_('my_global', BaseType::INT);
     expect($global->render())->toBe('@my_global');
 });
 
@@ -72,7 +73,7 @@ it('generates IR using LLVM Values with branches and phi nodes', function () {
     // Example of using the system
     $module = new Module("test_module");
     $builder = $module->getBuilder();
-    $function = $module->addFunction("main");
+    $function = $module->addFunction("main", returnType: PicoType::fromString('int'));
     $bb1 = $function->addBasicBlock("entry");
     $bb2 = $function->addBasicBlock("if.then");
     $bb3 = $function->addBasicBlock("if.else");
@@ -81,10 +82,10 @@ it('generates IR using LLVM Values with branches and phi nodes', function () {
 
     Instruction::resetCounter();
 
-    $const1 = new Constant(1, Type::INT);
-    $const2 = new Constant(2, Type::INT);
-    $const3 = new Constant(3, Type::INT);
-    $const4 = new Constant(4, Type::INT);
+    $const1 = new Constant(1, BaseType::INT);
+    $const2 = new Constant(2, BaseType::INT);
+    $const3 = new Constant(3, BaseType::INT);
+    $const4 = new Constant(4, BaseType::INT);
 
     $label1 = new Label($bb1->getName());
     $label2 = new Label($bb2->getName());

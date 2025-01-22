@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\PicoHP\LLVM\Value;
 
-use App\PicoHP\LLVM\{Type, ValueAbstract};
+use App\PicoHP\BaseType;
+use App\PicoHP\LLVM\ValueAbstract;
 use Illuminate\Support\Str;
 
 // A class representing a constant value (e.g., integer, float)
@@ -12,9 +13,9 @@ class Constant extends ValueAbstract
 {
     private int|float $value;
 
-    public function __construct(float|int $value, Type $type)
+    public function __construct(float|int $value, BaseType $type)
     {
-        parent::__construct($type->value);
+        parent::__construct($type);
         $this->value = $value;
     }
 
@@ -27,7 +28,7 @@ class Constant extends ValueAbstract
     // Represent the constant as a string in LLVM IR format
     public function render(): string
     {
-        if ($this->getType() === 'float') {
+        if ($this->getType() === BaseType::FLOAT) {
             return $this->floatToHex($this->value);
         }
         return (string)$this->value;

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\PicoHP\LLVM\Value;
 
 use App\PicoHP\LLVM\ValueAbstract;
+use App\PicoHP\BaseType;
 
 // A class representing an instruction (e.g., an arithmetic operation like addition)
 class Instruction extends ValueAbstract
@@ -12,7 +13,7 @@ class Instruction extends ValueAbstract
     protected static int $counter = 1;
     protected int $count;
 
-    public function __construct(string $name, string $type)
+    public function __construct(string $name, BaseType $type)
     {
         parent::__construct($type);
         $this->count = self::$counter++;

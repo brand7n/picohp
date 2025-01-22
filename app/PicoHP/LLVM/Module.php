@@ -6,6 +6,7 @@ namespace App\PicoHP\LLVM;
 
 use App\PicoHP\LLVM\Value\Instruction;
 use App\PicoHP\Tree\{NodeInterface, NodeTrait};
+use App\PicoHP\{PicoType};
 
 // information about our module
 class Module implements NodeInterface
@@ -28,11 +29,11 @@ class Module implements NodeInterface
     }
 
     /**
-     * @param array<string> $params
+     * @param array<PicoType> $params
      */
-    public function addFunction(string $name, array $params = [], ?string $returnType = null): Function_
+    public function addFunction(string $name, PicoType $returnType, array $params = []): Function_
     {
-        $f = new Function_($name, $params, $returnType);
+        $f = new Function_($name, $returnType, $params);
         $this->addChild($f);
         return $f;
     }

@@ -11,20 +11,16 @@ class Test
     {
         {
             echo 1234 << 1;
-            /** @var int */
             $a = 1;
             echo $a;
-            /** @var float */
             $b = 1.234;
-            /** @var bool */
             $c = true;
         }
-        /** @var float */
         $c = (float)((int)(1 < 2) / (int)(int)(2 > 1) - (int)($b) + (int)($f));
         echo "Hello: {$c}";
         echo(1.234);
         echo((float)(float)(1 >> 2));
-        /** @var string */
+        /** @picobuf 256 */
         $a[5] = -4;
         echo $a[5];
         return $c;

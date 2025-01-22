@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\PicoHP\LLVM;
 
+use App\PicoHP\{BaseType};
 use Illuminate\Support\Collection;
 use App\PicoHP\LLVM\Value\{Instruction, Void_, AllocaInst, Global_, Label};
 
@@ -36,7 +37,7 @@ class Builder
     /**
      * @param array<ValueAbstract> $operands
      */
-    public function createInstruction(string $opcode, array $operands, bool $emitResult = true, Type $resultType = Type::INT): ValueAbstract
+    public function createInstruction(string $opcode, array $operands, bool $emitResult = true, BaseType $resultType = BaseType::INT): ValueAbstract
     {
         assert(count($operands) > 0);
         $type = $operands[0]->getType();
@@ -45,10 +46,10 @@ class Builder
             ->join(', ');
         $resultVal = new Void_();
         if ($emitResult) {
-            $resultVal = new Instruction($opcode, $resultType->value);
-            $this->addLine("{$resultVal->render()} = {$opcode} {$type} {$operandString}", 1);
+            $resultVal = new Instruction($opcode, $resultType);
+            $this->addLine("{$resultVal->render()} = {$opcode} {$type->toLLVM()} {$operandString}", 1);
         } else {
-            $this->addLine("{$opcode} {$type} {$operandString}", 1);
+            $this->addLine("{$opcode} {$type->toLLVM()} {$operandString}", 1);
         }
         return $resultVal;
     }
@@ -69,11 +70,10 @@ class Builder
         return new Void_();
     }
 
-    public function createAlloca(string $name, Type $type): ValueAbstract
+    public function createAlloca(string $name, BaseType $type): ValueAbstract
     {
-        $strType = $type->value;
-        $resultVal = new AllocaInst($name, $type->value);
-        $this->addLine("{$resultVal->render()} = alloca {$strType}", 1);
+        $resultVal = new AllocaInst($name, $type);
+        $this->addLine("{$resultVal->render()} = alloca {$type->toLLVM()}", 1);
         return $resultVal;
     }
 
@@ -81,7 +81,7 @@ class Builder
     {
         $type = $loadptr->getType();
         $resultVal = new Instruction("{$loadptr->getName()}_load", $type);
-        $this->addLine("{$resultVal->render()} = load {$type}, {$type}* {$loadptr->render()}", 1);
+        $this->addLine("{$resultVal->render()} = load {$type->toLLVM()}, ptr {$loadptr->render()}", 1);
         return $resultVal;
     }
 
@@ -89,29 +89,29 @@ class Builder
     {
         // TODO: in case of i8* lval should we cast $rval from i32
         //       use u8 instead?
-        assert($lval instanceof AllocaInst || ($lval instanceof Instruction && $lval->getType() === 'i8*'));
+        //assert($lval instanceof AllocaInst || ($lval instanceof Instruction && $lval->getType() === 'i8*'));
         $type = $rval->getType();
-        $this->addLine("store {$type} {$rval->render()}, {$type}* {$lval->render()}", 1);
+        $this->addLine("store {$type->toLLVM()} {$rval->render()}, {$type->toLLVM()}* {$lval->render()}", 1);
         return new Void_();
     }
 
     public function createFpToSi(ValueAbstract $val): ValueAbstract
     {
-        $resultVal = new Instruction("cast", 'i32');
+        $resultVal = new Instruction("cast", BaseType::INT);
         $this->addLine("{$resultVal->render()} = fptosi float {$val->render()} to i32", 1);
         return $resultVal;
     }
 
     public function createSiToFp(ValueAbstract $val): ValueAbstract
     {
-        $resultVal = new Instruction("cast", 'float');
-        $this->addLine("{$resultVal->render()} = sitofp {$val->getType()} {$val->render()} to float", 1);
+        $resultVal = new Instruction("cast", BaseType::FLOAT);
+        $this->addLine("{$resultVal->render()} = sitofp {$val->getType()->toLLVM()} {$val->render()} to float", 1);
         return $resultVal;
     }
 
     public function createZext(ValueAbstract $val): ValueAbstract
     {
-        $resultVal = new Instruction("cast", 'i32');
+        $resultVal = new Instruction("cast", BaseType::INT);
         $this->addLine("{$resultVal->render()} = zext i1 {$val->render()} to i32", 1);
         return $resultVal;
     }
@@ -119,34 +119,34 @@ class Builder
     public function createCallPrintf(ValueAbstract $val): ValueAbstract
     {
         $str = "@.str.d";
-        if ($val->getType() === 'float') {
-            $valDbl = new Instruction('fpext', 'double');
+        if ($val->getType() === BaseType::FLOAT) {
+            $valDbl = new Instruction('fpext', BaseType::DOUBLE);
             $this->addLine("{$valDbl->render()} = fpext float {$val->render()} to double", 1);
             $str = "@.str.f";
             $val = $valDbl;
         }
-        $this->addLine("call i32 (ptr, ...) @printf(ptr {$str}, {$val->getType()} {$val->render()})", 1);
+        $this->addLine("call i32 (ptr, ...) @printf(ptr {$str}, {$val->getType()->toLLVM()} {$val->render()})", 1);
         return new Void_();
     }
 
     /**
      * @param array<ValueAbstract> $paramVals
      */
-    public function createCall(string $functionName, array $paramVals, Type $returnType): ValueAbstract
+    public function createCall(string $functionName, array $paramVals, BaseType $returnType): ValueAbstract
     {
         $paramString = (new Collection($paramVals))
-            ->map(fn ($param): string => "{$param->getType()} {$param->render()}")
+            ->map(fn ($param): string => "{$param->getType()->toLLVM()} {$param->render()}")
             ->join(', ');
-        $returnVal = new Instruction('call', $returnType->value);
-        $this->addLine("{$returnVal->render()} = call {$returnType->value} @{$functionName} ({$paramString})", 1);
+        $returnVal = new Instruction('call', $returnType);
+        $this->addLine("{$returnVal->render()} = call {$returnType->toLLVM()} @{$functionName} ({$paramString})", 1);
         return $returnVal;
     }
 
     public function createGetElementPtr(ValueAbstract $var, ValueAbstract $dim): ValueAbstract
     {
         $arrayType = $var->getType();
-        $resultVal = new Instruction('getelementptr', 'i8*');
-        $this->addLine("{$resultVal->render()} = getelementptr inbounds {$arrayType}, {$arrayType}* {$var->render()}, i64 0, {$dim->getType()} {$dim->render()}", 1);
+        $resultVal = new Instruction('getelementptr', BaseType::PTR);
+        $this->addLine("{$resultVal->render()} = getelementptr inbounds {$arrayType->toLLVM()}, ptr {$var->render()}, i64 0, {$dim->getType()->toLLVM()} {$dim->render()}", 1);
         return $resultVal;
     }
 

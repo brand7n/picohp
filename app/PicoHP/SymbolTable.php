@@ -39,7 +39,7 @@ class SymbolTable
     /**
      * Add a symbol to the symbol table.
      */
-    public function addSymbol(string $name, string $type, bool $func = false): Symbol
+    public function addSymbol(string $name, PicoType $type, bool $func = false): Symbol
     {
         return $this->getCurrentScope()->add(new Symbol($name, $type, func: $func));
     }

@@ -5,23 +5,24 @@ declare(strict_types=1);
 namespace App\PicoHP\LLVM;
 
 use App\PicoHP\Tree\{NodeInterface, NodeTrait};
+use App\PicoHP\{PicoType};
 
 class Function_ implements NodeInterface
 {
     use NodeTrait;
 
     protected string $name;
-    protected ?string $returnType;
+    protected PicoType $returnType;
 
     /**
-     * @var array<string>
+     * @var array<PicoType>
      */
     protected array $params;
 
     /**
-     * @param array<string> $params
+     * @param array<PicoType> $params
      */
-    public function __construct(string $name, array $params = [], ?string $returnType = null)
+    public function __construct(string $name, PicoType $returnType, array $params = [])
     {
         $this->name = $name;
         $this->params = $params;
@@ -40,24 +41,6 @@ class Function_ implements NodeInterface
         return $this->name;
     }
 
-    public static function getType(string $strType): string
-    {
-        switch ($strType) {
-            case 'int':
-                $type = "i32";
-                break;
-            case 'float':
-                $type = "float";
-                break;
-            case 'bool':
-                $type = "i1";
-                break;
-            default:
-                throw new \RuntimeException("Unknown type: {$strType}");
-        }
-        return $type;
-    }
-
     /**
      * @return array<IRLine>
      */
@@ -67,13 +50,11 @@ class Function_ implements NodeInterface
         $params = [];
         $count = 0;
         foreach ($this->params as $param) {
-            $type = self::getType($param);
-            $params[] = "{$type} %{$count}";
+            $params[] = "{$param->toBase()->toLLVM()} %{$count}";
             $count++;
         }
         $paramString = implode(', ', $params);
-        $returnType = self::getType($this->returnType ?? 'void');
-        $code[] = new IRLine("define dso_local {$returnType} @{$this->name}({$paramString}) {");
+        $code[] = new IRLine("define dso_local {$this->returnType->toBase()->toLLVM()} @{$this->name}({$paramString}) {");
         foreach ($this->getChildren() as $bb) {
             assert($bb instanceof BasicBlock);
             $code = array_merge($code, $bb->getLines());

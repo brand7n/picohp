@@ -4,6 +4,7 @@ namespace App\PicoHP\Pass;
 
 use App\PicoHP\{PassInterface, SymbolTable};
 use App\PicoHP\SymbolTable\{DocTypeParser, PicoHPData};
+use App\PicoHP\{BaseType, PicoType};
 
 class SemanticAnalysisPass implements PassInterface
 {
@@ -46,12 +47,9 @@ class SemanticAnalysisPass implements PassInterface
         $pData = $this->getPicoData($stmt);
 
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
-            $returnType = 'int';
-            if (!is_null($stmt->returnType)) {
-                assert($stmt->returnType instanceof \PhpParser\Node\Identifier);
-                $returnType = $stmt->returnType->name;
-            }
-            $pData->symbol = $this->symbolTable->addSymbol($stmt->name->name, $returnType, func: true);
+            assert(!is_null($stmt->returnType));
+            assert($stmt->returnType instanceof \PhpParser\Node\Identifier);
+            $pData->symbol = $this->symbolTable->addSymbol($stmt->name->name, PicoType::fromString($stmt->returnType->name), func: true);
             if ($stmt->name->name !== 'main') {
                 $pData->setScope($this->symbolTable->enterScope());
             }
@@ -97,7 +95,7 @@ class SemanticAnalysisPass implements PassInterface
                 $this->resolveExpr($init);
             }
             foreach ($stmt->cond as $cond) {
-                assert($this->resolveExpr($cond) === 'bool');
+                assert($this->resolveExpr($cond)->toBase() === BaseType::BOOL);
             }
             foreach ($stmt->loop as $loop) {
                 $this->resolveExpr($loop);
@@ -112,7 +110,7 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Property) {
             assert($stmt->type instanceof \PhpParser\Node\Identifier);
             foreach ($stmt->props as $prop) {
-                $this->resolveProperty($prop, $pData, $stmt->type->name);
+                $this->resolveProperty($prop, $pData, PicoType::fromString($stmt->type->name));
             }
         } else {
             $line = $this->getLine($stmt);
@@ -120,7 +118,7 @@ class SemanticAnalysisPass implements PassInterface
         }
     }
 
-    public function resolveExpr(\PhpParser\Node\Expr $expr, ?\PhpParser\Comment\Doc $doc = null, bool $lVal = false, ?string $rType = null): string
+    public function resolveExpr(\PhpParser\Node\Expr $expr, ?\PhpParser\Comment\Doc $doc = null, bool $lVal = false, ?PicoType $rType = null): PicoType
     {
         $pData = $this->getPicoData($expr);
 
@@ -128,7 +126,7 @@ class SemanticAnalysisPass implements PassInterface
             $rtype = $this->resolveExpr($expr->expr);
             $ltype = $this->resolveExpr($expr->var, $doc, lVal: true, rType: $rtype);
             $line = $this->getLine($expr);
-            assert($ltype === $rtype, "line {$line}, type mismatch in assignment");
+            assert($ltype->isEqualTo($rtype), "line {$line}, type mismatch in assignment");
             return $rtype;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Variable) {
             $pData->lVal = $lVal;
@@ -152,17 +150,17 @@ class SemanticAnalysisPass implements PassInterface
             $pData->lVal = $lVal;
             // add/resolve this symbol which is an array/string $var = $expr->var;
             $type = $this->resolveExpr($expr->var, $doc, lVal: $lVal);
-            assert($type === 'string', "$type is not a string");
+            assert($type->isEqualTo(PicoType::fromString('string')), "{$type->toString()} is not a string");
             assert($expr->dim !== null);
             $dimType = $this->resolveExpr($expr->dim);
-            assert($dimType === 'int');
+            assert($dimType->isEqualTo(PicoType::fromString('int')), "{$dimType->toString()} is not an int");
             // if doc is null type will be from a retrieved value
-            return "int"; // really a char/byte or maybe a single byte string?
+            return PicoType::fromString('int'); // really a char/byte or maybe a single byte string?
         } elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp) {
             $ltype = $this->resolveExpr($expr->left);
             $rtype = $this->resolveExpr($expr->right);
             $line = $this->getLine($expr);
-            assert($ltype === $rtype, "line {$line}, type mismatch in binary op: {$ltype} {$expr->getOperatorSigil()} {$rtype}");
+            assert($ltype->isEqualTo($rtype), "line {$line}, type mismatch in binary op: {$ltype->toString()} {$expr->getOperatorSigil()} {$rtype->toString()}");
             switch ($expr->getOperatorSigil()) {
                 case '+':
                 case '*':
@@ -177,7 +175,7 @@ class SemanticAnalysisPass implements PassInterface
                 case '==':
                 case '<':
                 case '>':
-                    $type = 'bool';
+                    $type = PicoType::fromString('bool');
                     break;
                 default:
                     throw new \Exception("unknown BinaryOp {$expr->getOperatorSigil()}");
@@ -185,15 +183,15 @@ class SemanticAnalysisPass implements PassInterface
             return $type;
         } elseif ($expr instanceof \PhpParser\Node\Expr\UnaryMinus) {
             $type = $this->resolveExpr($expr->expr);
-            assert($type === "int");
-            return "int";
+            assert($type->isEqualTo(PicoType::fromString('int')));
+            return PicoType::fromString('int');
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Int_) {
-            return "int";
+            return PicoType::fromString('int');
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Float_) {
-            return "float";
+            return PicoType::fromString('float');
         } elseif ($expr instanceof \PhpParser\Node\Scalar\String_) {
             // TODO: add to symbol table?
-            return "string";
+            return PicoType::fromString('string');
         } elseif ($expr instanceof \PhpParser\Node\Scalar\InterpolatedString) {
             foreach ($expr->parts as $part) {
                 if ($part instanceof \PhpParser\Node\InterpolatedStringPart) {
@@ -202,21 +200,23 @@ class SemanticAnalysisPass implements PassInterface
                     return $this->resolveExpr($part);
                 }
             }
-            return "string";
+            return PicoType::fromString('string');
         } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Int_) {
             $this->resolveExpr($expr->expr);
-            return "int";
+            return PicoType::fromString('int');
         } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Double) {
             $this->resolveExpr($expr->expr);
-            return "float";
+            return PicoType::fromString('float');
         } elseif ($expr instanceof \PhpParser\Node\Expr\ConstFetch) {
-            return "bool";
+            return PicoType::fromString('bool'); // TODO: ??
         } elseif ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
             $argTypes = $this->resolveArgs($expr->args);
             assert($expr->name instanceof \PhpParser\Node\Name);
             $s = $this->symbolTable->lookup($expr->name->name);
-            //assert(is_string($s->type));
-            return "int";//$s->type;
+            return PicoType::fromString('int');
+            // TODO: fix so we can look up functions/return types in the symbol table
+            //assert(!is_null($s), "function {$expr->name->name} not found");
+            //return $s->type;
         } else {
             $line = $this->getLine($expr);
             throw new \Exception("line {$line}, unknown node type in expr resolver: " . get_class($expr));
@@ -225,7 +225,7 @@ class SemanticAnalysisPass implements PassInterface
 
     /**
      * @param array<\PhpParser\Node\Arg|\PhpParser\Node\VariadicPlaceholder> $args
-     * @return array<string>
+     * @return array<PicoType>
      */
     public function resolveArgs(array $args): array
     {
@@ -239,7 +239,7 @@ class SemanticAnalysisPass implements PassInterface
 
     /**
      * @param array<\PhpParser\Node\Param> $params
-     * @return array<string>
+     * @return array<PicoType>
      */
     public function resolveParams(array $params): array
     {
@@ -249,13 +249,13 @@ class SemanticAnalysisPass implements PassInterface
             assert($param->var instanceof \PhpParser\Node\Expr\Variable);
             assert(is_string($param->var->name));
             assert($param->type instanceof \PhpParser\Node\Identifier);
-            $pData->symbol = $this->symbolTable->addSymbol($param->var->name, $param->type->name);
-            $paramTypes[] = $param->type->name;
+            $pData->symbol = $this->symbolTable->addSymbol($param->var->name, PicoType::fromString($param->type->name));
+            $paramTypes[] = PicoType::fromString($param->type->name);
         }
         return $paramTypes;
     }
 
-    public function resolveProperty(\PhpParser\Node\Stmt\PropertyProperty $prop, PicoHPData $pData, string $type): void
+    public function resolveProperty(\PhpParser\Node\Stmt\PropertyProperty $prop, PicoHPData $pData, PicoType $type): void
     {
         if ($prop->default !== null) {
             assert($this->resolveExpr($prop->default) === $type);
