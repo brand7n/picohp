@@ -29,13 +29,18 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
     /** @return null|int|Node|Node[] */
     public function leaveNode(Node $node)
     {
+        // TODO: handle traits and interfaces
+
         // Transform methods into functions
         if ($node instanceof Node\Stmt\ClassMethod && $node->isStatic()) {
             $methodName = $node->name->name;
 
             // Transform static methods: no `$state` parameter
             $stmts = $node->stmts;
-            assert($stmts !== null);
+            if ($stmts === null) {
+                // assume this is a interface method for now
+                return null;
+            }
             $this->globalStatements[] = new Node\Stmt\Function_(
                 "{$this->className}_{$methodName}",
                 [

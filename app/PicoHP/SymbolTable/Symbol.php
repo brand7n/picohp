@@ -21,7 +21,11 @@ class Symbol
     {
         $this->name = $name;
         $this->type = $type;
+
+        // TODO: move to pData
         $this->value = $value;
+
+        // TODO: use type for function params
         $this->params = $params;
         $this->func = $func;
     }

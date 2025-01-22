@@ -112,6 +112,8 @@ class SemanticAnalysisPass implements PassInterface
             foreach ($stmt->props as $prop) {
                 $this->resolveProperty($prop, $pData, PicoType::fromString($stmt->type->name));
             }
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Interface_) {
+
         } else {
             $line = $this->getLine($stmt);
             throw new \Exception("line: {$line}, unknown node type in stmt resolver: " . get_class($stmt));
@@ -214,7 +216,7 @@ class SemanticAnalysisPass implements PassInterface
             assert($expr->name instanceof \PhpParser\Node\Name);
             $s = $this->symbolTable->lookup($expr->name->name);
             return PicoType::fromString('int');
-            // TODO: fix so we can look up functions/return types in the symbol table
+            // TODO: we may need to scan for functions first so we can look up functions/return types in the symbol table
             //assert(!is_null($s), "function {$expr->name->name} not found");
             //return $s->type;
         } else {

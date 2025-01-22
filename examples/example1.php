@@ -3,7 +3,13 @@
 /** @var int */
 $glob = 5;
 
-class Test
+//TODO: test interface
+interface BlahInterface
+{
+    public static function blah(int $a): float;
+}
+
+class Test implements BlahInterface
 {
     // public static int $value1 = 5 + 3;
     // public static float $value2 = 0.1234;
@@ -24,6 +30,11 @@ class Test
         $a[5] = -4;
         echo $a[5];
         return $c;
+    }
+
+    public static function blah(int $a): float
+    {
+        return 1.234;
     }
 }
 

@@ -177,6 +177,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             $this->builder->createBranch([$condLabel]);
             $this->builder->setInsertPoint($endBB);
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Interface_) {
+
         } else {
             throw new \Exception("unknown node type in stmt: " . get_class($stmt));
         }
