@@ -178,7 +178,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->builder->createBranch([$condLabel]);
             $this->builder->setInsertPoint($endBB);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Interface_) {
-
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Namespace_) {
+            $this->buildStmts($stmt->stmts);
         } else {
             throw new \Exception("unknown node type in stmt: " . get_class($stmt));
         }
@@ -313,6 +314,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                     $this->buildExpr($expr->dim)
                 )
             );
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Include_) {
+            return new Void_();
         } else {
             throw new \Exception("unknown node type in expr: " . get_class($expr));
         }

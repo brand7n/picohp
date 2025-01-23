@@ -31,6 +31,12 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
     {
         // TODO: handle traits and interfaces
 
+        // TODO: theoretically, we could remove the namespace declaration
+        // but we need to handle the statements inside the namespace
+        // if ($node instanceof Node\Stmt\Namespace_) {
+        //     return NodeTraverser::REMOVE_NODE;
+        // }
+
         // Transform methods into functions
         if ($node instanceof Node\Stmt\ClassMethod && $node->isStatic()) {
             $methodName = $node->name->name;
@@ -55,15 +61,15 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
         // Convert static method calls (e.g., MyClass::methodName())
         if ($node instanceof Node\Expr\StaticCall) {
             // TODO: handle self::
-            if ($node->class instanceof Node\Name && $node->class->toString() === $this->className) {
+            if ($node->class instanceof Node\Name) {
                 assert($node->name instanceof Node\Identifier);
-                $name = new Node\Name("{$this->className}_{$node->name}");
+                $name = new Node\Name("{$node->class->name}_{$node->name}");
                 // TODO: handle arguments/return value
-                return new Node\Expr\FuncCall($name);
+                return new Node\Expr\FuncCall($name, $node->args);
             }
             // @codeCoverageIgnoreStart
-            assert($node->class instanceof Node\Name);
-            throw new \Exception("Unexpected class name: {$node->class->toString()}");
+            dump($node);
+            throw new \Exception('Unexpected node type');
             // @codeCoverageIgnoreEnd
         }
 

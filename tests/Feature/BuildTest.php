@@ -14,4 +14,12 @@ it('builds a picoHP program', function () {
     $exe = "{$buildPath}/a.out";
     exec($exe, result_code: $result);
     expect($result)->toBe(49);
+
+    $dir = getcwd();
+    assert(is_string($dir));
+    chdir('examples/test-proj');
+    exec('./make');
+    chdir($dir);
+    /** @phpstan-ignore-next-line */
+    $this->artisan('build --debug examples/test-proj')->assertExitCode(0);
 });

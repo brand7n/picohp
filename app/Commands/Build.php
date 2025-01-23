@@ -8,6 +8,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use LaravelZero\Framework\Commands\Command;
 use PhpParser\ParserFactory;
 use PhpParser\NodeTraverser;
+use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\PrettyPrinter\Standard;
 use App\PicoHP\ClassToFunctionVisitor;
 use App\PicoHP\GlobalToMainVisitor;
@@ -37,12 +38,18 @@ class Build extends Command
         $parser = (new ParserFactory())->createForNewestSupportedVersion();
 
         $filename = $this->argument('filename');
-        assert(is_string($filename));
-        $code = file_get_contents($filename);
-        assert($code !== false, "Unable to open input file");
 
-        $ast = $parser->parse($code);
-        assert(!is_null($ast));
+        $ast = [];
+        assert(is_string($filename));
+        if (is_dir($filename)) {
+            $ast = $this->walkClassMap($filename);
+        } else {
+            $code = file_get_contents($filename);
+            assert($code !== false, "Unable to open input file");
+
+            $ast = $parser->parse($code);
+            assert(!is_null($ast));
+        }
 
         $buildPath = config('app.build_path');
         assert(is_string($buildPath));
@@ -57,14 +64,16 @@ class Build extends Command
         $transformedCode = "{$buildPath}/transformed_code.php";
         $llvmIRoutput = "{$buildPath}/out.ll";
 
+        // TODO: add static analysis pass (psalm, phpstan, etc)
+
+        $traverser = new NodeTraverser();
+        $traverser->addVisitor(new NameResolver(options: ['replaceNodes' => false]));
+        $ast = $traverser->traverse($ast);
+
         $debug = $this->option('debug') === true;
         if ($debug) {
             file_put_contents($astOutput, json_encode($ast, JSON_PRETTY_PRINT));
         }
-
-        // TODO: add static analysis pass (psalm, phpstan, etc)
-
-        // TODO: add name resolver visitor?
 
         $traverser = new NodeTraverser();
         $traverser->addVisitor(new ClassToFunctionVisitor());
@@ -132,5 +141,40 @@ class Build extends Command
     public function schedule(Schedule $schedule): void
     {
         // $schedule->command(static::class)->everyMinute();
+    }
+
+    /**
+     * @return array<\PhpParser\Node>
+     */
+    protected function walkClassMap(string $path): array
+    {
+        /** @var array<string, string> */
+        $classMap = require $path . '/vendor/composer/autoload_classmap.php';
+
+        // for now assume src/main.php is our entry point
+        $main = realpath($path . '/src/main.php');
+        assert(is_string($main));
+
+        $nodes = $this->getNodes($main);
+        foreach ($classMap as $class => $file) {
+            if ($class !== 'Composer\InstalledVersions') {
+                $nodes = array_merge($nodes, $this->getNodes($file));
+            }
+        }
+        return $nodes;
+    }
+    /**
+     * @return array<\PhpParser\Node>
+     */
+    protected function getNodes(string $filename): array
+    {
+        $parser = (new ParserFactory())->createForNewestSupportedVersion();
+        $code = file_get_contents($filename);
+        assert($code !== false, "Unable to open input file");
+        $ast = $parser->parse($code);
+        assert(!is_null($ast));
+
+        // TODO: filter out everything except classes and functions
+        return $ast;
     }
 }
