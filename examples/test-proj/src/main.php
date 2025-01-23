@@ -5,4 +5,4 @@ namespace Brandin\TestProj;
 // picoHP will ignore this but we will keep it in for PHP compatibility
 require_once __DIR__ . '/vendor/autoload.php';
 
-Test::test1(true, 1.234);
+return Test::test1(true, 1.234);

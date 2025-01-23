@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-
 it('builds a picoHP program', function () {
     /** @phpstan-ignore-next-line */
     $this->artisan('build --debug examples/example1.php')->assertExitCode(0);
@@ -22,4 +21,6 @@ it('builds a picoHP program', function () {
     chdir($dir);
     /** @phpstan-ignore-next-line */
     $this->artisan('build --debug examples/test-proj')->assertExitCode(0);
+    exec('./build/a.out', result_code: $result);
+    expect($result)->toBe(2);
 });
