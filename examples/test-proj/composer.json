@@ -1,0 +1,21 @@
+{
+    "name": "brandin/test-proj",
+    "description": "testing picoHP",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Brandin\\TestProj\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Brandin L Claar",
+            "email": "brandin@remodulate.com"
+        }
+    ],
+    "require-dev": {
+        "phpstan/phpstan": "^2.1",
+        "phpstan/phpstan-strict-rules": "^2.0"
+    }
+}
