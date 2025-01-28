@@ -1,8 +1,8 @@
 {
-    "name": "laravel-zero/laravel-zero",
-    "description": "The Laravel Zero Framework.",
-    "keywords": ["framework", "laravel", "laravel zero", "console", "cli"],
-    "homepage": "https://laravel-zero.com",
+    "name": "brand7n/picohp",
+    "description": "picoHP compiler",
+    "keywords": ["php", "compiler", "php compiler", "laravel", "laravel zero", "console", "cli"],
+    "homepage": "https://github.com/brand7n/picohp",
     "type": "project",
     "license": "MIT",
     "support": {
