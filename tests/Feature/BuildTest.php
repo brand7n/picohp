@@ -21,6 +21,6 @@ it('builds a picoHP program', function () {
     chdir($dir);
     /** @phpstan-ignore-next-line */
     $this->artisan('build --debug examples/test-proj')->assertExitCode(0);
-    exec('./build/a.out', result_code: $result);
+    exec($exe, result_code: $result);
     expect($result)->toBe(2);
 });
