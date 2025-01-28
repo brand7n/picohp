@@ -34,6 +34,8 @@ class Test implements BlahInterface
 
     public static function blah(int $a): float
     {
+        $b = $a++;
+        echo $b++;
         return 1.234;
     }
 }
@@ -71,3 +73,4 @@ if ($glob > 0) {
 
 echo $glob;
 //echo Test::test1(true, 1.234);
+?>hello world<?php
