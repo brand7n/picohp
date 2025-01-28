@@ -115,6 +115,8 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Interface_) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Namespace_) {
             $this->resolveStmts($stmt->stmts);
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\InlineHTML) {
+            // TODO: create string constant?
         } else {
             $line = $this->getLine($stmt);
             throw new \Exception("line: {$line}, unknown node type in stmt resolver: " . get_class($stmt));
@@ -223,6 +225,10 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\Include_) {
             //$this->resolveExpr($expr->expr);
             return PicoType::fromString('void');
+        } elseif ($expr instanceof \PhpParser\Node\Expr\PostInc) {
+            return PicoType::fromString('int');
+        } elseif ($expr instanceof \PhpParser\Node\Expr\PostDec) {
+            return PicoType::fromString('int');
         } else {
             $line = $this->getLine($expr);
             throw new \Exception("line {$line}, unknown node type in expr resolver: " . get_class($expr));

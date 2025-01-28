@@ -180,6 +180,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Interface_) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Namespace_) {
             $this->buildStmts($stmt->stmts);
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\InlineHTML) {
+            // TODO: create string constant?
         } else {
             throw new \Exception("unknown node type in stmt: " . get_class($stmt));
         }
@@ -316,6 +318,10 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             );
         } elseif ($expr instanceof \PhpParser\Node\Expr\Include_) {
             return new Void_();
+        } elseif ($expr instanceof \PhpParser\Node\Expr\PostInc) {
+            return new Constant(1, BaseType::INT);
+        } elseif ($expr instanceof \PhpParser\Node\Expr\PostDec) {
+            return new Constant(0, BaseType::INT);
         } else {
             throw new \Exception("unknown node type in expr: " . get_class($expr));
         }
