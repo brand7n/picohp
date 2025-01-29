@@ -1,0 +1,3 @@
+#!/bin/sh
+
+composer create-project --repository '{ "type": "vcs", "url": "https://github.com/brand7n/picoproj.git" }' -s dev brand7n/picoproj $1
