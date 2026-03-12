@@ -7,7 +7,7 @@ namespace App\PicoHP\Pass;
 use App\PicoHP\{BaseType};
 use App\PicoHP\LLVM\{Module, Builder, ValueAbstract, IRLine};
 use App\PicoHP\LLVM\Value\{Constant, Void_, Label, Param};
-use App\PicoHP\SymbolTable\{Symbol, PicoHPData};
+use App\PicoHP\SymbolTable\PicoHPData;
 use Illuminate\Support\Collection;
 
 class IRGenerationPass implements \App\PicoHP\PassInterface
