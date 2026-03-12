@@ -26,9 +26,9 @@ class Test implements BlahInterface
         echo "Hello: {$c}";
         echo(1.234);
         echo((float)(float)(1 >> 2));
-        /** @picobuf 256 */
-        $a[5] = -4;
-        echo $a[5];
+        /** @var int $d */
+        $d = -4;
+        echo $d;
         return $c;
     }
 
