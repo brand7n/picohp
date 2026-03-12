@@ -7,7 +7,7 @@ namespace App\PicoHP\Pass;
 use App\PicoHP\{BaseType};
 use App\PicoHP\LLVM\{Module, Builder, ValueAbstract, IRLine};
 use App\PicoHP\LLVM\Value\{Constant, Void_, Label, Param};
-use App\PicoHP\SymbolTable\{Symbol, PicoHPData};
+use App\PicoHP\SymbolTable\PicoHPData;
 use Illuminate\Support\Collection;
 
 class IRGenerationPass implements \App\PicoHP\PassInterface
@@ -289,7 +289,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Float_) {
             return new Constant($expr->value, BaseType::FLOAT);
         } elseif ($expr instanceof \PhpParser\Node\Scalar\String_) {
-            return new Void_(); // TODO: retrieve reference from symbol table?
+            return $this->builder->createStringConstant($expr->value);
         } elseif ($expr instanceof \PhpParser\Node\Scalar\InterpolatedString) {
             foreach ($expr->parts as $part) {
                 if ($part instanceof \PhpParser\Node\InterpolatedStringPart) {
