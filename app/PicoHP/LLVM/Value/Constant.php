@@ -7,7 +7,6 @@ namespace App\PicoHP\LLVM\Value;
 use App\PicoHP\BaseType;
 use App\PicoHP\LLVM\ValueAbstract;
 
-
 // A class representing a constant value (e.g., integer, float)
 class Constant extends ValueAbstract
 {
