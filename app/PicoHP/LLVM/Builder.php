@@ -29,6 +29,8 @@ class Builder
         $this->addLine('@.str.s = private constant [3 x i8] c"%s\00", align 1');
         $this->addLine();
         $this->addLine('declare i32 @printf(ptr, ...)');
+        $this->addLine('declare ptr @pico_string_concat(ptr, ptr)');
+        $this->addLine('declare i32 @pico_rt_version()');
     }
 
     public function setInsertPoint(BasicBlock $bb): void
@@ -143,6 +145,13 @@ class Builder
             }
         }
         return $result;
+    }
+
+    public function createStringConcat(ValueAbstract $left, ValueAbstract $right): ValueAbstract
+    {
+        $resultVal = new Instruction('concat', BaseType::PTR);
+        $this->addLine("{$resultVal->render()} = call ptr @pico_string_concat(ptr {$left->render()}, ptr {$right->render()})", 1);
+        return $resultVal;
     }
 
     public function createCallPrintf(ValueAbstract $val): ValueAbstract
