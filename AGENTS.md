@@ -43,6 +43,31 @@ Key directories:
 - `tests/Unit/` — Pest unit tests (individual components)
 - `examples/` — sample PHP programs
 
+## Compilation Target
+
+The compiler targets PHP code that passes PHPStan analysis at level max
+with strict rules and bleeding edge enabled:
+```neon
+parameters:
+    level: max
+    paths:
+    - src
+includes:
+    - vendor/phpstan/phpstan/conf/bleedingEdge.neon
+    - vendor/phpstan/phpstan-strict-rules/rules.neon
+```
+
+This means:
+- All variables and return types are explicitly typed
+- No loose comparisons (=== only)
+- No mixed types
+- No dynamic property access or magic methods
+- Strict function signatures
+
+Test programs should also pass PHPStan at this level. The agent should
+run `vendor/bin/phpstan analyse` on test programs before considering
+them valid.
+
 ## Testing
 
 ### Test Framework
