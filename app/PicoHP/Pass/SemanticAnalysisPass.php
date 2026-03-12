@@ -28,7 +28,31 @@ class SemanticAnalysisPass implements PassInterface
 
     public function exec(): void
     {
+        $this->registerFunctions($this->ast);
         $this->resolveStmts($this->ast);
+    }
+
+    /**
+     * Pre-pass: register all top-level function declarations so they can be
+     * referenced before their definition (forward references).
+     *
+     * @param array<\PhpParser\Node> $stmts
+     */
+    protected function registerFunctions(array $stmts): void
+    {
+        foreach ($stmts as $stmt) {
+            if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
+                assert($stmt->returnType instanceof \PhpParser\Node\Identifier);
+                $existing = $this->symbolTable->lookupCurrentScope($stmt->name->name);
+                if ($existing === null) {
+                    $this->symbolTable->addSymbol(
+                        $stmt->name->name,
+                        PicoType::fromString($stmt->returnType->name),
+                        func: true
+                    );
+                }
+            }
+        }
     }
 
     /**
@@ -49,7 +73,8 @@ class SemanticAnalysisPass implements PassInterface
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
             assert(!is_null($stmt->returnType));
             assert($stmt->returnType instanceof \PhpParser\Node\Identifier);
-            $pData->symbol = $this->symbolTable->addSymbol($stmt->name->name, PicoType::fromString($stmt->returnType->name), func: true);
+            $existing = $this->symbolTable->lookupCurrentScope($stmt->name->name);
+            $pData->symbol = $existing ?? $this->symbolTable->addSymbol($stmt->name->name, PicoType::fromString($stmt->returnType->name), func: true);
             if ($stmt->name->name !== 'main') {
                 $pData->setScope($this->symbolTable->enterScope());
             }
@@ -216,13 +241,13 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\ConstFetch) {
             return PicoType::fromString('bool'); // TODO: ??
         } elseif ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
-            $argTypes = $this->resolveArgs($expr->args);
+            $this->resolveArgs($expr->args);
             assert($expr->name instanceof \PhpParser\Node\Name);
             $s = $this->symbolTable->lookup($expr->name->name);
-            return PicoType::fromString('int');
-            // TODO: we may need to scan for functions first so we can look up functions/return types in the symbol table
-            //assert(!is_null($s), "function {$expr->name->name} not found");
-            //return $s->type;
+            $line = $this->getLine($expr);
+            assert($s !== null, "line {$line}, function {$expr->name->name} not found");
+            $pData->symbol = $s;
+            return $s->type;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Include_) {
             //$this->resolveExpr($expr->expr);
             return PicoType::fromString('void');
