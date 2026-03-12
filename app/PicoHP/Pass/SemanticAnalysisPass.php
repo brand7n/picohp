@@ -92,7 +92,7 @@ class SemanticAnalysisPass implements PassInterface
             $this->resolveExpr($stmt->cond);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\For_) {
             foreach ($stmt->init as $init) {
-                $this->resolveExpr($init);
+                $this->resolveExpr($init, $init->getDocComment());
             }
             foreach ($stmt->cond as $cond) {
                 $condType = $this->resolveExpr($cond);
