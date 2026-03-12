@@ -201,6 +201,7 @@ class SemanticAnalysisPass implements PassInterface
                 case '|':
                 case '<<':
                 case '>>':
+                case '%':
                     $type = $rtype;
                     break;
                 case '==':

@@ -255,6 +255,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 case '>>':
                     $val = $this->builder->createInstruction('ashr', [$lval, $rval]);
                     break;
+                case '%':
+                    $val = $this->builder->createInstruction('srem', [$lval, $rval]);
+                    break;
                 case '==':
                 case '===':
                     $val = $this->builder->createInstruction('icmp eq', [$lval, $rval], resultType: BaseType::BOOL);
