@@ -4,6 +4,8 @@ parameters:
     - app
     - tests
     - bootstrap
+    ignoreErrors:
+        - '#Call to method .+ of internal class Pest\\#'
 
 includes:
     - vendor/phpstan/phpstan/conf/bleedingEdge.neon
