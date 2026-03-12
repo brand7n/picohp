@@ -108,23 +108,67 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 }
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\If_) {
-            $cond = $this->buildExpr($stmt->cond);
             assert($this->currentFunction !== null);
-            $thenBB = $this->currentFunction->addBasicBlock("then{$pData->mycount}");
-            $elseBB = $this->currentFunction->addBasicBlock("else{$pData->mycount}");
-            $endBB = $this->currentFunction->addBasicBlock("end{$pData->mycount}");
-            $thenLabel = new Label($thenBB->getName());
-            $elseLabel = new Label($elseBB->getName());
+            $currentFunction = $this->currentFunction;
+            $count = $pData->mycount;
+            $endBB = $currentFunction->addBasicBlock("end{$count}");
             $endLabel = new Label($endBB->getName());
-            $this->builder->createBranch([$cond, $thenLabel, $elseLabel]);
+
+            $thenBB = $currentFunction->addBasicBlock("then{$count}");
+            $thenLabel = new Label($thenBB->getName());
+
+            // Determine where to branch on false: first elseif, else, or end
+            $elseifCount = count($stmt->elseifs);
+            if ($elseifCount > 0) {
+                $nextBB = $currentFunction->addBasicBlock("elseif_cond{$count}_0");
+            } elseif (!is_null($stmt->else)) {
+                $nextBB = $currentFunction->addBasicBlock("else{$count}");
+            } else {
+                $nextBB = $endBB;
+            }
+            $nextLabel = new Label($nextBB->getName());
+
+            $cond = $this->buildExpr($stmt->cond);
+            $this->builder->createBranch([$cond, $thenLabel, $nextLabel]);
+
+            // then block
             $this->builder->setInsertPoint($thenBB);
             $this->buildStmts($stmt->stmts);
             $this->builder->createBranch([$endLabel]);
-            $this->builder->setInsertPoint($elseBB);
-            if (!is_null($stmt->else)) {
-                $this->buildStmts($stmt->else->stmts);
+
+            // elseif blocks
+            for ($i = 0; $i < $elseifCount; $i++) {
+                $elseif = $stmt->elseifs[$i];
+                $this->builder->setInsertPoint($nextBB);
+                $elseifCond = $this->buildExpr($elseif->cond);
+
+                $bodyBB = $currentFunction->addBasicBlock("elseif_body{$count}_{$i}");
+                $bodyLabel = new Label($bodyBB->getName());
+
+                // Determine next target after this elseif
+                if ($i + 1 < $elseifCount) {
+                    $nextBB = $currentFunction->addBasicBlock("elseif_cond{$count}_" . ($i + 1));
+                } elseif (!is_null($stmt->else)) {
+                    $nextBB = $currentFunction->addBasicBlock("else{$count}");
+                } else {
+                    $nextBB = $endBB;
+                }
+                $nextLabel = new Label($nextBB->getName());
+
+                $this->builder->createBranch([$elseifCond, $bodyLabel, $nextLabel]);
+
+                $this->builder->setInsertPoint($bodyBB);
+                $this->buildStmts($elseif->stmts);
+                $this->builder->createBranch([$endLabel]);
             }
-            $this->builder->createBranch([$endLabel]);
+
+            // else block
+            if (!is_null($stmt->else)) {
+                $this->builder->setInsertPoint($nextBB);
+                $this->buildStmts($stmt->else->stmts);
+                $this->builder->createBranch([$endLabel]);
+            }
+
             $this->builder->setInsertPoint($endBB);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\While_) {
             assert($this->currentFunction !== null);
