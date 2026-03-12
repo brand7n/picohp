@@ -113,6 +113,10 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\If_) {
             $this->resolveExpr($stmt->cond);
             $this->resolveStmts($stmt->stmts);
+            foreach ($stmt->elseifs as $elseif) {
+                $this->resolveExpr($elseif->cond);
+                $this->resolveStmts($elseif->stmts);
+            }
             if (!is_null($stmt->else)) {
                 $this->resolveStmts($stmt->else->stmts);
             }
