@@ -66,6 +66,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             $this->buildParams($stmt->params);
             $this->buildStmts($stmt->stmts);
+            if ($funcSymbol->type->toBase() === BaseType::VOID) {
+                $this->builder->createRetVoid();
+            }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Block) {
             $scope = $pData->getScope();
             foreach ($scope->symbols as $symbol) {
