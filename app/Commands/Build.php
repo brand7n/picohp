@@ -33,7 +33,7 @@ class Build extends Command
     /**
      * Execute the console command.
      */
-    public function handle(): void
+    public function handle(): int
     {
         $parser = (new ParserFactory())->createForNewestSupportedVersion();
 
@@ -44,11 +44,21 @@ class Build extends Command
         if (is_dir($filename)) {
             $ast = $this->walkClassMap($filename);
         } else {
+            if (!file_exists($filename)) {
+                $this->error("Unable to open input file: {$filename}");
+                return 1;
+            }
             $code = file_get_contents($filename);
-            assert($code !== false, "Unable to open input file");
+            if ($code === false) {
+                $this->error("Unable to read input file: {$filename}");
+                return 1;
+            }
 
             $ast = $parser->parse($code);
-            assert(!is_null($ast));
+            if (is_null($ast)) {
+                $this->error("Failed to parse input file: {$filename}");
+                return 1;
+            }
         }
 
         $buildPath = config('app.build_path');
@@ -104,7 +114,10 @@ class Build extends Command
         $pass->exec();
 
         $f = fopen($llvmIRoutput, 'w');
-        assert($f !== false);
+        if ($f === false) {
+            $this->error("Unable to open output file: {$llvmIRoutput}");
+            return 1;
+        }
         $pass->module->print($f);
 
         $outfile = $this->option('out');
@@ -123,7 +136,10 @@ class Build extends Command
             $optParam = is_string($this->option('with-opt-ll')) ? $this->option('with-opt-ll') : 's';
             $optimizedIR = "{$buildPath}/optimized.ll";
             exec("{$llvmPath}/opt -O{$optParam} -S -o {$optimizedIR} {$llvmIRoutput}", result_code: $result);
-            assert($result === 0);
+            if ($result !== 0) {
+                $this->error("opt failed with exit code {$result}");
+                return 1;
+            }
             // @codeCoverageIgnoreEnd
         }
 
@@ -132,7 +148,12 @@ class Build extends Command
             $sharedLibOpts = '-shared -undefined dynamic_lookup';
         }
         exec("{$llvmPath}/clang -Wno-override-module {$sharedLibOpts} -o {$exe} {$optimizedIR}", result_code: $result);
-        assert($result === 0);
+        if ($result !== 0) {
+            $this->error("clang failed with exit code {$result}");
+            return 1;
+        }
+
+        return 0;
     }
 
     /**
@@ -153,7 +174,9 @@ class Build extends Command
 
         // for now assume src/main.php is our entry point
         $main = realpath($path . '/src/main.php');
-        assert(is_string($main));
+        if (!is_string($main)) {
+            throw new \RuntimeException("Entry point not found: {$path}/src/main.php");
+        }
 
         $nodes = $this->getNodes($main);
         foreach ($classMap as $class => $file) {
@@ -170,9 +193,13 @@ class Build extends Command
     {
         $parser = (new ParserFactory())->createForNewestSupportedVersion();
         $code = file_get_contents($filename);
-        assert($code !== false, "Unable to open input file");
+        if ($code === false) {
+            throw new \RuntimeException("Unable to open input file: {$filename}");
+        }
         $ast = $parser->parse($code);
-        assert(!is_null($ast));
+        if (is_null($ast)) {
+            throw new \RuntimeException("Failed to parse input file: {$filename}");
+        }
 
         // TODO: filter out everything except classes and functions
         return $ast;
