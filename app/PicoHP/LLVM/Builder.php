@@ -23,8 +23,8 @@ class Builder
         $this->addLine('target datalayout = "' . $layout . '"');
         $this->addLine('target triple = "' . $triple . '"');
         $this->addLine();
-        $this->addLine('@.str.d = private constant [4 x i8] c"%d\0A\00", align 1');
-        $this->addLine('@.str.f = private constant [4 x i8] c"%f\0A\00", align 1');
+        $this->addLine('@.str.d = private constant [3 x i8] c"%d\00", align 1');
+        $this->addLine('@.str.f = private constant [6 x i8] c"%.14g\00", align 1');
         $this->addLine();
         $this->addLine('declare i32 @printf(ptr, ...)');
     }
