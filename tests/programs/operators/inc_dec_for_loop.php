@@ -4,7 +4,7 @@ function test_for_loop(): int
 {
     /** @var int */
     $i = 0;
-    for ($i = 0; $i < 5; $i++) {
+    for (; $i < 5; $i++) {
         echo $i;
     }
     return 0;
