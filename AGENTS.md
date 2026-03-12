@@ -68,6 +68,12 @@ Test programs should also pass PHPStan at this level. The agent should
 run `vendor/bin/phpstan analyse` on test programs before considering
 them valid.
 
+## Long-term Goal
+
+Self-compilation. The compiler should eventually be able to compile its own
+source code (`app/`). Feature priorities should be informed by what constructs
+the compiler's own codebase uses.
+
 ## Testing
 
 ### Test Framework
