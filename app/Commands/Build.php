@@ -147,7 +147,10 @@ class Build extends Command
         if ($this->option('shared-lib') === true) {
             $sharedLibOpts = '-shared -undefined dynamic_lookup';
         }
-        exec("{$llvmPath}/clang -Wno-override-module {$sharedLibOpts} -o {$exe} {$optimizedIR}", result_code: $result);
+        $runtimePath = config('app.runtime_path');
+        assert(is_string($runtimePath));
+        $runtimeLink = "-L{$runtimePath} -lpico_rt -Wl,-rpath,{$runtimePath}";
+        exec("{$llvmPath}/clang -Wno-override-module {$sharedLibOpts} {$runtimeLink} -o {$exe} {$optimizedIR}", result_code: $result);
         if ($result !== 0) {
             $this->error("clang failed with exit code {$result}");
             return 1;

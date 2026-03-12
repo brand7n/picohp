@@ -31,3 +31,6 @@ auth.json
 
 .DS_Store
 *.dSYM
+
+# Rust runtime build artifacts
+runtime/target/

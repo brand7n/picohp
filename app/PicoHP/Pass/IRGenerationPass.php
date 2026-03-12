@@ -274,6 +274,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
             $lval = $this->buildExpr($expr->left);
             $rval = $this->buildExpr($expr->right);
+
+            if ($sigil === '.') {
+                return $this->builder->createStringConcat($lval, $rval);
+            }
+
             $isFloat = $lval->getType() === BaseType::FLOAT;
             $operandType = $lval->getType();
             switch ($sigil) {

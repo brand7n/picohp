@@ -60,5 +60,6 @@ return [
 
     'llvm_path' => env('LLVM_PATH', '/usr/bin'),
     'build_path' => env('BUILD_PATH', '/tmp/picoHP'),
+    'runtime_path' => env('RUNTIME_PATH', 'runtime/target/release'),
 
 ];
