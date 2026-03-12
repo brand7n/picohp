@@ -221,9 +221,16 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             return $this->builder->createLoad($value);
         } elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp) {
+            $sigil = $expr->getOperatorSigil();
+
+            // Short-circuit evaluation for && and ||
+            if ($sigil === '&&' || $sigil === '||') {
+                return $this->buildShortCircuit($expr, $pData);
+            }
+
             $lval = $this->buildExpr($expr->left);
             $rval = $this->buildExpr($expr->right);
-            switch ($expr->getOperatorSigil()) {
+            switch ($sigil) {
                 case '+':
                     $val = $this->builder->createInstruction('add', [$lval, $rval]);
                     break;
@@ -249,7 +256,12 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                     $val = $this->builder->createInstruction('ashr', [$lval, $rval]);
                     break;
                 case '==':
+                case '===':
                     $val = $this->builder->createInstruction('icmp eq', [$lval, $rval], resultType: BaseType::BOOL);
+                    break;
+                case '!=':
+                case '!==':
+                    $val = $this->builder->createInstruction('icmp ne', [$lval, $rval], resultType: BaseType::BOOL);
                     break;
                 case '<':
                     $val = $this->builder->createInstruction('icmp slt', [$lval, $rval], resultType: BaseType::BOOL);
@@ -257,8 +269,14 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 case '>':
                     $val = $this->builder->createInstruction('icmp sgt', [$lval, $rval], resultType: BaseType::BOOL);
                     break;
+                case '<=':
+                    $val = $this->builder->createInstruction('icmp sle', [$lval, $rval], resultType: BaseType::BOOL);
+                    break;
+                case '>=':
+                    $val = $this->builder->createInstruction('icmp sge', [$lval, $rval], resultType: BaseType::BOOL);
+                    break;
                 default:
-                    throw new \Exception("unknown BinaryOp {$expr->getOperatorSigil()}");
+                    throw new \Exception("unknown BinaryOp {$sigil}");
             }
             return $val;
         } elseif ($expr instanceof \PhpParser\Node\Expr\UnaryMinus) {
@@ -353,6 +371,36 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         } else {
             throw new \Exception("unknown node type in expr: " . get_class($expr));
         }
+    }
+
+    protected function buildShortCircuit(\PhpParser\Node\Expr\BinaryOp $expr, PicoHPData $pData): ValueAbstract
+    {
+        assert($this->currentFunction !== null);
+        $isAnd = $expr->getOperatorSigil() === '&&';
+        $count = $pData->mycount;
+
+        $rhsBB = $this->currentFunction->addBasicBlock("sc_rhs{$count}");
+        $endBB = $this->currentFunction->addBasicBlock("sc_end{$count}");
+        $rhsLabel = new Label($rhsBB->getName());
+        $endLabel = new Label($endBB->getName());
+
+        $result = $this->builder->createAlloca("sc_result{$count}", BaseType::BOOL);
+        $lval = $this->buildExpr($expr->left);
+        $this->builder->createStore($lval, $result);
+
+        if ($isAnd) {
+            $this->builder->createBranch([$lval, $rhsLabel, $endLabel]);
+        } else {
+            $this->builder->createBranch([$lval, $endLabel, $rhsLabel]);
+        }
+
+        $this->builder->setInsertPoint($rhsBB);
+        $rval = $this->buildExpr($expr->right);
+        $this->builder->createStore($rval, $result);
+        $this->builder->createBranch([$endLabel]);
+
+        $this->builder->setInsertPoint($endBB);
+        return $this->builder->createLoad($result);
     }
 
     /**
