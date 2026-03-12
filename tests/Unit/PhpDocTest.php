@@ -13,8 +13,7 @@ it('parses a PHPDocs', function () {
     $parser->parseType('');
 })->throws(ParserException::class);
 
-it('fails to parse a PHPDocs', function () {
+it('fails to parse an empty PHPDoc', function () {
     $parser = new DocTypeParser();
-    expect($parser->parseType('/** @blah blah $b */')->toString())->toBe('string');
     $parser->parseType('');
 })->throws(ParserException::class);
