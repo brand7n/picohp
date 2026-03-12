@@ -26,7 +26,8 @@ enum BaseType: string
         };
     }
 
-    public function toQBE(): string
+    // thought about adding QBE (https://c9x.me/compile/) support
+    /* public function toQBE(): string
     {
         return match($this) {
             BaseType::INT => 'w',
@@ -35,7 +36,7 @@ enum BaseType: string
             BaseType::VOID => 'v',
             default => 'l',
         };
-    }
+    }*/
 }
 
 enum PicoTypeType
