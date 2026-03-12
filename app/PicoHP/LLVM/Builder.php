@@ -98,14 +98,14 @@ class Builder
     public function createFpToSi(ValueAbstract $val): ValueAbstract
     {
         $resultVal = new Instruction("cast", BaseType::INT);
-        $this->addLine("{$resultVal->render()} = fptosi float {$val->render()} to i32", 1);
+        $this->addLine("{$resultVal->render()} = fptosi double {$val->render()} to i32", 1);
         return $resultVal;
     }
 
     public function createSiToFp(ValueAbstract $val): ValueAbstract
     {
         $resultVal = new Instruction("cast", BaseType::FLOAT);
-        $this->addLine("{$resultVal->render()} = sitofp {$val->getType()->toLLVM()} {$val->render()} to float", 1);
+        $this->addLine("{$resultVal->render()} = sitofp {$val->getType()->toLLVM()} {$val->render()} to double", 1);
         return $resultVal;
     }
 
@@ -118,13 +118,7 @@ class Builder
 
     public function createCallPrintf(ValueAbstract $val): ValueAbstract
     {
-        $str = "@.str.d";
-        if ($val->getType() === BaseType::FLOAT) {
-            $valDbl = new Instruction('fpext', BaseType::DOUBLE);
-            $this->addLine("{$valDbl->render()} = fpext float {$val->render()} to double", 1);
-            $str = "@.str.f";
-            $val = $valDbl;
-        }
+        $str = $val->getType() === BaseType::FLOAT ? "@.str.f" : "@.str.d";
         $this->addLine("call i32 (ptr, ...) @printf(ptr {$str}, {$val->getType()->toLLVM()} {$val->render()})", 1);
         return new Void_();
     }
