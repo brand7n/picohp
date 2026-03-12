@@ -12,6 +12,7 @@ class Builder
 {
     protected ?BasicBlock $currentBasicBlock = null;
     protected Module $module;
+    protected int $stringConstantCount = 0;
 
     public function __construct(Module $module, string $triple, string $layout)
     {
@@ -25,6 +26,7 @@ class Builder
         $this->addLine();
         $this->addLine('@.str.d = private constant [3 x i8] c"%d\00", align 1');
         $this->addLine('@.str.f = private constant [6 x i8] c"%.14g\00", align 1');
+        $this->addLine('@.str.s = private constant [3 x i8] c"%s\00", align 1');
         $this->addLine();
         $this->addLine('declare i32 @printf(ptr, ...)');
     }
@@ -116,10 +118,40 @@ class Builder
         return $resultVal;
     }
 
+    public function createStringConstant(string $value): ValueAbstract
+    {
+        $count = $this->stringConstantCount++;
+        $name = ".str.lit.{$count}";
+        $escaped = $this->escapeStringForLLVM($value);
+        $len = strlen($value) + 1; // +1 for null terminator
+        $this->module->addLine(new IRLine("@{$name} = private constant [{$len} x i8] c\"{$escaped}\\00\", align 1"));
+        return new Global_($name, BaseType::PTR);
+    }
+
+    protected function escapeStringForLLVM(string $value): string
+    {
+        $result = '';
+        for ($i = 0; $i < strlen($value); $i++) {
+            $ch = $value[$i];
+            $ord = ord($ch);
+            if ($ord < 32 || $ord > 126 || $ch === '"' || $ch === '\\') {
+                $result .= '\\' . strtoupper(str_pad(dechex($ord), 2, '0', STR_PAD_LEFT));
+            } else {
+                $result .= $ch;
+            }
+        }
+        return $result;
+    }
+
     public function createCallPrintf(ValueAbstract $val): ValueAbstract
     {
-        $str = $val->getType() === BaseType::FLOAT ? "@.str.f" : "@.str.d";
-        $this->addLine("call i32 (ptr, ...) @printf(ptr {$str}, {$val->getType()->toLLVM()} {$val->render()})", 1);
+        if ($val->getType() === BaseType::PTR) {
+            $this->addLine("call i32 (ptr, ...) @printf(ptr @.str.s, ptr {$val->render()})", 1);
+        } elseif ($val->getType() === BaseType::FLOAT) {
+            $this->addLine("call i32 (ptr, ...) @printf(ptr @.str.f, {$val->getType()->toLLVM()} {$val->render()})", 1);
+        } else {
+            $this->addLine("call i32 (ptr, ...) @printf(ptr @.str.d, {$val->getType()->toLLVM()} {$val->render()})", 1);
+        }
         return new Void_();
     }
 
