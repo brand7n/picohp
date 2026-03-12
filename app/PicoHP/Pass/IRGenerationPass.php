@@ -290,7 +290,6 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                     throw new \Exception("casting to float from unknown type");
             }
         } elseif ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
-            // TODO: make sure args match function signature
             $args = (new Collection($expr->args))
                 ->map(function ($arg): ValueAbstract {
                     assert($arg instanceof \PhpParser\Node\Arg);
@@ -298,9 +297,10 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 })
                 ->toArray();
             assert($expr->name instanceof \PhpParser\Node\Name);
-            // TODO: figure out why phpstan thinks $args is array<mixed>
+            $funcSymbol = $pData->getSymbol();
+            $returnType = $funcSymbol->type->toBase();
             /** @phpstan-ignore-next-line */
-            return $this->builder->createCall($expr->name->name, $args, BaseType::INT);
+            return $this->builder->createCall($expr->name->name, $args, $returnType);
         } elseif ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
             assert($expr->dim !== null, "array append not implemented");
             $varData = PicoHPData::getPData($expr->var);
