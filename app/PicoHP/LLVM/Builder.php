@@ -93,7 +93,9 @@ class Builder
         //       use u8 instead?
         //assert($lval instanceof AllocaInst || ($lval instanceof Instruction && $lval->getType() === 'i8*'));
         $type = $rval->getType();
-        $this->addLine("store {$type->toLLVM()} {$rval->render()}, {$type->toLLVM()}* {$lval->render()}", 1);
+        $typeStr = $type->toLLVM();
+        $ptrType = $typeStr === 'ptr' ? 'ptr' : "{$typeStr}*";
+        $this->addLine("store {$typeStr} {$rval->render()}, {$ptrType} {$lval->render()}", 1);
         return new Void_();
     }
 
@@ -145,7 +147,7 @@ class Builder
 
     public function createCallPrintf(ValueAbstract $val): ValueAbstract
     {
-        if ($val->getType() === BaseType::PTR) {
+        if ($val->getType() === BaseType::PTR || $val->getType() === BaseType::STRING) {
             $this->addLine("call i32 (ptr, ...) @printf(ptr @.str.s, ptr {$val->render()})", 1);
         } elseif ($val->getType() === BaseType::FLOAT) {
             $this->addLine("call i32 (ptr, ...) @printf(ptr @.str.f, {$val->getType()->toLLVM()} {$val->render()})", 1);

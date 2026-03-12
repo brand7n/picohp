@@ -21,7 +21,7 @@ enum BaseType: string
             BaseType::FLOAT => 'double',
             BaseType::BOOL => 'i1',
             BaseType::VOID => 'void',
-            BaseType::STRING => "[256 x i8]",
+            BaseType::STRING => "ptr",
             default => 'i8*',
         };
     }
