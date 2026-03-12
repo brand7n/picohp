@@ -204,6 +204,9 @@ class SemanticAnalysisPass implements PassInterface
             $line = $this->getLine($expr);
             assert($ltype->isEqualTo($rtype), "line {$line}, type mismatch in binary op: {$ltype->toString()} {$expr->getOperatorSigil()} {$rtype->toString()}");
             switch ($expr->getOperatorSigil()) {
+                case '.':
+                    $type = PicoType::fromString('string');
+                    break;
                 case '+':
                 case '*':
                 case '-':

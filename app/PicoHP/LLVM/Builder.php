@@ -27,8 +27,10 @@ class Builder
         $this->addLine('@.str.d = private constant [3 x i8] c"%d\00", align 1');
         $this->addLine('@.str.f = private constant [6 x i8] c"%.14g\00", align 1');
         $this->addLine('@.str.s = private constant [3 x i8] c"%s\00", align 1');
+        $this->addLine('@.str.ss = private constant [5 x i8] c"%s%s\00", align 1');
         $this->addLine();
         $this->addLine('declare i32 @printf(ptr, ...)');
+        $this->addLine('declare i32 @snprintf(ptr, i64, ptr, ...)');
     }
 
     public function setInsertPoint(BasicBlock $bb): void
@@ -143,6 +145,17 @@ class Builder
             }
         }
         return $result;
+    }
+
+    protected int $concatCount = 0;
+
+    public function createStringConcat(ValueAbstract $left, ValueAbstract $right): ValueAbstract
+    {
+        $count = $this->concatCount++;
+        $buf = new AllocaInst("concat_buf{$count}", BaseType::PTR);
+        $this->addLine("{$buf->render()} = alloca [512 x i8]", 1);
+        $this->addLine("call i32 (ptr, i64, ptr, ...) @snprintf(ptr {$buf->render()}, i64 512, ptr @.str.ss, ptr {$left->render()}, ptr {$right->render()})", 1);
+        return $buf;
     }
 
     public function createCallPrintf(ValueAbstract $val): ValueAbstract
