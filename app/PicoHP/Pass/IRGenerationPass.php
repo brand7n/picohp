@@ -373,6 +373,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $newVal = $this->builder->createInstruction('sub', [$oldVal, new Constant(1, $oldVal->getType())]);
             $this->builder->createStore($newVal, $ptr);
             return $oldVal;
+        } elseif ($expr instanceof \PhpParser\Node\Expr\BooleanNot) {
+            $val = $this->buildExpr($expr->expr);
+            return $this->builder->createInstruction('xor', [$val, new Constant(1, BaseType::BOOL)], resultType: BaseType::BOOL);
         } else {
             throw new \Exception("unknown node type in expr: " . get_class($expr));
         }
