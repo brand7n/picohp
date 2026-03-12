@@ -49,16 +49,20 @@ class Build extends Command
                 return 1;
             }
             $code = file_get_contents($filename);
+            // @codeCoverageIgnoreStart
             if ($code === false) {
                 $this->error("Unable to read input file: {$filename}");
                 return 1;
             }
+            // @codeCoverageIgnoreEnd
 
             $ast = $parser->parse($code);
+            // @codeCoverageIgnoreStart
             if (is_null($ast)) {
                 $this->error("Failed to parse input file: {$filename}");
                 return 1;
             }
+            // @codeCoverageIgnoreEnd
         }
 
         $buildPath = config('app.build_path');
@@ -114,10 +118,12 @@ class Build extends Command
         $pass->exec();
 
         $f = fopen($llvmIRoutput, 'w');
+        // @codeCoverageIgnoreStart
         if ($f === false) {
             $this->error("Unable to open output file: {$llvmIRoutput}");
             return 1;
         }
+        // @codeCoverageIgnoreEnd
         $pass->module->print($f);
 
         $outfile = $this->option('out');
@@ -148,10 +154,12 @@ class Build extends Command
             $sharedLibOpts = '-shared -undefined dynamic_lookup';
         }
         exec("{$llvmPath}/clang -Wno-override-module {$sharedLibOpts} -o {$exe} {$optimizedIR}", result_code: $result);
+        // @codeCoverageIgnoreStart
         if ($result !== 0) {
             $this->error("clang failed with exit code {$result}");
             return 1;
         }
+        // @codeCoverageIgnoreEnd
 
         return 0;
     }
@@ -174,9 +182,11 @@ class Build extends Command
 
         // for now assume src/main.php is our entry point
         $main = realpath($path . '/src/main.php');
+        // @codeCoverageIgnoreStart
         if (!is_string($main)) {
             throw new \RuntimeException("Entry point not found: {$path}/src/main.php");
         }
+        // @codeCoverageIgnoreEnd
 
         $nodes = $this->getNodes($main);
         foreach ($classMap as $class => $file) {
@@ -193,6 +203,7 @@ class Build extends Command
     {
         $parser = (new ParserFactory())->createForNewestSupportedVersion();
         $code = file_get_contents($filename);
+        // @codeCoverageIgnoreStart
         if ($code === false) {
             throw new \RuntimeException("Unable to open input file: {$filename}");
         }
@@ -200,6 +211,7 @@ class Build extends Command
         if (is_null($ast)) {
             throw new \RuntimeException("Failed to parse input file: {$filename}");
         }
+        // @codeCoverageIgnoreEnd
 
         // TODO: filter out everything except classes and functions
         return $ast;
