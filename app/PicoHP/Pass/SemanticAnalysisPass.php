@@ -95,7 +95,8 @@ class SemanticAnalysisPass implements PassInterface
                 $this->resolveExpr($init);
             }
             foreach ($stmt->cond as $cond) {
-                assert($this->resolveExpr($cond)->toBase() === BaseType::BOOL);
+                $condType = $this->resolveExpr($cond);
+                assert($condType->toBase() === BaseType::BOOL);
             }
             foreach ($stmt->loop as $loop) {
                 $this->resolveExpr($loop);
@@ -226,9 +227,9 @@ class SemanticAnalysisPass implements PassInterface
             //$this->resolveExpr($expr->expr);
             return PicoType::fromString('void');
         } elseif ($expr instanceof \PhpParser\Node\Expr\PostInc) {
-            return PicoType::fromString('int');
+            return $this->resolveExpr($expr->var);
         } elseif ($expr instanceof \PhpParser\Node\Expr\PostDec) {
-            return PicoType::fromString('int');
+            return $this->resolveExpr($expr->var);
         } else {
             $line = $this->getLine($expr);
             throw new \Exception("line {$line}, unknown node type in expr resolver: " . get_class($expr));
