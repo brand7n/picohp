@@ -90,7 +90,22 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Echo_) {
             foreach ($stmt->exprs as $expr) {
                 $val = $this->buildExpr($expr);
-                $this->builder->createCallPrintf($val);
+                if ($val->getType() === BaseType::BOOL) {
+                    assert($this->currentFunction !== null);
+                    $count = $pData->mycount;
+                    $printBB = $this->currentFunction->addBasicBlock("echo_bool{$count}");
+                    $endBB = $this->currentFunction->addBasicBlock("echo_end{$count}");
+                    $printLabel = new Label($printBB->getName());
+                    $endLabel = new Label($endBB->getName());
+                    $this->builder->createBranch([$val, $printLabel, $endLabel]);
+                    $this->builder->setInsertPoint($printBB);
+                    $intVal = $this->builder->createZext($val);
+                    $this->builder->createCallPrintf($intVal);
+                    $this->builder->createBranch([$endLabel]);
+                    $this->builder->setInsertPoint($endBB);
+                } else {
+                    $this->builder->createCallPrintf($val);
+                }
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\If_) {
             $cond = $this->buildExpr($stmt->cond);
