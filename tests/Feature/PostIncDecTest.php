@@ -10,10 +10,10 @@ it('handles post-increment correctly', function () {
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
-    // compiled echo adds newlines after ints (known issue), so oracle comparison is not possible yet
-    // PHP outputs "56", compiled outputs "5\n6\n"
     $compiled_output = shell_exec("{$buildPath}/a.out");
-    expect($compiled_output)->toBe("5\n6\n");
+    $php_output = shell_exec("php {$file}");
+
+    expect($compiled_output)->toBe($php_output);
 });
 
 it('handles post-decrement correctly', function () {
@@ -25,7 +25,9 @@ it('handles post-decrement correctly', function () {
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
     $compiled_output = shell_exec("{$buildPath}/a.out");
-    expect($compiled_output)->toBe("5\n4\n");
+    $php_output = shell_exec("php {$file}");
+
+    expect($compiled_output)->toBe($php_output);
 });
 
 it('handles post-increment in for loop correctly', function () {
@@ -37,5 +39,7 @@ it('handles post-increment in for loop correctly', function () {
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
     $compiled_output = shell_exec("{$buildPath}/a.out");
-    expect($compiled_output)->toBe("0\n1\n2\n3\n4\n");
+    $php_output = shell_exec("php {$file}");
+
+    expect($compiled_output)->toBe($php_output);
 });
