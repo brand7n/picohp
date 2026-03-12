@@ -137,6 +137,10 @@ class Builder
         $paramString = (new Collection($paramVals))
             ->map(fn ($param): string => "{$param->getType()->toLLVM()} {$param->render()}")
             ->join(', ');
+        if ($returnType === BaseType::VOID) {
+            $this->addLine("call void @{$functionName} ({$paramString})", 1);
+            return new Void_();
+        }
         $returnVal = new Instruction('call', $returnType);
         $this->addLine("{$returnVal->render()} = call {$returnType->toLLVM()} @{$functionName} ({$paramString})", 1);
         return $returnVal;
@@ -148,6 +152,11 @@ class Builder
         $resultVal = new Instruction('getelementptr', BaseType::PTR);
         $this->addLine("{$resultVal->render()} = getelementptr inbounds {$arrayType->toLLVM()}, ptr {$var->render()}, i64 0, {$dim->getType()->toLLVM()} {$dim->render()}", 1);
         return $resultVal;
+    }
+
+    public function createRetVoid(): void
+    {
+        $this->addLine('ret void', 1);
     }
 
     // public function createGlobal(string $name, ValueAbstract $val): ValueAbstract
