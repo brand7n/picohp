@@ -204,8 +204,15 @@ class SemanticAnalysisPass implements PassInterface
                     $type = $rtype;
                     break;
                 case '==':
+                case '===':
+                case '!=':
+                case '!==':
                 case '<':
                 case '>':
+                case '<=':
+                case '>=':
+                case '&&':
+                case '||':
                     $type = PicoType::fromString('bool');
                     break;
                 default:
