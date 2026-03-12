@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-it('echoes string literals correctly', function () {
-    $file = 'tests/programs/echo/echo_string.php';
+it('echoes string variables correctly', function () {
+    $file = 'tests/programs/echo/echo_string_var.php';
 
     /** @phpstan-ignore-next-line */
     $this->artisan("build --debug {$file}")->assertExitCode(0);
@@ -16,8 +16,8 @@ it('echoes string literals correctly', function () {
     expect($compiled_output)->toBe($php_output);
 });
 
-it('echoes strings with escape sequences correctly', function () {
-    $file = 'tests/programs/echo/echo_string_escape.php';
+it('passes and returns strings from functions', function () {
+    $file = 'tests/programs/functions/string_param.php';
 
     /** @phpstan-ignore-next-line */
     $this->artisan("build --debug {$file}")->assertExitCode(0);
