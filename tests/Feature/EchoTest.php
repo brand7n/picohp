@@ -5,6 +5,7 @@ declare(strict_types=1);
 it('echoes integers without trailing newlines', function () {
     $file = 'tests/programs/echo/echo_int.php';
 
+    /** @phpstan-ignore-next-line */
     $this->artisan("build --debug {$file}")->assertExitCode(0);
 
     $buildPath = config('app.build_path');
@@ -17,6 +18,7 @@ it('echoes integers without trailing newlines', function () {
 it('echoes floats without trailing newlines', function () {
     $file = 'tests/programs/echo/echo_float.php';
 
+    /** @phpstan-ignore-next-line */
     $this->artisan("build --debug {$file}")->assertExitCode(0);
 
     $buildPath = config('app.build_path');
