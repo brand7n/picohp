@@ -8,7 +8,6 @@ enum BaseType: string
 {
     case INT = 'int';
     case FLOAT = 'float';
-    case DOUBLE = 'double';
     case BOOL = 'bool';
     case STRING = 'string';
     case VOID = 'void';
@@ -19,8 +18,7 @@ enum BaseType: string
     {
         return match($this) {
             BaseType::INT => 'i32',
-            BaseType::FLOAT => 'float',
-            BaseType::DOUBLE => 'double',
+            BaseType::FLOAT => 'double',
             BaseType::BOOL => 'i1',
             BaseType::VOID => 'void',
             BaseType::STRING => "[256 x i8]",
@@ -32,8 +30,7 @@ enum BaseType: string
     {
         return match($this) {
             BaseType::INT => 'w',
-            BaseType::FLOAT => 's',
-            BaseType::DOUBLE => 'd',
+            BaseType::FLOAT => 'd',
             BaseType::BOOL => 'w',
             BaseType::VOID => 'v',
             default => 'l',

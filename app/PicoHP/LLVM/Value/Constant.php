@@ -6,7 +6,6 @@ namespace App\PicoHP\LLVM\Value;
 
 use App\PicoHP\BaseType;
 use App\PicoHP\LLVM\ValueAbstract;
-use Illuminate\Support\Str;
 
 // A class representing a constant value (e.g., integer, float)
 class Constant extends ValueAbstract
@@ -34,18 +33,16 @@ class Constant extends ValueAbstract
         return (string)$this->value;
     }
 
-    // TODO: for now don't worry why LLVM wants 32 bits of zeros, but it may be a layout conf issue?
     protected function floatToHex(float $float): string
     {
-        // Pack the float into binary string (IEEE 754 format)
+        // Pack as IEEE 754 double (64-bit)
         $packed = pack('d', $float);
 
-        // Unpack the binary string to a 32-bit unsigned integer
+        // Unpack to 64-bit unsigned integer
         $unpacked = unpack('Q', $packed);
         assert(isset($unpacked[1]) && is_int($unpacked[1]));
 
-        // Return the hexadecimal representation
-        $trunc = Str::substr(strtoupper(dechex($unpacked[1])), 0, 8);
-        return "0x{$trunc}00000000";
+        // Return full 64-bit hexadecimal representation
+        return '0x' . strtoupper(str_pad(dechex($unpacked[1]), 16, '0', STR_PAD_LEFT));
     }
 }
