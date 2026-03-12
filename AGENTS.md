@@ -68,6 +68,12 @@ Test programs should also pass PHPStan at this level. The agent should
 run `vendor/bin/phpstan analyse` on test programs before considering
 them valid.
 
+## Long-term Goal
+
+Self-compilation. The compiler should eventually be able to compile its own
+source code (`app/`). Feature priorities should be informed by what constructs
+the compiler's own codebase uses.
+
 ## Testing
 
 ### Test Framework
@@ -79,6 +85,20 @@ Run all tests:
 php artisan test
 # or
 ./vendor/bin/pest
+```
+
+## CI
+
+GitHub Actions runs on every PR to main:
+1. PHPStan (strict rules, level max)
+2. Pest (95% minimum coverage)
+3. Pint (code style)
+
+All three must pass before opening a PR. Run locally:
+```bash
+composer run-script phpstan
+vendor/bin/pest --coverage --min=95
+vendor/bin/pint --test
 ```
 
 ### The Oracle
