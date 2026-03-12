@@ -31,3 +31,9 @@ it('doesn\'t store the same symbol twice', function () {
     $symbolTable->addSymbol("x", PicoType::fromString("int"));
     $symbolTable->addSymbol("x", PicoType::fromString("float"));
 })->throws(\Exception::class, "symbol already exists in this scope");
+
+it('returns null when not found', function () {
+    $symbolTable = new SymbolTable();
+    $symbolTable->addSymbol("x", PicoType::fromString("int"));
+    expect($symbolTable->lookup("y"))->toBeNull();
+});

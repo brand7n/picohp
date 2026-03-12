@@ -15,6 +15,7 @@ class SemanticAnalysisPass implements PassInterface
 
     protected SymbolTable $symbolTable;
     protected DocTypeParser $docTypeParser;
+    protected ?PicoType $currentFunctionReturnType = null;
 
     /**
      * @param array<\PhpParser\Node> $ast
@@ -80,7 +81,10 @@ class SemanticAnalysisPass implements PassInterface
             }
 
             $pData->getSymbol()->params = $this->resolveParams($stmt->params);
+            $previousReturnType = $this->currentFunctionReturnType;
+            $this->currentFunctionReturnType = PicoType::fromString($stmt->returnType->name);
             $this->resolveStmts($stmt->stmts);
+            $this->currentFunctionReturnType = $previousReturnType;
 
             if ($stmt->name->name !== 'main') {
                 $this->symbolTable->exitScope();
@@ -93,9 +97,12 @@ class SemanticAnalysisPass implements PassInterface
             $doc = $stmt->getDocComment();
             $type = $this->resolveExpr($stmt->expr, $doc);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Return_) {
-            // TODO: verify return type of function matches expression
             if (!is_null($stmt->expr)) {
-                $this->resolveExpr($stmt->expr);
+                $exprType = $this->resolveExpr($stmt->expr);
+                if ($this->currentFunctionReturnType !== null && !$exprType->isEqualTo($this->currentFunctionReturnType)) {
+                    $line = $this->getLine($stmt);
+                    throw new \Exception("line {$line}, return type mismatch: expected {$this->currentFunctionReturnType->toString()}, got {$exprType->toString()}");
+                }
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Nop) {
 

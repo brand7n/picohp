@@ -230,18 +230,23 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
             $lval = $this->buildExpr($expr->left);
             $rval = $this->buildExpr($expr->right);
+            $isFloat = $lval->getType() === BaseType::FLOAT;
+            $operandType = $lval->getType();
             switch ($sigil) {
                 case '+':
-                    $val = $this->builder->createInstruction('add', [$lval, $rval]);
+                    $val = $this->builder->createInstruction($isFloat ? 'fadd' : 'add', [$lval, $rval], resultType: $operandType);
                     break;
                 case '*':
-                    $val = $this->builder->createInstruction('mul', [$lval, $rval]);
+                    $val = $this->builder->createInstruction($isFloat ? 'fmul' : 'mul', [$lval, $rval], resultType: $operandType);
                     break;
                 case '-':
-                    $val = $this->builder->createInstruction('sub', [$lval, $rval]);
+                    $val = $this->builder->createInstruction($isFloat ? 'fsub' : 'sub', [$lval, $rval], resultType: $operandType);
                     break;
                 case '/':
-                    $val = $this->builder->createInstruction('sdiv', [$lval, $rval]);
+                    $val = $this->builder->createInstruction($isFloat ? 'fdiv' : 'sdiv', [$lval, $rval], resultType: $operandType);
+                    break;
+                case '%':
+                    $val = $this->builder->createInstruction($isFloat ? 'frem' : 'srem', [$lval, $rval], resultType: $operandType);
                     break;
                 case '&':
                     $val = $this->builder->createInstruction('and', [$lval, $rval]);
@@ -255,28 +260,25 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 case '>>':
                     $val = $this->builder->createInstruction('ashr', [$lval, $rval]);
                     break;
-                case '%':
-                    $val = $this->builder->createInstruction('srem', [$lval, $rval]);
-                    break;
                 case '==':
                 case '===':
-                    $val = $this->builder->createInstruction('icmp eq', [$lval, $rval], resultType: BaseType::BOOL);
+                    $val = $this->builder->createInstruction($isFloat ? 'fcmp oeq' : 'icmp eq', [$lval, $rval], resultType: BaseType::BOOL);
                     break;
                 case '!=':
                 case '!==':
-                    $val = $this->builder->createInstruction('icmp ne', [$lval, $rval], resultType: BaseType::BOOL);
+                    $val = $this->builder->createInstruction($isFloat ? 'fcmp one' : 'icmp ne', [$lval, $rval], resultType: BaseType::BOOL);
                     break;
                 case '<':
-                    $val = $this->builder->createInstruction('icmp slt', [$lval, $rval], resultType: BaseType::BOOL);
+                    $val = $this->builder->createInstruction($isFloat ? 'fcmp olt' : 'icmp slt', [$lval, $rval], resultType: BaseType::BOOL);
                     break;
                 case '>':
-                    $val = $this->builder->createInstruction('icmp sgt', [$lval, $rval], resultType: BaseType::BOOL);
+                    $val = $this->builder->createInstruction($isFloat ? 'fcmp ogt' : 'icmp sgt', [$lval, $rval], resultType: BaseType::BOOL);
                     break;
                 case '<=':
-                    $val = $this->builder->createInstruction('icmp sle', [$lval, $rval], resultType: BaseType::BOOL);
+                    $val = $this->builder->createInstruction($isFloat ? 'fcmp ole' : 'icmp sle', [$lval, $rval], resultType: BaseType::BOOL);
                     break;
                 case '>=':
-                    $val = $this->builder->createInstruction('icmp sge', [$lval, $rval], resultType: BaseType::BOOL);
+                    $val = $this->builder->createInstruction($isFloat ? 'fcmp oge' : 'icmp sge', [$lval, $rval], resultType: BaseType::BOOL);
                     break;
                 default:
                     throw new \Exception("unknown BinaryOp {$sigil}");
