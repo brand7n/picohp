@@ -4,6 +4,8 @@ parameters:
     - app
     - tests
     - bootstrap
+    excludePaths:
+        - tests/programs/functions/return_type_mismatch.php
     ignoreErrors:
         - '#Call to method .+ of internal class Pest\\#'
 

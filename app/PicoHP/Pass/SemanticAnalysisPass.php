@@ -99,12 +99,9 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Return_) {
             if (!is_null($stmt->expr)) {
                 $exprType = $this->resolveExpr($stmt->expr);
-                if ($this->currentFunctionReturnType !== null) {
+                if ($this->currentFunctionReturnType !== null && !$exprType->isEqualTo($this->currentFunctionReturnType)) {
                     $line = $this->getLine($stmt);
-                    assert(
-                        $exprType->isEqualTo($this->currentFunctionReturnType),
-                        "line {$line}, return type mismatch: expected {$this->currentFunctionReturnType->toString()}, got {$exprType->toString()}"
-                    );
+                    throw new \Exception("line {$line}, return type mismatch: expected {$this->currentFunctionReturnType->toString()}, got {$exprType->toString()}");
                 }
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Nop) {
