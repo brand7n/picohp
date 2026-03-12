@@ -17,4 +17,4 @@ it('fails to parse a PHPDocs', function () {
     $parser = new DocTypeParser();
     expect($parser->parseType('/** @blah blah $b */')->toString())->toBe('string');
     $parser->parseType('');
-})->throws(AssertionError::class);
+})->throws(ParserException::class);
