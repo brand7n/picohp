@@ -25,18 +25,6 @@ enum BaseType: string
             default => 'i8*',
         };
     }
-
-    // thought about adding QBE (https://c9x.me/compile/) support
-    /* public function toQBE(): string
-    {
-        return match($this) {
-            BaseType::INT => 'w',
-            BaseType::FLOAT => 'd',
-            BaseType::BOOL => 'w',
-            BaseType::VOID => 'v',
-            default => 'l',
-        };
-    }*/
 }
 
 enum PicoTypeType
@@ -54,6 +42,7 @@ class PicoType
 
     protected PicoTypeType $typeType;
     protected BaseType $type;
+    protected bool $nullable = false;
 
     /**
      * @param array<BaseType> $params
@@ -78,11 +67,22 @@ class PicoType
 
     public static function fromString(string $type): PicoType
     {
+        if (str_starts_with($type, '?')) {
+            $inner = substr($type, 1);
+            $pt = new PicoType(BaseType::from($inner));
+            $pt->nullable = true;
+            return $pt;
+        }
         return new PicoType(BaseType::from($type));
+    }
+
+    public function isNullable(): bool
+    {
+        return $this->nullable;
     }
 
     public function toString(): string
     {
-        return $this->type->value;
+        return ($this->nullable ? '?' : '') . $this->type->value;
     }
 }
