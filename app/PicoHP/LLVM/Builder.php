@@ -206,6 +206,21 @@ class Builder
         return $resultVal;
     }
 
+    public function createArrayAlloca(string $name, BaseType $elementType, int $size): ValueAbstract
+    {
+        $resultVal = new AllocaInst($name, BaseType::PTR);
+        $this->addLine("{$resultVal->render()} = alloca [{$size} x {$elementType->toLLVM()}]", 1);
+        return $resultVal;
+    }
+
+    public function createArrayGEP(ValueAbstract $arrayPtr, ValueAbstract $idx, BaseType $elementType, int $arraySize): ValueAbstract
+    {
+        $resultVal = new Instruction('gep', $elementType);
+        $elemTypeLLVM = $elementType->toLLVM();
+        $this->addLine("{$resultVal->render()} = getelementptr inbounds [{$arraySize} x {$elemTypeLLVM}], ptr {$arrayPtr->render()}, i64 0, i32 {$idx->render()}", 1);
+        return $resultVal;
+    }
+
     public function createRetVoid(): void
     {
         $this->addLine('ret void', 1);

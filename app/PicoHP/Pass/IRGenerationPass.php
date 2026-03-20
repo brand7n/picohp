@@ -62,7 +62,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 if ($symbol->func) {
                     continue;
                 }
-                $symbol->value = $this->builder->createAlloca($symbol->name, $symbol->type->toBase());
+                $symbol->value = $this->buildSymbolAlloca($symbol);
             }
             $this->buildParams($stmt->params);
             $this->buildStmts($stmt->stmts);
@@ -75,7 +75,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 if ($symbol->func) {
                     continue;
                 }
-                $symbol->value = $this->builder->createAlloca($symbol->name, $symbol->type->toBase());
+                $symbol->value = $this->buildSymbolAlloca($symbol);
             }
             $this->buildStmts($stmt->stmts);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Expression) {
@@ -240,6 +240,49 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             $this->builder->createBranch([$condLabel]);
             $this->builder->setInsertPoint($endBB);
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Foreach_) {
+            assert($this->currentFunction !== null);
+            $count = $pData->mycount;
+
+            $arrayVarPData = PicoHPData::getPData($stmt->expr);
+            $arraySymbol = $arrayVarPData->getSymbol();
+            $arrayType = $arraySymbol->type;
+            $arrayPtr = $arraySymbol->value;
+            assert($arrayPtr !== null);
+
+            assert($stmt->valueVar instanceof \PhpParser\Node\Expr\Variable);
+            $valueVarPData = PicoHPData::getPData($stmt->valueVar);
+            $valuePtr = $valueVarPData->getValue();
+
+            // Counter alloca inline (foreach needs its own index)
+            $counterPtr = $this->builder->createAlloca("foreach_i{$count}", BaseType::INT);
+            $this->builder->createStore(new Constant(0, BaseType::INT), $counterPtr);
+
+            $condBB = $this->currentFunction->addBasicBlock("foreach_cond{$count}");
+            $bodyBB = $this->currentFunction->addBasicBlock("foreach_body{$count}");
+            $endBB = $this->currentFunction->addBasicBlock("foreach_end{$count}");
+            $condLabel = new Label($condBB->getName());
+            $bodyLabel = new Label($bodyBB->getName());
+            $endLabel = new Label($endBB->getName());
+
+            $this->builder->createBranch([$condLabel]);
+
+            $this->builder->setInsertPoint($condBB);
+            $idx = $this->builder->createLoad($counterPtr);
+            $sizeConst = new Constant($arrayType->getArraySize(), BaseType::INT);
+            $cond = $this->builder->createInstruction('icmp slt', [$idx, $sizeConst], resultType: BaseType::BOOL);
+            $this->builder->createBranch([$cond, $bodyLabel, $endLabel]);
+
+            $this->builder->setInsertPoint($bodyBB);
+            $elemPtr = $this->builder->createArrayGEP($arrayPtr, $idx, $arrayType->getElementType(), $arrayType->getArraySize());
+            $elemVal = $this->builder->createLoad($elemPtr);
+            $this->builder->createStore($elemVal, $valuePtr);
+            $this->buildStmts($stmt->stmts);
+            $idxNext = $this->builder->createInstruction('add', [$idx, new Constant(1, BaseType::INT)]);
+            $this->builder->createStore($idxNext, $counterPtr);
+            $this->builder->createBranch([$condLabel]);
+
+            $this->builder->setInsertPoint($endBB);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Interface_) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Namespace_) {
             $this->buildStmts($stmt->stmts);
@@ -255,6 +298,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         $pData = PicoHPData::getPData($expr);
 
         if ($expr instanceof \PhpParser\Node\Expr\Assign) {
+            if ($expr->expr instanceof \PhpParser\Node\Expr\Array_) {
+                $varPData = PicoHPData::getPData($expr->var);
+                $lval = $this->buildExpr($expr->var);
+                return $this->buildArrayInit($lval, $expr->expr, $varPData->getSymbol()->type);
+            }
             $lval = $this->buildExpr($expr->var);
             $rval = $this->buildExpr($expr->expr);
             $this->builder->createStore($rval, $lval);
@@ -481,6 +529,34 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
         $this->builder->setInsertPoint($endBB);
         return $this->builder->createLoad($result);
+    }
+
+    protected function buildSymbolAlloca(\App\PicoHP\SymbolTable\Symbol $symbol): ValueAbstract
+    {
+        if ($symbol->type->isArray()) {
+            return $this->builder->createArrayAlloca(
+                $symbol->name,
+                $symbol->type->getElementType(),
+                $symbol->type->getArraySize()
+            );
+        }
+        return $this->builder->createAlloca($symbol->name, $symbol->type->toBase());
+    }
+
+    protected function buildArrayInit(ValueAbstract $lval, \PhpParser\Node\Expr\Array_ $arrayExpr, \App\PicoHP\PicoType $arrayType): ValueAbstract
+    {
+        foreach ($arrayExpr->items as $idx => $item) {
+            $elemVal = $this->buildExpr($item->value);
+            $idxConst = new Constant($idx, BaseType::INT);
+            $elemPtr = $this->builder->createArrayGEP(
+                $lval,
+                $idxConst,
+                $arrayType->getElementType(),
+                $arrayType->getArraySize()
+            );
+            $this->builder->createStore($elemVal, $elemPtr);
+        }
+        return $lval;
     }
 
     /**
