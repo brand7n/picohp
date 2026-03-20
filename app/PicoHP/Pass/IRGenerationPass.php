@@ -6,7 +6,7 @@ namespace App\PicoHP\Pass;
 
 use App\PicoHP\{BaseType};
 use App\PicoHP\LLVM\{Module, Builder, ValueAbstract, IRLine};
-use App\PicoHP\LLVM\Value\{Constant, Void_, Label, Param};
+use App\PicoHP\LLVM\Value\{Constant, Void_, Label, Param, NullConstant};
 use App\PicoHP\SymbolTable\PicoHPData;
 use Illuminate\Support\Collection;
 
@@ -87,6 +87,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $this->builder->createInstruction('ret', [$val], false);
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Nop) {
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Declare_) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Echo_) {
             foreach ($stmt->exprs as $expr) {
                 $val = $this->buildExpr($expr);
@@ -264,6 +265,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 return $value;
             }
             return $this->builder->createLoad($value);
+        } elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp\Coalesce) {
+            $lval = $this->buildExpr($expr->left);
+            $rval = $this->buildExpr($expr->right);
+            $isNull = $this->builder->createNullCheck($lval);
+            return $this->builder->createSelect($isNull, $rval, $lval);
         } elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp) {
             $sigil = $expr->getOperatorSigil();
 
@@ -352,6 +358,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             return new Void_();
         } elseif ($expr instanceof \PhpParser\Node\Expr\ConstFetch) {
             $constName = $expr->name->toLowerString();
+            if ($constName === 'null') {
+                return new NullConstant();
+            }
             return new Constant($constName === 'true' ? 1 : 0, BaseType::BOOL);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Int_) {
             $val = $this->buildExpr($expr->expr);

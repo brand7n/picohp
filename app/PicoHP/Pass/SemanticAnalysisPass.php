@@ -43,17 +43,26 @@ class SemanticAnalysisPass implements PassInterface
     {
         foreach ($stmts as $stmt) {
             if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
-                assert($stmt->returnType instanceof \PhpParser\Node\Identifier);
+                assert($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType);
                 $existing = $this->symbolTable->lookupCurrentScope($stmt->name->name);
                 if ($existing === null) {
                     $this->symbolTable->addSymbol(
                         $stmt->name->name,
-                        PicoType::fromString($stmt->returnType->name),
+                        $this->typeFromNode($stmt->returnType),
                         func: true
                     );
                 }
             }
         }
+    }
+
+    private function typeFromNode(\PhpParser\Node\Identifier|\PhpParser\Node\NullableType $node): PicoType
+    {
+        if ($node instanceof \PhpParser\Node\NullableType) {
+            assert($node->type instanceof \PhpParser\Node\Identifier);
+            return PicoType::fromString('?' . $node->type->name);
+        }
+        return PicoType::fromString($node->name);
     }
 
     /**
@@ -73,16 +82,17 @@ class SemanticAnalysisPass implements PassInterface
 
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
             assert(!is_null($stmt->returnType));
-            assert($stmt->returnType instanceof \PhpParser\Node\Identifier);
+            assert($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType);
+            $returnType = $this->typeFromNode($stmt->returnType);
             $existing = $this->symbolTable->lookupCurrentScope($stmt->name->name);
-            $pData->symbol = $existing ?? $this->symbolTable->addSymbol($stmt->name->name, PicoType::fromString($stmt->returnType->name), func: true);
+            $pData->symbol = $existing ?? $this->symbolTable->addSymbol($stmt->name->name, $returnType, func: true);
             if ($stmt->name->name !== 'main') {
                 $pData->setScope($this->symbolTable->enterScope());
             }
 
             $pData->getSymbol()->params = $this->resolveParams($stmt->params);
             $previousReturnType = $this->currentFunctionReturnType;
-            $this->currentFunctionReturnType = PicoType::fromString($stmt->returnType->name);
+            $this->currentFunctionReturnType = $returnType;
             $this->resolveStmts($stmt->stmts);
             $this->currentFunctionReturnType = $previousReturnType;
 
@@ -105,7 +115,7 @@ class SemanticAnalysisPass implements PassInterface
                 }
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Nop) {
-
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Declare_) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Echo_) {
             foreach ($stmt->exprs as $expr) {
                 $this->resolveExpr($expr);
@@ -139,7 +149,6 @@ class SemanticAnalysisPass implements PassInterface
             }
             $this->resolveStmts($stmt->stmts);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Foreach_) {
-
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Class_) {
             $pData->setScope($this->symbolTable->enterScope());
             $this->resolveStmts($stmt->stmts);
@@ -198,6 +207,9 @@ class SemanticAnalysisPass implements PassInterface
             assert($dimType->isEqualTo(PicoType::fromString('int')), "{$dimType->toString()} is not an int");
             // if doc is null type will be from a retrieved value
             return PicoType::fromString('int'); // really a char/byte or maybe a single byte string?
+        } elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp\Coalesce) {
+            $this->resolveExpr($expr->left);
+            return $this->resolveExpr($expr->right);
         } elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp) {
             $ltype = $this->resolveExpr($expr->left);
             $rtype = $this->resolveExpr($expr->right);
@@ -230,6 +242,9 @@ class SemanticAnalysisPass implements PassInterface
                 case '||':
                     $type = PicoType::fromString('bool');
                     break;
+                case '??':
+                    $type = $rtype; // result is the fallback type
+                    break;
                 default:
                     throw new \Exception("unknown BinaryOp {$expr->getOperatorSigil()}");
             }
@@ -261,7 +276,10 @@ class SemanticAnalysisPass implements PassInterface
             $this->resolveExpr($expr->expr);
             return PicoType::fromString('float');
         } elseif ($expr instanceof \PhpParser\Node\Expr\ConstFetch) {
-            return PicoType::fromString('bool'); // TODO: ??
+            if ($expr->name->toLowerString() === 'null') {
+                return PicoType::fromString('string'); // null represented as ptr
+            }
+            return PicoType::fromString('bool');
         } elseif ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
             $this->resolveArgs($expr->args);
             assert($expr->name instanceof \PhpParser\Node\Name);
@@ -315,9 +333,10 @@ class SemanticAnalysisPass implements PassInterface
             $pData = $this->getPicoData($param);
             assert($param->var instanceof \PhpParser\Node\Expr\Variable);
             assert(is_string($param->var->name));
-            assert($param->type instanceof \PhpParser\Node\Identifier);
-            $pData->symbol = $this->symbolTable->addSymbol($param->var->name, PicoType::fromString($param->type->name));
-            $paramTypes[] = PicoType::fromString($param->type->name);
+            assert($param->type instanceof \PhpParser\Node\Identifier || $param->type instanceof \PhpParser\Node\NullableType);
+            $paramType = $this->typeFromNode($param->type);
+            $pData->symbol = $this->symbolTable->addSymbol($param->var->name, $paramType);
+            $paramTypes[] = $paramType;
         }
         return $paramTypes;
     }

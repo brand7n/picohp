@@ -129,7 +129,7 @@ class Builder
         $escaped = $this->escapeStringForLLVM($value);
         $len = strlen($value) + 1; // +1 for null terminator
         $this->module->addLine(new IRLine("@{$name} = private constant [{$len} x i8] c\"{$escaped}\\00\", align 1"));
-        return new Global_($name, BaseType::PTR);
+        return new Global_($name, BaseType::STRING);
     }
 
     protected function escapeStringForLLVM(string $value): string
@@ -188,6 +188,21 @@ class Builder
         $arrayType = $var->getType();
         $resultVal = new Instruction('getelementptr', BaseType::PTR);
         $this->addLine("{$resultVal->render()} = getelementptr inbounds {$arrayType->toLLVM()}, ptr {$var->render()}, i64 0, {$dim->getType()->toLLVM()} {$dim->render()}", 1);
+        return $resultVal;
+    }
+
+    public function createNullCheck(ValueAbstract $val): ValueAbstract
+    {
+        $resultVal = new Instruction('null_check', BaseType::BOOL);
+        $this->addLine("{$resultVal->render()} = icmp eq ptr {$val->render()}, null", 1);
+        return $resultVal;
+    }
+
+    public function createSelect(ValueAbstract $cond, ValueAbstract $true, ValueAbstract $false): ValueAbstract
+    {
+        $type = $true->getType();
+        $resultVal = new Instruction('select', $type);
+        $this->addLine("{$resultVal->render()} = select i1 {$cond->render()}, {$type->toLLVM()} {$true->render()}, {$type->toLLVM()} {$false->render()}", 1);
         return $resultVal;
     }
 
