@@ -23,6 +23,123 @@ pub extern "C" fn pico_string_concat(a: *const c_char, b: *const c_char) -> *mut
     ptr
 }
 
+// ---------------------------------------------------------------------------
+// Dynamic arrays
+// ---------------------------------------------------------------------------
+
+enum PicoValue {
+    Int(i32),
+    Float(f64),
+    Bool(bool),
+    Str(*const c_char),
+}
+
+pub struct PicoArray {
+    data: Vec<PicoValue>,
+}
+
+#[no_mangle]
+pub extern "C" fn pico_array_new() -> *mut PicoArray {
+    let arr = Box::new(PicoArray { data: Vec::new() });
+    Box::into_raw(arr)
+}
+
+#[no_mangle]
+pub extern "C" fn pico_array_len(arr: *const PicoArray) -> i32 {
+    let arr = unsafe { &*arr };
+    arr.data.len() as i32
+}
+
+// -- push -------------------------------------------------------------------
+
+#[no_mangle]
+pub extern "C" fn pico_array_push_int(arr: *mut PicoArray, val: i32) {
+    let arr = unsafe { &mut *arr };
+    arr.data.push(PicoValue::Int(val));
+}
+
+#[no_mangle]
+pub extern "C" fn pico_array_push_float(arr: *mut PicoArray, val: f64) {
+    let arr = unsafe { &mut *arr };
+    arr.data.push(PicoValue::Float(val));
+}
+
+#[no_mangle]
+pub extern "C" fn pico_array_push_bool(arr: *mut PicoArray, val: i32) {
+    let arr = unsafe { &mut *arr };
+    arr.data.push(PicoValue::Bool(val != 0));
+}
+
+#[no_mangle]
+pub extern "C" fn pico_array_push_str(arr: *mut PicoArray, val: *const c_char) {
+    let arr = unsafe { &mut *arr };
+    arr.data.push(PicoValue::Str(val));
+}
+
+// -- get --------------------------------------------------------------------
+
+#[no_mangle]
+pub extern "C" fn pico_array_get_int(arr: *const PicoArray, index: i32) -> i32 {
+    let arr = unsafe { &*arr };
+    match &arr.data[index as usize] {
+        PicoValue::Int(v) => *v,
+        _ => panic!("pico_array_get_int: element is not an int"),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn pico_array_get_float(arr: *const PicoArray, index: i32) -> f64 {
+    let arr = unsafe { &*arr };
+    match &arr.data[index as usize] {
+        PicoValue::Float(v) => *v,
+        _ => panic!("pico_array_get_float: element is not a float"),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn pico_array_get_bool(arr: *const PicoArray, index: i32) -> i32 {
+    let arr = unsafe { &*arr };
+    match &arr.data[index as usize] {
+        PicoValue::Bool(v) => *v as i32,
+        _ => panic!("pico_array_get_bool: element is not a bool"),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn pico_array_get_str(arr: *const PicoArray, index: i32) -> *const c_char {
+    let arr = unsafe { &*arr };
+    match &arr.data[index as usize] {
+        PicoValue::Str(v) => *v,
+        _ => panic!("pico_array_get_str: element is not a string"),
+    }
+}
+
+// -- set --------------------------------------------------------------------
+
+#[no_mangle]
+pub extern "C" fn pico_array_set_int(arr: *mut PicoArray, index: i32, val: i32) {
+    let arr = unsafe { &mut *arr };
+    arr.data[index as usize] = PicoValue::Int(val);
+}
+
+#[no_mangle]
+pub extern "C" fn pico_array_set_float(arr: *mut PicoArray, index: i32, val: f64) {
+    let arr = unsafe { &mut *arr };
+    arr.data[index as usize] = PicoValue::Float(val);
+}
+
+#[no_mangle]
+pub extern "C" fn pico_array_set_bool(arr: *mut PicoArray, index: i32, val: i32) {
+    let arr = unsafe { &mut *arr };
+    arr.data[index as usize] = PicoValue::Bool(val != 0);
+}
+
+#[no_mangle]
+pub extern "C" fn pico_array_set_str(arr: *mut PicoArray, index: i32, val: *const c_char) {
+    let arr = unsafe { &mut *arr };
+    arr.data[index as usize] = PicoValue::Str(val);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -40,5 +157,92 @@ mod tests {
         let result = pico_string_concat(a.as_ptr(), b.as_ptr());
         let result_str = unsafe { CStr::from_ptr(result) };
         assert_eq!(result_str.to_str().unwrap(), "Hello World");
+    }
+
+    #[test]
+    fn test_array_new_and_len() {
+        let arr = pico_array_new();
+        assert_eq!(pico_array_len(arr), 0);
+    }
+
+    #[test]
+    fn test_array_push_get_int() {
+        let arr = pico_array_new();
+        pico_array_push_int(arr, 42);
+        pico_array_push_int(arr, -7);
+        assert_eq!(pico_array_len(arr), 2);
+        assert_eq!(pico_array_get_int(arr, 0), 42);
+        assert_eq!(pico_array_get_int(arr, 1), -7);
+    }
+
+    #[test]
+    fn test_array_push_get_float() {
+        let arr = pico_array_new();
+        pico_array_push_float(arr, 3.14);
+        pico_array_push_float(arr, -2.5);
+        assert_eq!(pico_array_len(arr), 2);
+        assert!((pico_array_get_float(arr, 0) - 3.14).abs() < f64::EPSILON);
+        assert!((pico_array_get_float(arr, 1) - (-2.5)).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_array_push_get_str() {
+        let arr = pico_array_new();
+        let s1 = CString::new("hello").unwrap();
+        let s2 = CString::new("world").unwrap();
+        pico_array_push_str(arr, s1.as_ptr());
+        pico_array_push_str(arr, s2.as_ptr());
+        assert_eq!(pico_array_len(arr), 2);
+        let r1 = unsafe { CStr::from_ptr(pico_array_get_str(arr, 0)) };
+        let r2 = unsafe { CStr::from_ptr(pico_array_get_str(arr, 1)) };
+        assert_eq!(r1.to_str().unwrap(), "hello");
+        assert_eq!(r2.to_str().unwrap(), "world");
+    }
+
+    #[test]
+    fn test_array_push_get_bool() {
+        let arr = pico_array_new();
+        pico_array_push_bool(arr, 1);
+        pico_array_push_bool(arr, 0);
+        assert_eq!(pico_array_len(arr), 2);
+        assert_eq!(pico_array_get_bool(arr, 0), 1);
+        assert_eq!(pico_array_get_bool(arr, 1), 0);
+    }
+
+    #[test]
+    fn test_array_set_bool() {
+        let arr = pico_array_new();
+        pico_array_push_bool(arr, 0);
+        pico_array_set_bool(arr, 0, 1);
+        assert_eq!(pico_array_get_bool(arr, 0), 1);
+    }
+
+    #[test]
+    fn test_array_set_int() {
+        let arr = pico_array_new();
+        pico_array_push_int(arr, 1);
+        pico_array_push_int(arr, 2);
+        pico_array_set_int(arr, 0, 99);
+        assert_eq!(pico_array_get_int(arr, 0), 99);
+        assert_eq!(pico_array_get_int(arr, 1), 2);
+    }
+
+    #[test]
+    fn test_array_set_float() {
+        let arr = pico_array_new();
+        pico_array_push_float(arr, 1.0);
+        pico_array_set_float(arr, 0, 9.9);
+        assert!((pico_array_get_float(arr, 0) - 9.9).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_array_set_str() {
+        let arr = pico_array_new();
+        let s1 = CString::new("old").unwrap();
+        let s2 = CString::new("new").unwrap();
+        pico_array_push_str(arr, s1.as_ptr());
+        pico_array_set_str(arr, 0, s2.as_ptr());
+        let r = unsafe { CStr::from_ptr(pico_array_get_str(arr, 0)) };
+        assert_eq!(r.to_str().unwrap(), "new");
     }
 }
