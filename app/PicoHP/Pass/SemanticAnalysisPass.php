@@ -149,6 +149,17 @@ class SemanticAnalysisPass implements PassInterface
             }
             $this->resolveStmts($stmt->stmts);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Foreach_) {
+            $arrayType = $this->resolveExpr($stmt->expr);
+            assert($arrayType->isArray(), "foreach expression must be an array, got {$arrayType->toString()}");
+            assert($stmt->valueVar instanceof \PhpParser\Node\Expr\Variable);
+            assert(is_string($stmt->valueVar->name));
+            $valueVarPData = $this->getPicoData($stmt->valueVar);
+            $valueVarPData->symbol = $this->symbolTable->addSymbol(
+                $stmt->valueVar->name,
+                new PicoType($arrayType->getElementType())
+            );
+            // TODO: key var support
+            $this->resolveStmts($stmt->stmts);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Class_) {
             $pData->setScope($this->symbolTable->enterScope());
             $this->resolveStmts($stmt->stmts);
@@ -178,6 +189,10 @@ class SemanticAnalysisPass implements PassInterface
             $ltype = $this->resolveExpr($expr->var, $doc, lVal: true, rType: $rtype);
             $line = $this->getLine($expr);
             assert($ltype->isEqualTo($rtype), "line {$line}, type mismatch in assignment");
+            // Propagate array size from literal into the symbol (doc comment gives 0)
+            if ($ltype->isArray() && $ltype->getArraySize() === 0 && $rtype->isArray() && $rtype->getArraySize() > 0) {
+                $this->getPicoData($expr->var)->getSymbol()->type->setArraySize($rtype->getArraySize());
+            }
             return $rtype;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Variable) {
             $pData->lVal = $lVal;
@@ -302,6 +317,18 @@ class SemanticAnalysisPass implements PassInterface
             return $this->resolveExpr($expr->var);
         } elseif ($expr instanceof \PhpParser\Node\Expr\PreDec) {
             return $this->resolveExpr($expr->var);
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Array_) {
+            $size = count($expr->items);
+            $elementType = BaseType::STRING; // default
+            $first = true;
+            foreach ($expr->items as $item) {
+                $itemType = $this->resolveExpr($item->value);
+                if ($first) {
+                    $elementType = $itemType->toBase();
+                    $first = false;
+                }
+            }
+            return PicoType::array($elementType, $size);
         } else {
             $line = $this->getLine($expr);
             throw new \Exception("line {$line}, unknown node type in expr resolver: " . get_class($expr));

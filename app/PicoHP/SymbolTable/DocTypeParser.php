@@ -11,7 +11,8 @@ use PHPStan\PhpDocParser\Parser\PhpDocParser;
 use PHPStan\PhpDocParser\Parser\TokenIterator;
 use PHPStan\PhpDocParser\Parser\TypeParser;
 use PHPStan\PhpDocParser\Ast\PhpDoc\{GenericTagValueNode};
-use App\PicoHP\PicoType;
+use PHPStan\PhpDocParser\Ast\Type\{GenericTypeNode, IdentifierTypeNode};
+use App\PicoHP\{BaseType, PicoType};
 
 class DocTypeParser
 {
@@ -35,7 +36,15 @@ class DocTypeParser
         $varTags = $phpDocNode->getVarTagValues(); // ParamTagValueNode[]
 
         foreach ($varTags as $tag) {
-            return PicoType::fromString((string)$tag->type);
+            $typeNode = $tag->type;
+            if ($typeNode instanceof GenericTypeNode
+                && $typeNode->type->name === 'array'
+                && count($typeNode->genericTypes) === 2
+                && $typeNode->genericTypes[1] instanceof IdentifierTypeNode
+            ) {
+                return PicoType::array(BaseType::from($typeNode->genericTypes[1]->name));
+            }
+            return PicoType::fromString((string)$typeNode);
         }
 
         $genericTag = $phpDocNode->getTagsByName('@picobuf');
