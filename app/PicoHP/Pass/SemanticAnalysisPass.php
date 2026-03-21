@@ -69,6 +69,12 @@ class SemanticAnalysisPass implements PassInterface
                 $className = $stmt->name->toString();
                 $classMeta = new ClassMetadata($className);
                 $this->classRegistry[$className] = $classMeta;
+                // Inherit from parent class
+                if ($stmt->extends !== null) {
+                    $parentName = $stmt->extends->toString();
+                    assert(isset($this->classRegistry[$parentName]), "parent class {$parentName} not found");
+                    $classMeta->inheritFrom($this->classRegistry[$parentName]);
+                }
                 foreach ($stmt->stmts as $classStmt) {
                     if ($classStmt instanceof \PhpParser\Node\Stmt\Property) {
                         assert($classStmt->type instanceof \PhpParser\Node\Identifier || $classStmt->type instanceof \PhpParser\Node\NullableType);
@@ -90,6 +96,7 @@ class SemanticAnalysisPass implements PassInterface
                             : PicoType::fromString('void');
                         $methodSymbol = new \App\PicoHP\SymbolTable\Symbol($methodName, $returnType, func: true);
                         $classMeta->methods[$methodName] = $methodSymbol;
+                        $classMeta->methodOwner[$methodName] = $className;
                     }
                 }
             }

@@ -9,6 +9,7 @@ use App\PicoHP\PicoType;
 class ClassMetadata
 {
     public string $name;
+    public ?string $parentName = null;
 
     /** @var array<string, PicoType> property name => type */
     public array $properties = [];
@@ -19,9 +20,27 @@ class ClassMetadata
     /** @var array<string, Symbol> method name => symbol (with params/return type) */
     public array $methods = [];
 
+    /** @var array<string, string> method name => defining class name (for qualified call) */
+    public array $methodOwner = [];
+
     public function __construct(string $name)
     {
         $this->name = $name;
+    }
+
+    public function inheritFrom(ClassMetadata $parent): void
+    {
+        $this->parentName = $parent->name;
+        // Copy parent properties first (preserving offsets)
+        foreach ($parent->properties as $propName => $propType) {
+            $this->properties[$propName] = $propType;
+            $this->propertyOffsets[$propName] = $parent->propertyOffsets[$propName];
+        }
+        // Copy parent methods (child can override later)
+        foreach ($parent->methods as $methodName => $methodSymbol) {
+            $this->methods[$methodName] = $methodSymbol;
+            $this->methodOwner[$methodName] = $parent->methodOwner[$methodName] ?? $parent->name;
+        }
     }
 
     public function addProperty(string $name, PicoType $type): int
