@@ -3,7 +3,7 @@
 namespace App\PicoHP\Pass;
 
 use App\PicoHP\{PassInterface, SymbolTable};
-use App\PicoHP\SymbolTable\{DocTypeParser, PicoHPData};
+use App\PicoHP\SymbolTable\{ClassMetadata, DocTypeParser, PicoHPData};
 use App\PicoHP\{BaseType, PicoType};
 
 class SemanticAnalysisPass implements PassInterface
@@ -16,6 +16,10 @@ class SemanticAnalysisPass implements PassInterface
     protected SymbolTable $symbolTable;
     protected DocTypeParser $docTypeParser;
     protected ?PicoType $currentFunctionReturnType = null;
+    protected ?ClassMetadata $currentClass = null;
+
+    /** @var array<string, ClassMetadata> */
+    protected array $classRegistry = [];
 
     /**
      * @param array<\PhpParser\Node> $ast
@@ -27,10 +31,63 @@ class SemanticAnalysisPass implements PassInterface
         $this->docTypeParser = new DocTypeParser();
     }
 
+    public function getClassMetadata(string $name): ClassMetadata
+    {
+        assert(isset($this->classRegistry[$name]), "class {$name} not found");
+        return $this->classRegistry[$name];
+    }
+
+    /**
+     * @return array<string, ClassMetadata>
+     */
+    public function getClassRegistry(): array
+    {
+        return $this->classRegistry;
+    }
+
     public function exec(): void
     {
+        $this->registerClasses($this->ast);
         $this->registerFunctions($this->ast);
         $this->resolveStmts($this->ast);
+    }
+
+    /**
+     * Pre-pass: register class metadata (properties and method signatures).
+     *
+     * @param array<\PhpParser\Node> $stmts
+     */
+    protected function registerClasses(array $stmts): void
+    {
+        foreach ($stmts as $stmt) {
+            if ($stmt instanceof \PhpParser\Node\Stmt\Namespace_) {
+                $this->registerClasses($stmt->stmts);
+                continue;
+            }
+            if ($stmt instanceof \PhpParser\Node\Stmt\Class_) {
+                assert($stmt->name instanceof \PhpParser\Node\Identifier);
+                $className = $stmt->name->toString();
+                $classMeta = new ClassMetadata($className);
+                $this->classRegistry[$className] = $classMeta;
+                foreach ($stmt->stmts as $classStmt) {
+                    if ($classStmt instanceof \PhpParser\Node\Stmt\Property) {
+                        assert($classStmt->type instanceof \PhpParser\Node\Identifier || $classStmt->type instanceof \PhpParser\Node\NullableType);
+                        $propType = $this->typeFromNode($classStmt->type);
+                        foreach ($classStmt->props as $prop) {
+                            $classMeta->addProperty($prop->name->toString(), $propType);
+                        }
+                    } elseif ($classStmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
+                        $methodName = $classStmt->name->toString();
+                        assert($classStmt->returnType === null || $classStmt->returnType instanceof \PhpParser\Node\Identifier || $classStmt->returnType instanceof \PhpParser\Node\NullableType);
+                        $returnType = $classStmt->returnType !== null
+                            ? $this->typeFromNode($classStmt->returnType)
+                            : PicoType::fromString('void');
+                        $methodSymbol = new \App\PicoHP\SymbolTable\Symbol($methodName, $returnType, func: true);
+                        $classMeta->methods[$methodName] = $methodSymbol;
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -161,14 +218,43 @@ class SemanticAnalysisPass implements PassInterface
             // TODO: key var support
             $this->resolveStmts($stmt->stmts);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Class_) {
+            assert($stmt->name instanceof \PhpParser\Node\Identifier);
+            $className = $stmt->name->toString();
+            $classMeta = $this->classRegistry[$className] ?? null;
+            if ($classMeta === null) {
+                // Class not pre-registered (e.g., only has static methods handled by ClassToFunctionVisitor)
+                $classMeta = new ClassMetadata($className);
+                $this->classRegistry[$className] = $classMeta;
+            }
+            $previousClass = $this->currentClass;
+            $this->currentClass = $classMeta;
             $pData->setScope($this->symbolTable->enterScope());
+            // Add $this to the class scope
+            $this->symbolTable->addSymbol('this', PicoType::object($className));
+            // Resolve methods (properties already registered in registerClasses)
             $this->resolveStmts($stmt->stmts);
             $this->symbolTable->exitScope();
+            $this->currentClass = $previousClass;
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Property) {
-            assert($stmt->type instanceof \PhpParser\Node\Identifier);
-            foreach ($stmt->props as $prop) {
-                $this->resolveProperty($prop, $pData, PicoType::fromString($stmt->type->name));
-            }
+            // Properties already registered in Class_ handler
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
+            assert($this->currentClass !== null);
+            $methodName = $stmt->name->toString();
+            assert($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType || $stmt->returnType === null);
+            $returnType = $stmt->returnType !== null ? $this->typeFromNode($stmt->returnType) : PicoType::fromString('void');
+            $methodSymbol = $this->symbolTable->addSymbol($methodName, $returnType, func: true);
+            $pData->symbol = $methodSymbol;
+            $this->currentClass->methods[$methodName] = $methodSymbol;
+            $pData->setScope($this->symbolTable->enterScope());
+            // Add $this to method scope
+            $this->symbolTable->addSymbol('this', PicoType::object($this->currentClass->name));
+            $methodSymbol->params = $this->resolveParams($stmt->params);
+            $previousReturnType = $this->currentFunctionReturnType;
+            $this->currentFunctionReturnType = $returnType;
+            assert($stmt->stmts !== null);
+            $this->resolveStmts($stmt->stmts);
+            $this->currentFunctionReturnType = $previousReturnType;
+            $this->symbolTable->exitScope();
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Interface_) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Namespace_) {
             $this->resolveStmts($stmt->stmts);
@@ -331,6 +417,29 @@ class SemanticAnalysisPass implements PassInterface
                 }
             }
             return PicoType::array($elementType);
+        } elseif ($expr instanceof \PhpParser\Node\Expr\New_) {
+            assert($expr->class instanceof \PhpParser\Node\Name);
+            $className = $expr->class->toString();
+            assert(isset($this->classRegistry[$className]), "class {$className} not found");
+            $this->resolveArgs($expr->args);
+            return PicoType::object($className);
+        } elseif ($expr instanceof \PhpParser\Node\Expr\PropertyFetch) {
+            $pData->lVal = $lVal;
+            $objType = $this->resolveExpr($expr->var);
+            assert($objType->isObject(), "property fetch on non-object type: {$objType->toString()}");
+            assert($expr->name instanceof \PhpParser\Node\Identifier);
+            $classMeta = $this->classRegistry[$objType->getClassName()];
+            return $classMeta->getPropertyType($expr->name->toString());
+        } elseif ($expr instanceof \PhpParser\Node\Expr\MethodCall) {
+            $objType = $this->resolveExpr($expr->var);
+            assert($objType->isObject(), "method call on non-object type: {$objType->toString()}");
+            assert($expr->name instanceof \PhpParser\Node\Identifier);
+            $className = $objType->getClassName();
+            $methodName = $expr->name->toString();
+            $classMeta = $this->classRegistry[$className];
+            assert(isset($classMeta->methods[$methodName]), "method {$methodName} not found on class {$className}");
+            $this->resolveArgs($expr->args);
+            return $classMeta->methods[$methodName]->type;
         } else {
             $line = $this->getLine($expr);
             throw new \Exception("line {$line}, unknown node type in expr resolver: " . get_class($expr));

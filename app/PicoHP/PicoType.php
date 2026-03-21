@@ -48,6 +48,9 @@ class PicoType
     protected bool $isArray = false;
     protected ?BaseType $elementType = null;
 
+    // Class/object support
+    protected ?string $className = null;
+
     /**
      * @param array<BaseType> $params
      */
@@ -80,7 +83,12 @@ class PicoType
         if (preg_match('/^array<[^,]+,\s*(\w+)>$/', $type, $m) === 1) {
             return self::array(BaseType::from($m[1]));
         }
-        return new PicoType(BaseType::from($type));
+        $baseType = BaseType::tryFrom($type);
+        if ($baseType !== null) {
+            return new PicoType($baseType);
+        }
+        // Assume it's a class name
+        return self::object($type);
     }
 
     public static function array(BaseType $elementType): PicoType
@@ -89,6 +97,24 @@ class PicoType
         $pt->isArray = true;
         $pt->elementType = $elementType;
         return $pt;
+    }
+
+    public static function object(string $className): PicoType
+    {
+        $pt = new PicoType(BaseType::PTR);
+        $pt->className = $className;
+        return $pt;
+    }
+
+    public function isObject(): bool
+    {
+        return $this->className !== null;
+    }
+
+    public function getClassName(): string
+    {
+        assert($this->className !== null, 'getClassName() called on non-object PicoType');
+        return $this->className;
     }
 
     public function isNullable(): bool
