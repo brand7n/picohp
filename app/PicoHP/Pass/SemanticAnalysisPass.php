@@ -72,7 +72,13 @@ class SemanticAnalysisPass implements PassInterface
                 foreach ($stmt->stmts as $classStmt) {
                     if ($classStmt instanceof \PhpParser\Node\Stmt\Property) {
                         assert($classStmt->type instanceof \PhpParser\Node\Identifier || $classStmt->type instanceof \PhpParser\Node\NullableType);
-                        $propType = $this->typeFromNode($classStmt->type);
+                        // Use PHPDoc annotation if available (for generic types like array<int, string>)
+                        $doc = $classStmt->getDocComment();
+                        if ($doc !== null) {
+                            $propType = $this->docTypeParser->parseType($doc->getText());
+                        } else {
+                            $propType = $this->typeFromNode($classStmt->type);
+                        }
                         foreach ($classStmt->props as $prop) {
                             $classMeta->addProperty($prop->name->toString(), $propType);
                         }

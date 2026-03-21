@@ -21,7 +21,7 @@ enum BaseType: string
             BaseType::FLOAT => 'double',
             BaseType::BOOL => 'i1',
             BaseType::VOID => 'void',
-            BaseType::STRING => "ptr",
+            BaseType::STRING, BaseType::PTR => 'ptr',
             default => 'i8*',
         };
     }
@@ -82,6 +82,10 @@ class PicoType
         }
         if (preg_match('/^array<[^,]+,\s*(\w+)>$/', $type, $m) === 1) {
             return self::array(self::fromString($m[1]));
+        }
+        if ($type === 'array') {
+            // Bare array type without generics — untyped, element type unknown
+            return self::array(new PicoType(BaseType::PTR));
         }
         $baseType = BaseType::tryFrom($type);
         if ($baseType !== null) {
