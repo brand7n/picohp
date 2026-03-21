@@ -286,13 +286,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             assert($this->currentFunction !== null);
             $count = $pData->mycount;
 
-            // Load array pointer from its alloca
-            $arrayVarPData = PicoHPData::getPData($stmt->expr);
-            $arraySymbol = $arrayVarPData->getSymbol();
-            $arrayType = $arraySymbol->type;
-            $arrayAllocaPtr = $arraySymbol->value;
-            assert($arrayAllocaPtr !== null);
-            $arrayPtr = $this->builder->createLoad($arrayAllocaPtr);
+            // Load array pointer (works for variables, property fetches, etc.)
+            $arrayPtr = $this->buildExpr($stmt->expr);
+            $arrayType = $this->getExprResolvedType($stmt->expr);
 
             assert($stmt->valueVar instanceof \PhpParser\Node\Expr\Variable);
             $valueVarPData = PicoHPData::getPData($stmt->valueVar);
@@ -343,8 +339,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             // Array literal: $arr = [1, 2, 3]
             if ($expr->expr instanceof \PhpParser\Node\Expr\Array_) {
                 $lval = $this->buildExpr($expr->var);
-                $varPData = PicoHPData::getPData($expr->var);
-                $arrayType = $varPData->getSymbol()->type;
+                $arrayType = $this->getExprResolvedType($expr->var);
                 $arrPtr = $this->buildArrayInit($expr->expr, $arrayType);
                 $this->builder->createStore($arrPtr, $lval);
                 return $arrPtr;
@@ -352,10 +347,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             // Array element write: $arr[idx] = val or $arr[] = val
             if ($expr->var instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
                 $rval = $this->buildExpr($expr->expr);
-                $arrVarPData = PicoHPData::getPData($expr->var->var);
-                $arrAllocaPtr = $arrVarPData->getValue();
-                $arrPtr = $this->builder->createLoad($arrAllocaPtr);
-                $arrayType = $arrVarPData->getSymbol()->type;
+                // buildExpr in lVal context returns a pointer TO the array ptr — load it
+                $arrVarExpr = $expr->var->var;
+                $arrPtrPtr = $this->buildExpr($arrVarExpr);
+                $arrPtr = $this->builder->createLoad($arrPtrPtr);
+                $arrayType = $this->getExprResolvedType($arrVarExpr);
                 if ($expr->var->dim === null) {
                     // $arr[] = val (push)
                     $this->builder->createArrayPush($arrPtr, $rval, $arrayType->getElementBaseType());
@@ -526,15 +522,15 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             /** @phpstan-ignore-next-line */
             return $this->builder->createCall($expr->name->name, $args, $returnType);
         } elseif ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
-            $varData = PicoHPData::getPData($expr->var);
-            $varType = $varData->getSymbol()->type;
+            $varType = $this->getExprResolvedType($expr->var);
             if ($varType->isArray()) {
                 // Array read: $arr[$idx] — writes handled in Assign
                 assert($expr->dim !== null, "array read requires index");
-                $arrPtr = $this->builder->createLoad($varData->getValue());
+                $arrPtr = $this->buildExpr($expr->var);
                 $idx = $this->buildExpr($expr->dim);
                 return $this->builder->createArrayGet($arrPtr, $idx, $varType->getElementBaseType());
             }
+            $varData = PicoHPData::getPData($expr->var);
             // String indexing (existing behavior)
             assert($expr->dim !== null);
             if ($pData->lVal === true) {
@@ -644,6 +640,20 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     {
         $pData = PicoHPData::getPData($expr);
         return $pData->getSymbol()->type;
+    }
+
+    protected function getExprResolvedType(\PhpParser\Node\Expr $expr): \App\PicoHP\PicoType
+    {
+        if ($expr instanceof \PhpParser\Node\Expr\Variable) {
+            return PicoHPData::getPData($expr)->getSymbol()->type;
+        }
+        if ($expr instanceof \PhpParser\Node\Expr\PropertyFetch) {
+            assert($expr->name instanceof \PhpParser\Node\Identifier);
+            $objType = $this->getExprResolvedType($expr->var);
+            $classMeta = $this->classRegistry[$objType->getClassName()];
+            return $classMeta->getPropertyType($expr->name->toString());
+        }
+        throw new \RuntimeException('getExprResolvedType: unsupported expr type ' . get_class($expr));
     }
 
     protected function buildShortCircuit(\PhpParser\Node\Expr\BinaryOp $expr, PicoHPData $pData): ValueAbstract
