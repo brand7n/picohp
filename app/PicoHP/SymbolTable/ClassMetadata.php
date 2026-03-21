@@ -23,6 +23,12 @@ class ClassMetadata
     /** @var array<string, string> method name => defining class name (for qualified call) */
     public array $methodOwner = [];
 
+    /** @var array<string, PicoType> static property name => type */
+    public array $staticProperties = [];
+
+    /** @var array<string, \PhpParser\Node\Expr|null> static property name => default value expression */
+    public array $staticDefaults = [];
+
     public function __construct(string $name)
     {
         $this->name = $name;
