@@ -49,6 +49,9 @@ class Builder
         $this->addLine('declare void @pico_array_set_float(ptr, i32, double)');
         $this->addLine('declare void @pico_array_set_bool(ptr, i32, i32)');
         $this->addLine('declare void @pico_array_set_str(ptr, i32, ptr)');
+        $this->addLine('declare void @pico_array_push_ptr(ptr, ptr)');
+        $this->addLine('declare ptr @pico_array_get_ptr(ptr, i32)');
+        $this->addLine('declare void @pico_array_set_ptr(ptr, i32, ptr)');
     }
 
     public function setInsertPoint(BasicBlock $bb): void
@@ -294,7 +297,8 @@ class Builder
             BaseType::INT => 'int',
             BaseType::FLOAT => 'float',
             BaseType::BOOL => 'bool',
-            BaseType::STRING, BaseType::PTR => 'str',
+            BaseType::STRING => 'str',
+            BaseType::PTR => 'ptr',
             default => throw new \RuntimeException("unsupported array element type: {$type->value}"),
         };
     }
