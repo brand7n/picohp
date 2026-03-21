@@ -387,6 +387,11 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
             $this->resolveArgs($expr->args);
             assert($expr->name instanceof \PhpParser\Node\Name);
+            $funcName = $expr->name->toLowerString();
+            // Built-in functions
+            if ($funcName === 'count' || $funcName === 'strlen') {
+                return PicoType::fromString('int');
+            }
             $s = $this->symbolTable->lookup($expr->name->name);
             $line = $this->getLine($expr);
             assert($s !== null, "line {$line}, function {$expr->name->name} not found");
