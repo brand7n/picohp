@@ -80,6 +80,20 @@ pub extern "C" fn pico_string_substr(s: *const c_char, start: i32, length: i32) 
 }
 
 #[no_mangle]
+pub extern "C" fn pico_string_repeat(s: *const c_char, times: i32) -> *mut c_char {
+    let bytes = unsafe { CStr::from_ptr(s) }.to_bytes();
+    let times = times.max(0) as usize;
+    let mut result = Vec::with_capacity(bytes.len() * times + 1);
+    for _ in 0..times {
+        result.extend_from_slice(bytes);
+    }
+    result.push(0);
+    let ptr = result.as_mut_ptr() as *mut c_char;
+    std::mem::forget(result);
+    ptr
+}
+
+#[no_mangle]
 pub extern "C" fn pico_string_trim(s: *const c_char) -> *mut c_char {
     let bytes = unsafe { CStr::from_ptr(s) }.to_bytes();
     let trimmed = match std::str::from_utf8(bytes) {
