@@ -102,15 +102,15 @@ class Build extends Command
             // TODO: rerun static analysis on transformed output?
         }
 
-        $pass = new SemanticAnalysisPass($transformedAst);
-        $pass->exec();
+        $semanticPass = new SemanticAnalysisPass($transformedAst);
+        $semanticPass->exec();
 
         if ($debug) {
             $astWithSymbolOutput = "{$buildPath}/ast_sym.json";
             file_put_contents($astWithSymbolOutput, json_encode($transformedAst, JSON_PRETTY_PRINT));
         }
 
-        $pass = new IRGenerationPass($transformedAst);
+        $pass = new IRGenerationPass($transformedAst, $semanticPass->getClassRegistry());
         $pass->exec();
 
         $f = fopen($llvmIRoutput, 'w');

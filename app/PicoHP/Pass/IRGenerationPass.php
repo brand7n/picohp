@@ -7,7 +7,7 @@ namespace App\PicoHP\Pass;
 use App\PicoHP\{BaseType};
 use App\PicoHP\LLVM\{Module, Builder, ValueAbstract, IRLine};
 use App\PicoHP\LLVM\Value\{Constant, Void_, Label, Param, NullConstant};
-use App\PicoHP\SymbolTable\PicoHPData;
+use App\PicoHP\SymbolTable\{ClassMetadata, PicoHPData};
 use Illuminate\Support\Collection;
 
 class IRGenerationPass implements \App\PicoHP\PassInterface
@@ -15,20 +15,26 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     public Module $module;
     protected Builder $builder;
     protected ?\App\PicoHP\LLVM\Function_ $currentFunction = null;
+    protected ?string $currentClassName = null;
 
     /**
      * @var array<\PhpParser\Node> $stmts
      */
     protected array $stmts;
 
+    /** @var array<string, ClassMetadata> */
+    protected array $classRegistry = [];
+
     /**
      * @param array<\PhpParser\Node> $stmts
+     * @param array<string, ClassMetadata> $classRegistry
      */
-    public function __construct(array $stmts)
+    public function __construct(array $stmts, array $classRegistry = [])
     {
         $this->module = new Module("test_module");
         $this->builder = $this->module->getBuilder();
         $this->stmts = $stmts;
+        $this->classRegistry = $classRegistry;
     }
 
     public function exec(): void
@@ -188,16 +194,52 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->builder->createBranch([$condLabel]);
             $this->builder->setInsertPoint($endBB);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Class_) {
-            // TODO: generate struct type
             assert($stmt->name instanceof \PhpParser\Node\Identifier);
             $className = $stmt->name->toString();
-            $this->module->addLine(new IRLine("%struct.$className = type {"));
+            assert(isset($this->classRegistry[$className]));
+            $classMeta = $this->classRegistry[$className];
+            $fields = $classMeta->toLLVMStructFields();
+            $this->module->addLine(new IRLine("%struct.{$className} = type { {$fields} }"));
+            $this->currentClassName = $className;
             $this->buildStmts($stmt->stmts);
-            $this->module->addLine(new IRLine("}"));
+            $this->currentClassName = null;
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Property) {
-            dump($pData);
-            // this is dumb just join the types
-            $this->module->addLine(new IRLine("i32"));
+            // Handled by struct type definition
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
+            assert($this->currentClassName !== null);
+            $methodName = $stmt->name->toString();
+            $funcSymbol = $pData->getSymbol();
+            $qualifiedName = "{$this->currentClassName}_{$methodName}";
+            // Methods get $this (ptr) as first param
+            $thisParam = new \App\PicoHP\PicoType(\App\PicoHP\BaseType::PTR);
+            $allParams = array_merge([$thisParam], $funcSymbol->params);
+            $this->currentFunction = $this->module->addFunction($qualifiedName, $funcSymbol->type, $allParams);
+            $bb = $this->currentFunction->addBasicBlock("entry");
+            $this->builder->setInsertPoint($bb);
+            $scope = $pData->getScope();
+            foreach ($scope->symbols as $symbol) {
+                if ($symbol->func) {
+                    continue;
+                }
+                $symbol->value = $this->buildSymbolAlloca($symbol);
+            }
+            // Store $this param (param 0) into its alloca
+            $thisSymbol = $scope->symbols['this'] ?? null;
+            assert($thisSymbol !== null);
+            assert($thisSymbol->value !== null);
+            $this->builder->createStore(new Param(0, \App\PicoHP\BaseType::PTR), $thisSymbol->value);
+            // Store remaining params (offset by 1)
+            $paramIndex = 1;
+            foreach ($stmt->params as $param) {
+                $paramPData = PicoHPData::getPData($param);
+                $type = $paramPData->getSymbol()->type;
+                $this->builder->createStore(new Param($paramIndex++, $type->toBase()), $paramPData->getValue());
+            }
+            assert($stmt->stmts !== null);
+            $this->buildStmts($stmt->stmts);
+            if ($funcSymbol->type->toBase() === \App\PicoHP\BaseType::VOID) {
+                $this->builder->createRetVoid();
+            }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Do_) {
             assert($this->currentFunction !== null);
             $condBB = $this->currentFunction->addBasicBlock("cond{$pData->mycount}");
@@ -526,9 +568,68 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $newVal = $this->builder->createInstruction('sub', [$oldVal, new Constant(1, $oldVal->getType())]);
             $this->builder->createStore($newVal, $ptr);
             return $newVal;
+        } elseif ($expr instanceof \PhpParser\Node\Expr\New_) {
+            assert($expr->class instanceof \PhpParser\Node\Name);
+            $className = $expr->class->toString();
+            $classMeta = $this->classRegistry[$className];
+            $objPtr = $this->builder->createMalloc($className);
+            // Call constructor if it exists
+            if (isset($classMeta->methods['__construct'])) {
+                $args = (new Collection($expr->args))
+                    ->map(function ($arg): ValueAbstract {
+                        assert($arg instanceof \PhpParser\Node\Arg);
+                        return $this->buildExpr($arg->value);
+                    })
+                    ->toArray();
+                /** @var array<ValueAbstract> $allArgs */
+                $allArgs = array_merge([$objPtr], $args);
+                $qualifiedName = "{$className}___construct";
+                $this->builder->createCall($qualifiedName, $allArgs, BaseType::VOID);
+            }
+            return $objPtr;
+        } elseif ($expr instanceof \PhpParser\Node\Expr\PropertyFetch) {
+            assert($expr->name instanceof \PhpParser\Node\Identifier);
+            $objVal = $this->buildExpr($expr->var);
+            $objType = PicoHPData::getPData($expr->var);
+            // Determine class name from the variable's symbol type
+            $varType = $this->getExprType($expr->var);
+            $className = $varType->getClassName();
+            $classMeta = $this->classRegistry[$className];
+            $propName = $expr->name->toString();
+            $fieldIndex = $classMeta->getPropertyIndex($propName);
+            $fieldType = $classMeta->getPropertyType($propName)->toBase();
+            $fieldPtr = $this->builder->createStructGEP($className, $objVal, $fieldIndex, $fieldType);
+            if ($pData->lVal) {
+                return $fieldPtr;
+            }
+            return $this->builder->createLoad($fieldPtr);
+        } elseif ($expr instanceof \PhpParser\Node\Expr\MethodCall) {
+            assert($expr->name instanceof \PhpParser\Node\Identifier);
+            $objVal = $this->buildExpr($expr->var);
+            $varType = $this->getExprType($expr->var);
+            $className = $varType->getClassName();
+            $classMeta = $this->classRegistry[$className];
+            $methodName = $expr->name->toString();
+            $methodSymbol = $classMeta->methods[$methodName];
+            $args = (new Collection($expr->args))
+                ->map(function ($arg): ValueAbstract {
+                    assert($arg instanceof \PhpParser\Node\Arg);
+                    return $this->buildExpr($arg->value);
+                })
+                ->toArray();
+            /** @var array<ValueAbstract> $allArgs */
+            $allArgs = array_merge([$objVal], $args);
+            $qualifiedName = "{$className}_{$methodName}";
+            return $this->builder->createCall($qualifiedName, $allArgs, $methodSymbol->type->toBase());
         } else {
             throw new \Exception("unknown node type in expr: " . get_class($expr));
         }
+    }
+
+    protected function getExprType(\PhpParser\Node\Expr $expr): \App\PicoHP\PicoType
+    {
+        $pData = PicoHPData::getPData($expr);
+        return $pData->getSymbol()->type;
     }
 
     protected function buildShortCircuit(\PhpParser\Node\Expr\BinaryOp $expr, PicoHPData $pData): ValueAbstract

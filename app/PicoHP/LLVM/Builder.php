@@ -31,6 +31,7 @@ class Builder
         $this->addLine('declare i32 @printf(ptr, ...)');
         $this->addLine('declare ptr @pico_string_concat(ptr, ptr)');
         $this->addLine('declare i32 @pico_rt_version()');
+        $this->addLine('declare ptr @malloc(i64)');
         $this->addLine();
         $this->addLine('; array runtime');
         $this->addLine('declare ptr @pico_array_new()');
@@ -204,6 +205,24 @@ class Builder
         $arrayType = $var->getType();
         $resultVal = new Instruction('getelementptr', BaseType::PTR);
         $this->addLine("{$resultVal->render()} = getelementptr inbounds {$arrayType->toLLVM()}, ptr {$var->render()}, i64 0, {$dim->getType()->toLLVM()} {$dim->render()}", 1);
+        return $resultVal;
+    }
+
+    // -- object support ------------------------------------------------------
+
+    public function createMalloc(string $structName): ValueAbstract
+    {
+        $sizeVal = new Instruction('sizeof', BaseType::INT);
+        $this->addLine("{$sizeVal->render()} = ptrtoint ptr getelementptr (%struct.{$structName}, ptr null, i32 1) to i64", 1);
+        $resultVal = new Instruction('malloc', BaseType::PTR);
+        $this->addLine("{$resultVal->render()} = call ptr @malloc(i64 {$sizeVal->render()})", 1);
+        return $resultVal;
+    }
+
+    public function createStructGEP(string $structName, ValueAbstract $ptr, int $fieldIndex, BaseType $fieldType): ValueAbstract
+    {
+        $resultVal = new Instruction("gep_field{$fieldIndex}", $fieldType);
+        $this->addLine("{$resultVal->render()} = getelementptr inbounds %struct.{$structName}, ptr {$ptr->render()}, i32 0, i32 {$fieldIndex}", 1);
         return $resultVal;
     }
 
