@@ -557,15 +557,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $times = $this->buildExpr($expr->args[1]->value);
                 return $this->builder->createCall('pico_string_repeat', [$strVal, $times], BaseType::STRING);
             }
-            $args = (new Collection($expr->args))
-                ->map(function ($arg): ValueAbstract {
-                    assert($arg instanceof \PhpParser\Node\Arg);
-                    return $this->buildExpr($arg->value);
-                })
-                ->toArray();
             $funcSymbol = $pData->getSymbol();
+            $args = $this->buildArgsWithDefaults($expr->args, $funcSymbol);
             $returnType = $funcSymbol->type->toBase();
-            /** @phpstan-ignore-next-line */
             return $this->builder->createCall($expr->name->name, $args, $returnType);
         } elseif ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
             $varType = $this->getExprResolvedType($expr->var);
@@ -631,12 +625,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $objPtr = $this->builder->createObjectAlloc($className);
             // Call constructor if it exists
             if (isset($classMeta->methods['__construct'])) {
-                $args = (new Collection($expr->args))
-                    ->map(function ($arg): ValueAbstract {
-                        assert($arg instanceof \PhpParser\Node\Arg);
-                        return $this->buildExpr($arg->value);
-                    })
-                    ->toArray();
+                $ctorSymbol = $classMeta->methods['__construct'];
+                $args = $this->buildArgsWithDefaults($expr->args, $ctorSymbol);
                 /** @var array<ValueAbstract> $allArgs */
                 $allArgs = array_merge([$objPtr], $args);
                 $ctorOwner = $classMeta->methodOwner['__construct'] ?? $className;
@@ -666,12 +656,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $classMeta = $this->classRegistry[$className];
             $methodName = $expr->name->toString();
             $methodSymbol = $classMeta->methods[$methodName];
-            $args = (new Collection($expr->args))
-                ->map(function ($arg): ValueAbstract {
-                    assert($arg instanceof \PhpParser\Node\Arg);
-                    return $this->buildExpr($arg->value);
-                })
-                ->toArray();
+            $args = $this->buildArgsWithDefaults($expr->args, $methodSymbol);
             /** @var array<ValueAbstract> $allArgs */
             $allArgs = array_merge([$objVal], $args);
             $ownerClass = $classMeta->methodOwner[$methodName] ?? $className;
@@ -716,6 +701,89 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         } else {
             throw new \Exception("unknown node type in expr: " . get_class($expr));
         }
+    }
+
+    /**
+     * Build argument values, filling in defaults for missing args.
+     *
+     * @param array<\PhpParser\Node\Arg|\PhpParser\Node\VariadicPlaceholder> $args
+     * @return array<ValueAbstract>
+     */
+    protected function buildArgsWithDefaults(array $args, \App\PicoHP\SymbolTable\Symbol $funcSymbol): array
+    {
+        $paramCount = count($funcSymbol->params);
+
+        // If params aren't populated yet (pre-registered symbol), just build args as-is
+        if ($paramCount === 0 && count($args) > 0) {
+            $result = [];
+            foreach ($args as $arg) {
+                assert($arg instanceof \PhpParser\Node\Arg);
+                $result[] = $this->buildExpr($arg->value);
+            }
+            return $result;
+        }
+
+        // Build a map of name => position for named arg resolution
+        $nameToPos = array_flip($funcSymbol->paramNames);
+
+        // Map args to positions (handle both positional and named)
+        /** @var array<int, \PhpParser\Node\Expr> */
+        $argsByPos = [];
+        $positionalIndex = 0;
+        foreach ($args as $arg) {
+            assert($arg instanceof \PhpParser\Node\Arg);
+            if ($arg->name !== null) {
+                // Named argument
+                $name = $arg->name->toString();
+                assert(isset($nameToPos[$name]), "unknown named argument: {$name}");
+                $argsByPos[$nameToPos[$name]] = $arg->value;
+            } else {
+                // Positional argument
+                $argsByPos[$positionalIndex] = $arg->value;
+                $positionalIndex++;
+            }
+        }
+
+        // Build values for each param position
+        $result = [];
+        for ($i = 0; $i < $paramCount; $i++) {
+            if (isset($argsByPos[$i])) {
+                $result[] = $this->buildExpr($argsByPos[$i]);
+            } elseif (isset($funcSymbol->defaults[$i])) {
+                $result[] = $this->buildDefaultValue($funcSymbol->defaults[$i]);
+            } else {
+                throw new \RuntimeException("missing argument {$i} for function {$funcSymbol->name} with no default");
+            }
+        }
+        return $result;
+    }
+
+    protected function buildDefaultValue(\PhpParser\Node\Expr $expr): ValueAbstract
+    {
+        if ($expr instanceof \PhpParser\Node\Scalar\Int_) {
+            return new Constant($expr->value, BaseType::INT);
+        }
+        if ($expr instanceof \PhpParser\Node\Scalar\Float_) {
+            return new Constant($expr->value, BaseType::FLOAT);
+        }
+        if ($expr instanceof \PhpParser\Node\Scalar\String_) {
+            return $this->builder->createStringConstant($expr->value);
+        }
+        if ($expr instanceof \PhpParser\Node\Expr\ConstFetch) {
+            $name = $expr->name->toLowerString();
+            if ($name === 'null') {
+                return new NullConstant();
+            }
+            return new Constant($name === 'true' ? 1 : 0, BaseType::BOOL);
+        }
+        if ($expr instanceof \PhpParser\Node\Expr\Array_) {
+            // Empty array default: $param = []
+            return $this->builder->createArrayNew();
+        }
+        if ($expr instanceof \PhpParser\Node\Expr\UnaryMinus && $expr->expr instanceof \PhpParser\Node\Scalar\Int_) {
+            return new Constant(-$expr->expr->value, BaseType::INT);
+        }
+        throw new \RuntimeException('unsupported default value type: ' . get_class($expr));
     }
 
     protected function getExprType(\PhpParser\Node\Expr $expr): \App\PicoHP\PicoType
