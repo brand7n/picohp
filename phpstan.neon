@@ -7,6 +7,7 @@ parameters:
     excludePaths:
         - tests/programs/functions/return_type_mismatch.php
         - tests/programs/classes/
+        - tests/programs/self_compile/
     ignoreErrors:
         - '#Call to method .+ of internal class Pest\\#'
 
