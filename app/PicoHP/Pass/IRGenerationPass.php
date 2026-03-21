@@ -207,6 +207,10 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Property) {
             // Handled by struct type definition
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
+            // Abstract methods have no body — skip IR generation
+            if ($stmt->stmts === null) {
+                return;
+            }
             assert($this->currentClassName !== null);
             $methodName = $stmt->name->toString();
             $funcSymbol = $pData->getSymbol();
@@ -237,7 +241,6 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $type = $paramPData->getSymbol()->type;
                 $this->builder->createStore(new Param($paramIndex++, $type->toBase()), $paramPData->getValue());
             }
-            assert($stmt->stmts !== null);
             $this->buildStmts($stmt->stmts);
             if ($funcSymbol->type->toBase() === \App\PicoHP\BaseType::VOID) {
                 $this->builder->createRetVoid();

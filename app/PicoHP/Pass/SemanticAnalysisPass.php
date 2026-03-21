@@ -277,11 +277,16 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
             assert($this->currentClass !== null);
             $methodName = $stmt->name->toString();
+            // Abstract methods have no body — already registered in registerClasses
+            if ($stmt->stmts === null) {
+                return;
+            }
             assert($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType || $stmt->returnType instanceof \PhpParser\Node\Name || $stmt->returnType === null);
             $returnType = $stmt->returnType !== null ? $this->typeFromNode($stmt->returnType) : PicoType::fromString('void');
             $methodSymbol = $this->symbolTable->addSymbol($methodName, $returnType, func: true);
             $pData->symbol = $methodSymbol;
             $this->currentClass->methods[$methodName] = $methodSymbol;
+            $this->currentClass->methodOwner[$methodName] = $this->currentClass->name;
             $pData->setScope($this->symbolTable->enterScope());
             // Add $this to method scope
             $this->symbolTable->addSymbol('this', PicoType::object($this->currentClass->name));
@@ -291,7 +296,6 @@ class SemanticAnalysisPass implements PassInterface
             $methodSymbol->paramNames = $paramNames;
             $previousReturnType = $this->currentFunctionReturnType;
             $this->currentFunctionReturnType = $returnType;
-            assert($stmt->stmts !== null);
             $this->resolveStmts($stmt->stmts);
             $this->currentFunctionReturnType = $previousReturnType;
             $this->symbolTable->exitScope();
