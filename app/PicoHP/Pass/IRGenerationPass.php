@@ -511,6 +511,41 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $strVal = $this->buildExpr($expr->args[0]->value);
                 return $this->builder->createStringLen($strVal);
             }
+            if ($funcName === 'str_starts_with') {
+                assert(count($expr->args) === 2);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                assert($expr->args[1] instanceof \PhpParser\Node\Arg);
+                $haystack = $this->buildExpr($expr->args[0]->value);
+                $prefix = $this->buildExpr($expr->args[1]->value);
+                $result = $this->builder->createCall('pico_string_starts_with', [$haystack, $prefix], BaseType::INT);
+                return $this->builder->createInstruction('icmp ne', [$result, new Constant(0, BaseType::INT)], resultType: BaseType::BOOL);
+            }
+            if ($funcName === 'str_contains') {
+                assert(count($expr->args) === 2);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                assert($expr->args[1] instanceof \PhpParser\Node\Arg);
+                $haystack = $this->buildExpr($expr->args[0]->value);
+                $needle = $this->buildExpr($expr->args[1]->value);
+                $result = $this->builder->createCall('pico_string_contains', [$haystack, $needle], BaseType::INT);
+                return $this->builder->createInstruction('icmp ne', [$result, new Constant(0, BaseType::INT)], resultType: BaseType::BOOL);
+            }
+            if ($funcName === 'substr') {
+                assert(count($expr->args) >= 2 && count($expr->args) <= 3);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                assert($expr->args[1] instanceof \PhpParser\Node\Arg);
+                $strVal = $this->buildExpr($expr->args[0]->value);
+                $start = $this->buildExpr($expr->args[1]->value);
+                $len = count($expr->args) === 3 && $expr->args[2] instanceof \PhpParser\Node\Arg
+                    ? $this->buildExpr($expr->args[2]->value)
+                    : new Constant(2147483647, BaseType::INT);
+                return $this->builder->createCall('pico_string_substr', [$strVal, $start, $len], BaseType::STRING);
+            }
+            if ($funcName === 'trim') {
+                assert(count($expr->args) === 1);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                $strVal = $this->buildExpr($expr->args[0]->value);
+                return $this->builder->createCall('pico_string_trim', [$strVal], BaseType::STRING);
+            }
             $args = (new Collection($expr->args))
                 ->map(function ($arg): ValueAbstract {
                     assert($arg instanceof \PhpParser\Node\Arg);

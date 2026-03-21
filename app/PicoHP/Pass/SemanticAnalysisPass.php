@@ -398,6 +398,12 @@ class SemanticAnalysisPass implements PassInterface
             if ($funcName === 'count' || $funcName === 'strlen') {
                 return PicoType::fromString('int');
             }
+            if ($funcName === 'str_starts_with' || $funcName === 'str_contains') {
+                return PicoType::fromString('bool');
+            }
+            if ($funcName === 'substr' || $funcName === 'trim') {
+                return PicoType::fromString('string');
+            }
             $s = $this->symbolTable->lookup($expr->name->name);
             $line = $this->getLine($expr);
             assert($s !== null, "line {$line}, function {$expr->name->name} not found");
