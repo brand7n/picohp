@@ -15,6 +15,8 @@ class GlobalToMainVisitor extends NodeVisitorAbstract
 
     protected int $currentDepth = 0;
 
+    public bool $hasMain = false;
+
     /** @return null|int|Node|Node[] */
     public function enterNode(Node $node)
     {
@@ -28,12 +30,36 @@ class GlobalToMainVisitor extends NodeVisitorAbstract
     public function leaveNode(Node $node)
     {
         $ret = null;
-        if ($this->currentDepth === 1 && !$node instanceof Node\Stmt\Function_ && !$node instanceof Node\Stmt\Class_) {
+        if ($this->currentDepth === 1
+            && !$node instanceof Node\Stmt\Function_
+            && !$node instanceof Node\Stmt\Class_
+            && !$node instanceof Node\Stmt\Interface_
+        ) {
             assert($node instanceof Node\Stmt);
-            $this->globalStatements[] = $node;
-
-            // Remove the statement from the top level
-            $ret = NodeTraverser::REMOVE_NODE;
+            if ($node instanceof Node\Stmt\Namespace_) {
+                // Split namespace: declarations stay top-level, executable code goes to main
+                $keepInNamespace = [];
+                foreach ($node->stmts as $nsStmt) {
+                    if ($nsStmt instanceof Node\Stmt\Class_
+                        || $nsStmt instanceof Node\Stmt\Function_
+                        || $nsStmt instanceof Node\Stmt\Interface_
+                        || $nsStmt instanceof Node\Stmt\Use_
+                    ) {
+                        $keepInNamespace[] = $nsStmt;
+                    } else {
+                        $this->globalStatements[] = $nsStmt;
+                    }
+                }
+                if (count($keepInNamespace) > 0) {
+                    $node->stmts = $keepInNamespace;
+                    // Keep the namespace at top level with only declarations
+                } else {
+                    $ret = NodeTraverser::REMOVE_NODE;
+                }
+            } else {
+                $this->globalStatements[] = $node;
+                $ret = NodeTraverser::REMOVE_NODE;
+            }
         }
 
         $this->currentDepth--;
@@ -49,6 +75,17 @@ class GlobalToMainVisitor extends NodeVisitorAbstract
      */
     public function afterTraverse(array $nodes): array
     {
+        // Filter out declare statements — they stay at the top regardless
+        $declareNodes = array_filter($nodes, fn ($node) => $node instanceof Node\Stmt\Declare_);
+        $otherNodes = array_values(array_filter($nodes, fn ($node) => !$node instanceof Node\Stmt\Declare_));
+
+        // If no executable statements were collected, this is a library (no main needed)
+        if (count($this->globalStatements) === 0) {
+            $this->hasMain = false;
+            return array_merge($declareNodes, $otherNodes);
+        }
+        $this->hasMain = true;
+
         // Add return 0 at the end of the main function
         $this->globalStatements[] = new Node\Stmt\Return_(
             new Node\Scalar\LNumber(0)
@@ -59,15 +96,10 @@ class GlobalToMainVisitor extends NodeVisitorAbstract
             'main',
             [
                 'stmts' => $this->globalStatements,
-                'returnType' => new Node\Identifier('int'), // Define return type as int
+                'returnType' => new Node\Identifier('int'),
             ]
         );
 
-        // Handle `declare` statements (keep them at the very top)
-        $declareNodes = array_filter($nodes, fn ($node) => $node instanceof Node\Stmt\Declare_);
-        $otherNodes = array_filter($nodes, fn ($node) => !$node instanceof Node\Stmt\Declare_);
-
-        // Prepend the `main` function after `declare` statements
         return array_merge(
             $declareNodes,
             [$mainFunction],

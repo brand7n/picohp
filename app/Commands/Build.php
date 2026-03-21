@@ -90,7 +90,8 @@ class Build extends Command
         $transformedAst = $traverser->traverse($ast);
 
         $traverser = new NodeTraverser();
-        $traverser->addVisitor(new GlobalToMainVisitor());
+        $globalToMain = new GlobalToMainVisitor();
+        $traverser->addVisitor($globalToMain);
         $transformedAst = $traverser->traverse($transformedAst);
 
         // TODO: transform exceptions?
@@ -144,7 +145,7 @@ class Build extends Command
         }
 
         $sharedLibOpts = '';
-        if ($this->option('shared-lib') === true) {
+        if ($this->option('shared-lib') === true || !$globalToMain->hasMain) {
             $sharedLibOpts = '-shared -undefined dynamic_lookup';
         }
         $runtimePath = config('app.runtime_path');
