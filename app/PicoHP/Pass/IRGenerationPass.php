@@ -628,7 +628,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                     ->toArray();
                 /** @var array<ValueAbstract> $allArgs */
                 $allArgs = array_merge([$objPtr], $args);
-                $qualifiedName = "{$className}___construct";
+                $ctorOwner = $classMeta->methodOwner['__construct'] ?? $className;
+                $qualifiedName = "{$ctorOwner}___construct";
                 $this->builder->createCall($qualifiedName, $allArgs, BaseType::VOID);
             }
             return $objPtr;
@@ -664,7 +665,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 ->toArray();
             /** @var array<ValueAbstract> $allArgs */
             $allArgs = array_merge([$objVal], $args);
-            $qualifiedName = "{$className}_{$methodName}";
+            $ownerClass = $classMeta->methodOwner[$methodName] ?? $className;
+            $qualifiedName = "{$ownerClass}_{$methodName}";
             return $this->builder->createCall($qualifiedName, $allArgs, $methodSymbol->type->toBase());
         } else {
             throw new \Exception("unknown node type in expr: " . get_class($expr));
