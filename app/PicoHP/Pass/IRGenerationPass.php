@@ -500,13 +500,27 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                     throw new \Exception("casting to float from unknown type");
             }
         } elseif ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
+            assert($expr->name instanceof \PhpParser\Node\Name);
+            $funcName = $expr->name->toLowerString();
+            // Built-in functions
+            if ($funcName === 'count') {
+                assert(count($expr->args) === 1);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                $arrVal = $this->buildExpr($expr->args[0]->value);
+                return $this->builder->createArrayLen($arrVal);
+            }
+            if ($funcName === 'strlen') {
+                assert(count($expr->args) === 1);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                $strVal = $this->buildExpr($expr->args[0]->value);
+                return $this->builder->createStringLen($strVal);
+            }
             $args = (new Collection($expr->args))
                 ->map(function ($arg): ValueAbstract {
                     assert($arg instanceof \PhpParser\Node\Arg);
                     return $this->buildExpr($arg->value);
                 })
                 ->toArray();
-            assert($expr->name instanceof \PhpParser\Node\Name);
             $funcSymbol = $pData->getSymbol();
             $returnType = $funcSymbol->type->toBase();
             /** @phpstan-ignore-next-line */
@@ -572,7 +586,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             assert($expr->class instanceof \PhpParser\Node\Name);
             $className = $expr->class->toString();
             $classMeta = $this->classRegistry[$className];
-            $objPtr = $this->builder->createMalloc($className);
+            $objPtr = $this->builder->createObjectAlloc($className);
             // Call constructor if it exists
             if (isset($classMeta->methods['__construct'])) {
                 $args = (new Collection($expr->args))

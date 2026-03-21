@@ -24,6 +24,28 @@ pub extern "C" fn pico_string_concat(a: *const c_char, b: *const c_char) -> *mut
 }
 
 // ---------------------------------------------------------------------------
+// Strings
+// ---------------------------------------------------------------------------
+
+#[no_mangle]
+pub extern "C" fn pico_string_len(s: *const c_char) -> i32 {
+    let s = unsafe { CStr::from_ptr(s) };
+    s.to_bytes().len() as i32
+}
+
+// ---------------------------------------------------------------------------
+// Object allocation
+// ---------------------------------------------------------------------------
+
+/// Allocate `size` bytes for an object. The `type_id` is reserved for
+/// future use (refcounting, GC metadata).
+#[no_mangle]
+pub extern "C" fn picohp_object_alloc(size: u64, _type_id: u32) -> *mut u8 {
+    let layout = std::alloc::Layout::from_size_align(size as usize, 8).unwrap();
+    unsafe { std::alloc::alloc_zeroed(layout) }
+}
+
+// ---------------------------------------------------------------------------
 // Dynamic arrays
 // ---------------------------------------------------------------------------
 
@@ -144,6 +166,25 @@ pub extern "C" fn pico_array_set_str(arr: *mut PicoArray, index: i32, val: *cons
 mod tests {
     use super::*;
     use std::ffi::CString;
+
+    #[test]
+    fn test_string_len() {
+        let s = CString::new("hello").unwrap();
+        assert_eq!(pico_string_len(s.as_ptr()), 5);
+        let empty = CString::new("").unwrap();
+        assert_eq!(pico_string_len(empty.as_ptr()), 0);
+    }
+
+    #[test]
+    fn test_object_alloc() {
+        let ptr = picohp_object_alloc(16, 0);
+        assert!(!ptr.is_null());
+        // Verify zeroed
+        unsafe {
+            assert_eq!(*ptr, 0);
+            assert_eq!(*ptr.add(15), 0);
+        }
+    }
 
     #[test]
     fn test_version() {
