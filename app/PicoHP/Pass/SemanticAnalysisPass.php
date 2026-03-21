@@ -77,7 +77,7 @@ class SemanticAnalysisPass implements PassInterface
                 }
                 foreach ($stmt->stmts as $classStmt) {
                     if ($classStmt instanceof \PhpParser\Node\Stmt\Property) {
-                        assert($classStmt->type instanceof \PhpParser\Node\Identifier || $classStmt->type instanceof \PhpParser\Node\NullableType);
+                        assert($classStmt->type instanceof \PhpParser\Node\Identifier || $classStmt->type instanceof \PhpParser\Node\NullableType || $classStmt->type instanceof \PhpParser\Node\Name);
                         // Use PHPDoc annotation if available (for generic types like array<int, string>)
                         $doc = $classStmt->getDocComment();
                         if ($doc !== null) {
@@ -90,7 +90,7 @@ class SemanticAnalysisPass implements PassInterface
                         }
                     } elseif ($classStmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
                         $methodName = $classStmt->name->toString();
-                        assert($classStmt->returnType === null || $classStmt->returnType instanceof \PhpParser\Node\Identifier || $classStmt->returnType instanceof \PhpParser\Node\NullableType);
+                        assert($classStmt->returnType === null || $classStmt->returnType instanceof \PhpParser\Node\Identifier || $classStmt->returnType instanceof \PhpParser\Node\NullableType || $classStmt->returnType instanceof \PhpParser\Node\Name);
                         $returnType = $classStmt->returnType !== null
                             ? $this->typeFromNode($classStmt->returnType)
                             : PicoType::fromString('void');
@@ -113,7 +113,7 @@ class SemanticAnalysisPass implements PassInterface
     {
         foreach ($stmts as $stmt) {
             if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
-                assert($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType);
+                assert($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType || $stmt->returnType instanceof \PhpParser\Node\Name);
                 $existing = $this->symbolTable->lookupCurrentScope($stmt->name->name);
                 if ($existing === null) {
                     $this->symbolTable->addSymbol(
@@ -126,11 +126,14 @@ class SemanticAnalysisPass implements PassInterface
         }
     }
 
-    private function typeFromNode(\PhpParser\Node\Identifier|\PhpParser\Node\NullableType $node): PicoType
+    private function typeFromNode(\PhpParser\Node\Identifier|\PhpParser\Node\NullableType|\PhpParser\Node\Name $node): PicoType
     {
         if ($node instanceof \PhpParser\Node\NullableType) {
-            assert($node->type instanceof \PhpParser\Node\Identifier);
-            return PicoType::fromString('?' . $node->type->name);
+            $innerName = $node->type instanceof \PhpParser\Node\Name ? $node->type->toString() : $node->type->name;
+            return PicoType::fromString('?' . $innerName);
+        }
+        if ($node instanceof \PhpParser\Node\Name) {
+            return PicoType::fromString($node->toString());
         }
         return PicoType::fromString($node->name);
     }
@@ -152,7 +155,7 @@ class SemanticAnalysisPass implements PassInterface
 
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
             assert(!is_null($stmt->returnType));
-            assert($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType);
+            assert($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType || $stmt->returnType instanceof \PhpParser\Node\Name);
             $returnType = $this->typeFromNode($stmt->returnType);
             $existing = $this->symbolTable->lookupCurrentScope($stmt->name->name);
             $pData->symbol = $existing ?? $this->symbolTable->addSymbol($stmt->name->name, $returnType, func: true);
@@ -253,7 +256,7 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
             assert($this->currentClass !== null);
             $methodName = $stmt->name->toString();
-            assert($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType || $stmt->returnType === null);
+            assert($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType || $stmt->returnType instanceof \PhpParser\Node\Name || $stmt->returnType === null);
             $returnType = $stmt->returnType !== null ? $this->typeFromNode($stmt->returnType) : PicoType::fromString('void');
             $methodSymbol = $this->symbolTable->addSymbol($methodName, $returnType, func: true);
             $pData->symbol = $methodSymbol;
@@ -513,7 +516,7 @@ class SemanticAnalysisPass implements PassInterface
             $pData = $this->getPicoData($param);
             assert($param->var instanceof \PhpParser\Node\Expr\Variable);
             assert(is_string($param->var->name));
-            assert($param->type instanceof \PhpParser\Node\Identifier || $param->type instanceof \PhpParser\Node\NullableType);
+            assert($param->type instanceof \PhpParser\Node\Identifier || $param->type instanceof \PhpParser\Node\NullableType || $param->type instanceof \PhpParser\Node\Name);
             $paramType = $this->typeFromNode($param->type);
             $pData->symbol = $this->symbolTable->addSymbol($param->var->name, $paramType);
             $paramTypes[] = $paramType;
