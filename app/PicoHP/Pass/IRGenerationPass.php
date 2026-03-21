@@ -16,6 +16,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     protected Builder $builder;
     protected ?\App\PicoHP\LLVM\Function_ $currentFunction = null;
     protected ?string $currentClassName = null;
+    protected ?ValueAbstract $currentThisPtr = null;
 
     /**
      * @var array<\PhpParser\Node> $stmts
@@ -228,6 +229,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             assert($thisSymbol !== null);
             assert($thisSymbol->value !== null);
             $this->builder->createStore(new Param(0, \App\PicoHP\BaseType::PTR), $thisSymbol->value);
+            $this->currentThisPtr = $thisSymbol->value;
             // Store remaining params (offset by 1)
             $paramIndex = 1;
             foreach ($stmt->params as $param) {
@@ -667,6 +669,42 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $allArgs = array_merge([$objVal], $args);
             $ownerClass = $classMeta->methodOwner[$methodName] ?? $className;
             $qualifiedName = "{$ownerClass}_{$methodName}";
+            return $this->builder->createCall($qualifiedName, $allArgs, $methodSymbol->type->toBase());
+        } elseif ($expr instanceof \PhpParser\Node\Expr\StaticCall) {
+            assert($expr->class instanceof \PhpParser\Node\Name);
+            assert($expr->name instanceof \PhpParser\Node\Identifier);
+            $targetClass = $expr->class->toString();
+            $methodName = $expr->name->toString();
+            if ($targetClass === 'parent') {
+                assert($this->currentClassName !== null);
+                $classMeta = $this->classRegistry[$this->currentClassName];
+                assert($classMeta->parentName !== null);
+                $parentMeta = $this->classRegistry[$classMeta->parentName];
+                $methodSymbol = $parentMeta->methods[$methodName];
+                $ownerClass = $parentMeta->methodOwner[$methodName] ?? $classMeta->parentName;
+                $targetClass = $ownerClass;
+            } else {
+                $classMeta = $this->classRegistry[$targetClass];
+                $methodSymbol = $classMeta->methods[$methodName];
+            }
+            $args = (new Collection($expr->args))
+                ->map(function ($arg): ValueAbstract {
+                    assert($arg instanceof \PhpParser\Node\Arg);
+                    return $this->buildExpr($arg->value);
+                })
+                ->toArray();
+            // Pass $this as first argument for parent:: calls
+            if ($expr->class->toString() === 'parent') {
+                // Load $this from param 0 alloca
+                assert($this->currentThisPtr !== null);
+                $thisVal = $this->builder->createLoad($this->currentThisPtr);
+                /** @var array<ValueAbstract> $allArgs */
+                $allArgs = array_merge([$thisVal], $args);
+            } else {
+                /** @var array<ValueAbstract> $allArgs */
+                $allArgs = $args;
+            }
+            $qualifiedName = "{$targetClass}_{$methodName}";
             return $this->builder->createCall($qualifiedName, $allArgs, $methodSymbol->type->toBase());
         } else {
             throw new \Exception("unknown node type in expr: " . get_class($expr));

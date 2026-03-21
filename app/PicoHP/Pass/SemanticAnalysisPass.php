@@ -464,6 +464,24 @@ class SemanticAnalysisPass implements PassInterface
             assert(isset($classMeta->methods[$methodName]), "method {$methodName} not found on class {$className}");
             $this->resolveArgs($expr->args);
             return $classMeta->methods[$methodName]->type;
+        } elseif ($expr instanceof \PhpParser\Node\Expr\StaticCall) {
+            assert($expr->class instanceof \PhpParser\Node\Name);
+            assert($expr->name instanceof \PhpParser\Node\Identifier);
+            $className = $expr->class->toString();
+            $methodName = $expr->name->toString();
+            $this->resolveArgs($expr->args);
+            if ($className === 'parent') {
+                assert($this->currentClass !== null);
+                assert($this->currentClass->parentName !== null, "parent:: used but class has no parent");
+                $parentMeta = $this->classRegistry[$this->currentClass->parentName];
+                assert(isset($parentMeta->methods[$methodName]), "method {$methodName} not found on parent {$this->currentClass->parentName}");
+                return $parentMeta->methods[$methodName]->type;
+            }
+            // Regular static call — resolve class
+            assert(isset($this->classRegistry[$className]), "class {$className} not found");
+            $classMeta = $this->classRegistry[$className];
+            assert(isset($classMeta->methods[$methodName]), "method {$methodName} not found on {$className}");
+            return $classMeta->methods[$methodName]->type;
         } else {
             $line = $this->getLine($expr);
             throw new \Exception("line {$line}, unknown node type in expr resolver: " . get_class($expr));
