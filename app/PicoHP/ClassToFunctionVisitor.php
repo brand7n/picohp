@@ -59,12 +59,15 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
         }
 
         // Convert static method calls (e.g., MyClass::methodName())
+        // Skip parent:: and self:: — handled by semantic/IR passes
         if ($node instanceof Node\Expr\StaticCall) {
-            // TODO: handle self::
             if ($node->class instanceof Node\Name) {
+                $className = $node->class->toString();
+                if ($className === 'parent' || $className === 'self') {
+                    return null; // leave as StaticCall
+                }
                 assert($node->name instanceof Node\Identifier);
                 $name = new Node\Name("{$node->class->name}_{$node->name}");
-                // TODO: handle arguments/return value
                 return new Node\Expr\FuncCall($name, $node->args);
             }
             // @codeCoverageIgnoreStart
