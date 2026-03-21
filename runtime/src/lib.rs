@@ -33,6 +33,67 @@ pub extern "C" fn pico_string_len(s: *const c_char) -> i32 {
     s.to_bytes().len() as i32
 }
 
+#[no_mangle]
+pub extern "C" fn pico_string_starts_with(haystack: *const c_char, prefix: *const c_char) -> i32 {
+    let h = unsafe { CStr::from_ptr(haystack) }.to_bytes();
+    let p = unsafe { CStr::from_ptr(prefix) }.to_bytes();
+    h.starts_with(p) as i32
+}
+
+#[no_mangle]
+pub extern "C" fn pico_string_contains(haystack: *const c_char, needle: *const c_char) -> i32 {
+    let h = unsafe { CStr::from_ptr(haystack) }.to_bytes();
+    let n = unsafe { CStr::from_ptr(needle) }.to_bytes();
+    // windows() doesn't work for empty needle; match PHP behavior (always true)
+    if n.is_empty() {
+        return 1;
+    }
+    h.windows(n.len()).any(|w| w == n) as i32
+}
+
+/// Returns a heap-allocated substring. Negative $start counts from end.
+/// If $length is negative, it's treated as 0 (returns empty string).
+#[no_mangle]
+pub extern "C" fn pico_string_substr(s: *const c_char, start: i32, length: i32) -> *mut c_char {
+    let bytes = unsafe { CStr::from_ptr(s) }.to_bytes();
+    let len = bytes.len() as i32;
+
+    let actual_start = if start < 0 {
+        (len + start).max(0) as usize
+    } else {
+        start.min(len) as usize
+    };
+
+    let actual_len = if length < 0 {
+        0
+    } else {
+        length.min(len - actual_start as i32).max(0) as usize
+    };
+
+    let slice = &bytes[actual_start..actual_start + actual_len];
+    let mut result = Vec::with_capacity(slice.len() + 1);
+    result.extend_from_slice(slice);
+    result.push(0);
+    let ptr = result.as_mut_ptr() as *mut c_char;
+    std::mem::forget(result);
+    ptr
+}
+
+#[no_mangle]
+pub extern "C" fn pico_string_trim(s: *const c_char) -> *mut c_char {
+    let bytes = unsafe { CStr::from_ptr(s) }.to_bytes();
+    let trimmed = match std::str::from_utf8(bytes) {
+        Ok(s) => s.trim().as_bytes(),
+        Err(_) => bytes, // non-UTF8: return as-is
+    };
+    let mut result = Vec::with_capacity(trimmed.len() + 1);
+    result.extend_from_slice(trimmed);
+    result.push(0);
+    let ptr = result.as_mut_ptr() as *mut c_char;
+    std::mem::forget(result);
+    ptr
+}
+
 // ---------------------------------------------------------------------------
 // Object allocation
 // ---------------------------------------------------------------------------
@@ -197,6 +258,49 @@ mod tests {
         assert_eq!(pico_string_len(s.as_ptr()), 5);
         let empty = CString::new("").unwrap();
         assert_eq!(pico_string_len(empty.as_ptr()), 0);
+    }
+
+    #[test]
+    fn test_string_starts_with() {
+        let h = CString::new("hello world").unwrap();
+        let p1 = CString::new("hello").unwrap();
+        let p2 = CString::new("world").unwrap();
+        let p3 = CString::new("").unwrap();
+        assert_eq!(pico_string_starts_with(h.as_ptr(), p1.as_ptr()), 1);
+        assert_eq!(pico_string_starts_with(h.as_ptr(), p2.as_ptr()), 0);
+        assert_eq!(pico_string_starts_with(h.as_ptr(), p3.as_ptr()), 1);
+    }
+
+    #[test]
+    fn test_string_contains() {
+        let h = CString::new("hello world").unwrap();
+        let n1 = CString::new("world").unwrap();
+        let n2 = CString::new("xyz").unwrap();
+        let n3 = CString::new("").unwrap();
+        assert_eq!(pico_string_contains(h.as_ptr(), n1.as_ptr()), 1);
+        assert_eq!(pico_string_contains(h.as_ptr(), n2.as_ptr()), 0);
+        assert_eq!(pico_string_contains(h.as_ptr(), n3.as_ptr()), 1);
+    }
+
+    #[test]
+    fn test_string_substr() {
+        let s = CString::new("hello world").unwrap();
+        let r1 = pico_string_substr(s.as_ptr(), 0, 5);
+        assert_eq!(unsafe { CStr::from_ptr(r1) }.to_str().unwrap(), "hello");
+        let r2 = pico_string_substr(s.as_ptr(), 6, 5);
+        assert_eq!(unsafe { CStr::from_ptr(r2) }.to_str().unwrap(), "world");
+        let r3 = pico_string_substr(s.as_ptr(), -5, 5);
+        assert_eq!(unsafe { CStr::from_ptr(r3) }.to_str().unwrap(), "world");
+    }
+
+    #[test]
+    fn test_string_trim() {
+        let s = CString::new("  hello  ").unwrap();
+        let r = pico_string_trim(s.as_ptr());
+        assert_eq!(unsafe { CStr::from_ptr(r) }.to_str().unwrap(), "hello");
+        let s2 = CString::new("nospace").unwrap();
+        let r2 = pico_string_trim(s2.as_ptr());
+        assert_eq!(unsafe { CStr::from_ptr(r2) }.to_str().unwrap(), "nospace");
     }
 
     #[test]
