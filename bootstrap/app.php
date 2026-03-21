@@ -1,9 +1,5 @@
 <?php
 
-// Suppress deprecation notices from Laravel Zero's database config on PHP 8.5+
-// (picoHP doesn't use a database; this will go away when we remove Laravel Zero)
-error_reporting(E_ALL & ~E_DEPRECATED);
-
 use LaravelZero\Framework\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 
