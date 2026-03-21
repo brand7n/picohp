@@ -647,9 +647,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\PropertyFetch) {
             assert($expr->name instanceof \PhpParser\Node\Identifier);
             $objVal = $this->buildExpr($expr->var);
-            $objType = PicoHPData::getPData($expr->var);
-            // Determine class name from the variable's symbol type
-            $varType = $this->getExprType($expr->var);
+            $varType = $this->getExprResolvedType($expr->var);
             $className = $varType->getClassName();
             $classMeta = $this->classRegistry[$className];
             $propName = $expr->name->toString();
@@ -663,7 +661,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\MethodCall) {
             assert($expr->name instanceof \PhpParser\Node\Identifier);
             $objVal = $this->buildExpr($expr->var);
-            $varType = $this->getExprType($expr->var);
+            $varType = $this->getExprResolvedType($expr->var);
             $className = $varType->getClassName();
             $classMeta = $this->classRegistry[$className];
             $methodName = $expr->name->toString();
