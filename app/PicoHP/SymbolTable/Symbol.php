@@ -13,6 +13,10 @@ class Symbol
     public PicoType $type;
     /** @var array<PicoType> */
     public array $params;
+    /** @var array<int, \PhpParser\Node\Expr|null> default expressions indexed by param position */
+    public array $defaults = [];
+    /** @var array<int, string> param names indexed by position */
+    public array $paramNames = [];
     public ?ValueAbstract $value;
     public bool $func;
 

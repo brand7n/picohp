@@ -99,6 +99,13 @@ class SemanticAnalysisPass implements PassInterface
                             ? $this->typeFromNode($classStmt->returnType)
                             : PicoType::fromString('void');
                         $methodSymbol = new \App\PicoHP\SymbolTable\Symbol($methodName, $returnType, func: true);
+                        $pi = 0;
+                        foreach ($classStmt->params as $param) {
+                            $methodSymbol->defaults[$pi] = $param->default;
+                            assert($param->var instanceof \PhpParser\Node\Expr\Variable && is_string($param->var->name));
+                            $methodSymbol->paramNames[$pi] = $param->var->name;
+                            $pi++;
+                        }
                         $classMeta->methods[$methodName] = $methodSymbol;
                         $classMeta->methodOwner[$methodName] = $className;
                     }
@@ -120,11 +127,18 @@ class SemanticAnalysisPass implements PassInterface
                 assert($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType || $stmt->returnType instanceof \PhpParser\Node\Name);
                 $existing = $this->symbolTable->lookupCurrentScope($stmt->name->name);
                 if ($existing === null) {
-                    $this->symbolTable->addSymbol(
+                    $sym = $this->symbolTable->addSymbol(
                         $stmt->name->name,
                         $this->typeFromNode($stmt->returnType),
                         func: true
                     );
+                    $pi = 0;
+                    foreach ($stmt->params as $param) {
+                        $sym->defaults[$pi] = $param->default;
+                        assert($param->var instanceof \PhpParser\Node\Expr\Variable && is_string($param->var->name));
+                        $sym->paramNames[$pi] = $param->var->name;
+                        $pi++;
+                    }
                 }
             }
         }
@@ -167,7 +181,10 @@ class SemanticAnalysisPass implements PassInterface
                 $pData->setScope($this->symbolTable->enterScope());
             }
 
-            $pData->getSymbol()->params = $this->resolveParams($stmt->params);
+            [$paramTypes, $defaults, $paramNames] = $this->resolveParams($stmt->params);
+            $pData->getSymbol()->params = $paramTypes;
+            $pData->getSymbol()->defaults = $defaults;
+            $pData->getSymbol()->paramNames = $paramNames;
             $previousReturnType = $this->currentFunctionReturnType;
             $this->currentFunctionReturnType = $returnType;
             $this->resolveStmts($stmt->stmts);
@@ -268,7 +285,10 @@ class SemanticAnalysisPass implements PassInterface
             $pData->setScope($this->symbolTable->enterScope());
             // Add $this to method scope
             $this->symbolTable->addSymbol('this', PicoType::object($this->currentClass->name));
-            $methodSymbol->params = $this->resolveParams($stmt->params);
+            [$paramTypes, $defaults, $paramNames] = $this->resolveParams($stmt->params);
+            $methodSymbol->params = $paramTypes;
+            $methodSymbol->defaults = $defaults;
+            $methodSymbol->paramNames = $paramNames;
             $previousReturnType = $this->currentFunctionReturnType;
             $this->currentFunctionReturnType = $returnType;
             assert($stmt->stmts !== null);
@@ -512,11 +532,14 @@ class SemanticAnalysisPass implements PassInterface
 
     /**
      * @param array<\PhpParser\Node\Param> $params
-     * @return array<PicoType>
+     * @return array{0: array<PicoType>, 1: array<int, \PhpParser\Node\Expr|null>, 2: array<int, string>}
      */
     public function resolveParams(array $params): array
     {
         $paramTypes = [];
+        $defaults = [];
+        $paramNames = [];
+        $index = 0;
         foreach ($params as $param) {
             $pData = $this->getPicoData($param);
             assert($param->var instanceof \PhpParser\Node\Expr\Variable);
@@ -525,8 +548,11 @@ class SemanticAnalysisPass implements PassInterface
             $paramType = $this->typeFromNode($param->type);
             $pData->symbol = $this->symbolTable->addSymbol($param->var->name, $paramType);
             $paramTypes[] = $paramType;
+            $defaults[$index] = $param->default;
+            $paramNames[$index] = $param->var->name;
+            $index++;
         }
-        return $paramTypes;
+        return [$paramTypes, $defaults, $paramNames];
     }
 
     public function resolveProperty(\PhpParser\Node\Stmt\PropertyProperty $prop, PicoHPData $pData, PicoType $type): void

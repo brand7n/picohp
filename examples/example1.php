@@ -62,7 +62,7 @@ echo (float)true;
 if ($glob > 0) {
     start(100, 200);
 } else {
-    Test::test1();
+    Test::test1(false, 0.0);
 }
 
 // if (Test::$value == 0) {
