@@ -47,7 +47,6 @@ class PicoType
     // Array support
     protected bool $isArray = false;
     protected ?BaseType $elementType = null;
-    protected int $arraySize = 0;
 
     /**
      * @param array<BaseType> $params
@@ -84,13 +83,11 @@ class PicoType
         return new PicoType(BaseType::from($type));
     }
 
-    /** @param int $size element count (0 = unknown/dynamic) */
-    public static function array(BaseType $elementType, int $size = 0): PicoType
+    public static function array(BaseType $elementType): PicoType
     {
         $pt = new PicoType(BaseType::PTR);
         $pt->isArray = true;
         $pt->elementType = $elementType;
-        $pt->arraySize = $size;
         return $pt;
     }
 
@@ -108,16 +105,6 @@ class PicoType
     {
         assert($this->elementType !== null, 'getElementType() called on non-array PicoType');
         return $this->elementType;
-    }
-
-    public function getArraySize(): int
-    {
-        return $this->arraySize;
-    }
-
-    public function setArraySize(int $size): void
-    {
-        $this->arraySize = $size;
     }
 
     public function toString(): string

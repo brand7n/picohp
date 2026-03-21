@@ -244,17 +244,18 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             assert($this->currentFunction !== null);
             $count = $pData->mycount;
 
+            // Load array pointer from its alloca
             $arrayVarPData = PicoHPData::getPData($stmt->expr);
             $arraySymbol = $arrayVarPData->getSymbol();
             $arrayType = $arraySymbol->type;
-            $arrayPtr = $arraySymbol->value;
-            assert($arrayPtr !== null);
+            $arrayAllocaPtr = $arraySymbol->value;
+            assert($arrayAllocaPtr !== null);
+            $arrayPtr = $this->builder->createLoad($arrayAllocaPtr);
 
             assert($stmt->valueVar instanceof \PhpParser\Node\Expr\Variable);
             $valueVarPData = PicoHPData::getPData($stmt->valueVar);
             $valuePtr = $valueVarPData->getValue();
 
-            // Counter alloca inline (foreach needs its own index)
             $counterPtr = $this->builder->createAlloca("foreach_i{$count}", BaseType::INT);
             $this->builder->createStore(new Constant(0, BaseType::INT), $counterPtr);
 
@@ -269,13 +270,12 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
             $this->builder->setInsertPoint($condBB);
             $idx = $this->builder->createLoad($counterPtr);
-            $sizeConst = new Constant($arrayType->getArraySize(), BaseType::INT);
-            $cond = $this->builder->createInstruction('icmp slt', [$idx, $sizeConst], resultType: BaseType::BOOL);
+            $lenVal = $this->builder->createArrayLen($arrayPtr);
+            $cond = $this->builder->createInstruction('icmp slt', [$idx, $lenVal], resultType: BaseType::BOOL);
             $this->builder->createBranch([$cond, $bodyLabel, $endLabel]);
 
             $this->builder->setInsertPoint($bodyBB);
-            $elemPtr = $this->builder->createArrayGEP($arrayPtr, $idx, $arrayType->getElementType(), $arrayType->getArraySize());
-            $elemVal = $this->builder->createLoad($elemPtr);
+            $elemVal = $this->builder->createArrayGet($arrayPtr, $idx, $arrayType->getElementType());
             $this->builder->createStore($elemVal, $valuePtr);
             $this->buildStmts($stmt->stmts);
             $idxNext = $this->builder->createInstruction('add', [$idx, new Constant(1, BaseType::INT)]);
@@ -298,10 +298,31 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         $pData = PicoHPData::getPData($expr);
 
         if ($expr instanceof \PhpParser\Node\Expr\Assign) {
+            // Array literal: $arr = [1, 2, 3]
             if ($expr->expr instanceof \PhpParser\Node\Expr\Array_) {
-                $varPData = PicoHPData::getPData($expr->var);
                 $lval = $this->buildExpr($expr->var);
-                return $this->buildArrayInit($lval, $expr->expr, $varPData->getSymbol()->type);
+                $varPData = PicoHPData::getPData($expr->var);
+                $arrayType = $varPData->getSymbol()->type;
+                $arrPtr = $this->buildArrayInit($expr->expr, $arrayType);
+                $this->builder->createStore($arrPtr, $lval);
+                return $arrPtr;
+            }
+            // Array element write: $arr[idx] = val or $arr[] = val
+            if ($expr->var instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
+                $rval = $this->buildExpr($expr->expr);
+                $arrVarPData = PicoHPData::getPData($expr->var->var);
+                $arrAllocaPtr = $arrVarPData->getValue();
+                $arrPtr = $this->builder->createLoad($arrAllocaPtr);
+                $arrayType = $arrVarPData->getSymbol()->type;
+                if ($expr->var->dim === null) {
+                    // $arr[] = val (push)
+                    $this->builder->createArrayPush($arrPtr, $rval, $arrayType->getElementType());
+                } else {
+                    // $arr[idx] = val (set)
+                    $idx = $this->buildExpr($expr->var->dim);
+                    $this->builder->createArraySet($arrPtr, $idx, $rval, $arrayType->getElementType());
+                }
+                return $rval;
             }
             $lval = $this->buildExpr($expr->var);
             $rval = $this->buildExpr($expr->expr);
@@ -449,8 +470,17 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             /** @phpstan-ignore-next-line */
             return $this->builder->createCall($expr->name->name, $args, $returnType);
         } elseif ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
-            assert($expr->dim !== null, "array append not implemented");
             $varData = PicoHPData::getPData($expr->var);
+            $varType = $varData->getSymbol()->type;
+            if ($varType->isArray()) {
+                // Array read: $arr[$idx] — writes handled in Assign
+                assert($expr->dim !== null, "array read requires index");
+                $arrPtr = $this->builder->createLoad($varData->getValue());
+                $idx = $this->buildExpr($expr->dim);
+                return $this->builder->createArrayGet($arrPtr, $idx, $varType->getElementType());
+            }
+            // String indexing (existing behavior)
+            assert($expr->dim !== null);
             if ($pData->lVal === true) {
                 return $this->builder->createGetElementPtr(
                     $varData->getValue(),
@@ -533,30 +563,19 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
     protected function buildSymbolAlloca(\App\PicoHP\SymbolTable\Symbol $symbol): ValueAbstract
     {
-        if ($symbol->type->isArray()) {
-            return $this->builder->createArrayAlloca(
-                $symbol->name,
-                $symbol->type->getElementType(),
-                $symbol->type->getArraySize()
-            );
-        }
+        // Arrays are ptr slots (will hold pico_array_new() result)
         return $this->builder->createAlloca($symbol->name, $symbol->type->toBase());
     }
 
-    protected function buildArrayInit(ValueAbstract $lval, \PhpParser\Node\Expr\Array_ $arrayExpr, \App\PicoHP\PicoType $arrayType): ValueAbstract
+    protected function buildArrayInit(\PhpParser\Node\Expr\Array_ $arrayExpr, \App\PicoHP\PicoType $arrayType): ValueAbstract
     {
-        foreach ($arrayExpr->items as $idx => $item) {
+        $arrPtr = $this->builder->createArrayNew();
+        $elementType = $arrayType->getElementType();
+        foreach ($arrayExpr->items as $item) {
             $elemVal = $this->buildExpr($item->value);
-            $idxConst = new Constant($idx, BaseType::INT);
-            $elemPtr = $this->builder->createArrayGEP(
-                $lval,
-                $idxConst,
-                $arrayType->getElementType(),
-                $arrayType->getArraySize()
-            );
-            $this->builder->createStore($elemVal, $elemPtr);
+            $this->builder->createArrayPush($arrPtr, $elemVal, $elementType);
         }
-        return $lval;
+        return $arrPtr;
     }
 
     /**

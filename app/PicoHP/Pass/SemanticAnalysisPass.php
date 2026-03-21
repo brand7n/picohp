@@ -189,10 +189,6 @@ class SemanticAnalysisPass implements PassInterface
             $ltype = $this->resolveExpr($expr->var, $doc, lVal: true, rType: $rtype);
             $line = $this->getLine($expr);
             assert($ltype->isEqualTo($rtype), "line {$line}, type mismatch in assignment");
-            // Propagate array size from literal into the symbol (doc comment gives 0)
-            if ($ltype->isArray() && $ltype->getArraySize() === 0 && $rtype->isArray() && $rtype->getArraySize() > 0) {
-                $this->getPicoData($expr->var)->getSymbol()->type->setArraySize($rtype->getArraySize());
-            }
             return $rtype;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Variable) {
             $pData->lVal = $lVal;
@@ -214,14 +210,21 @@ class SemanticAnalysisPass implements PassInterface
             return $pData->symbol->type;
         } elseif ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
             $pData->lVal = $lVal;
-            // add/resolve this symbol which is an array/string $var = $expr->var;
             $type = $this->resolveExpr($expr->var, $doc, lVal: $lVal);
-            assert($type->isEqualTo(PicoType::fromString('string')), "{$type->toString()} is not a string");
+            if ($type->isArray()) {
+                if ($expr->dim !== null) {
+                    $dimType = $this->resolveExpr($expr->dim);
+                    assert($dimType->isEqualTo(PicoType::fromString('int')), "{$dimType->toString()} is not an int");
+                }
+                // dim === null means $arr[] = ... (push), resolved at Assign
+                return new PicoType($type->getElementType());
+            }
+            // string indexing
+            assert($type->isEqualTo(PicoType::fromString('string')), "{$type->toString()} is not a string or array");
             assert($expr->dim !== null);
             $dimType = $this->resolveExpr($expr->dim);
             assert($dimType->isEqualTo(PicoType::fromString('int')), "{$dimType->toString()} is not an int");
-            // if doc is null type will be from a retrieved value
-            return PicoType::fromString('int'); // really a char/byte or maybe a single byte string?
+            return PicoType::fromString('int');
         } elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp\Coalesce) {
             $this->resolveExpr($expr->left);
             return $this->resolveExpr($expr->right);
@@ -318,7 +321,6 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\PreDec) {
             return $this->resolveExpr($expr->var);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Array_) {
-            $size = count($expr->items);
             $elementType = BaseType::STRING; // default
             $first = true;
             foreach ($expr->items as $item) {
@@ -328,7 +330,7 @@ class SemanticAnalysisPass implements PassInterface
                     $first = false;
                 }
             }
-            return PicoType::array($elementType, $size);
+            return PicoType::array($elementType);
         } else {
             $line = $this->getLine($expr);
             throw new \Exception("line {$line}, unknown node type in expr resolver: " . get_class($expr));

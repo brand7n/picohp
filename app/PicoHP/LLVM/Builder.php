@@ -31,6 +31,22 @@ class Builder
         $this->addLine('declare i32 @printf(ptr, ...)');
         $this->addLine('declare ptr @pico_string_concat(ptr, ptr)');
         $this->addLine('declare i32 @pico_rt_version()');
+        $this->addLine();
+        $this->addLine('; array runtime');
+        $this->addLine('declare ptr @pico_array_new()');
+        $this->addLine('declare i32 @pico_array_len(ptr)');
+        $this->addLine('declare void @pico_array_push_int(ptr, i32)');
+        $this->addLine('declare void @pico_array_push_float(ptr, double)');
+        $this->addLine('declare void @pico_array_push_bool(ptr, i32)');
+        $this->addLine('declare void @pico_array_push_str(ptr, ptr)');
+        $this->addLine('declare i32 @pico_array_get_int(ptr, i32)');
+        $this->addLine('declare double @pico_array_get_float(ptr, i32)');
+        $this->addLine('declare i32 @pico_array_get_bool(ptr, i32)');
+        $this->addLine('declare ptr @pico_array_get_str(ptr, i32)');
+        $this->addLine('declare void @pico_array_set_int(ptr, i32, i32)');
+        $this->addLine('declare void @pico_array_set_float(ptr, i32, double)');
+        $this->addLine('declare void @pico_array_set_bool(ptr, i32, i32)');
+        $this->addLine('declare void @pico_array_set_str(ptr, i32, ptr)');
     }
 
     public function setInsertPoint(BasicBlock $bb): void
@@ -206,19 +222,62 @@ class Builder
         return $resultVal;
     }
 
-    public function createArrayAlloca(string $name, BaseType $elementType, int $size): ValueAbstract
+    // -- dynamic array runtime calls -----------------------------------------
+
+    public function createArrayNew(): ValueAbstract
     {
-        $resultVal = new AllocaInst($name, BaseType::PTR);
-        $this->addLine("{$resultVal->render()} = alloca [{$size} x {$elementType->toLLVM()}]", 1);
+        $resultVal = new Instruction('array_new', BaseType::PTR);
+        $this->addLine("{$resultVal->render()} = call ptr @pico_array_new()", 1);
         return $resultVal;
     }
 
-    public function createArrayGEP(ValueAbstract $arrayPtr, ValueAbstract $idx, BaseType $elementType, int $arraySize): ValueAbstract
+    public function createArrayLen(ValueAbstract $arr): ValueAbstract
     {
-        $resultVal = new Instruction('gep', $elementType);
-        $elemTypeLLVM = $elementType->toLLVM();
-        $this->addLine("{$resultVal->render()} = getelementptr inbounds [{$arraySize} x {$elemTypeLLVM}], ptr {$arrayPtr->render()}, i64 0, i32 {$idx->render()}", 1);
+        $resultVal = new Instruction('array_len', BaseType::INT);
+        $this->addLine("{$resultVal->render()} = call i32 @pico_array_len(ptr {$arr->render()})", 1);
         return $resultVal;
+    }
+
+    public function createArrayPush(ValueAbstract $arr, ValueAbstract $val, BaseType $elementType): void
+    {
+        $suffix = $this->arrayFuncSuffix($elementType);
+        $llvmType = $this->arrayArgType($elementType);
+        $this->addLine("call void @pico_array_push_{$suffix}(ptr {$arr->render()}, {$llvmType} {$val->render()})", 1);
+    }
+
+    public function createArrayGet(ValueAbstract $arr, ValueAbstract $idx, BaseType $elementType): ValueAbstract
+    {
+        $suffix = $this->arrayFuncSuffix($elementType);
+        $retType = $this->arrayArgType($elementType);
+        $resultVal = new Instruction('array_get', $elementType);
+        $this->addLine("{$resultVal->render()} = call {$retType} @pico_array_get_{$suffix}(ptr {$arr->render()}, i32 {$idx->render()})", 1);
+        return $resultVal;
+    }
+
+    public function createArraySet(ValueAbstract $arr, ValueAbstract $idx, ValueAbstract $val, BaseType $elementType): void
+    {
+        $suffix = $this->arrayFuncSuffix($elementType);
+        $llvmType = $this->arrayArgType($elementType);
+        $this->addLine("call void @pico_array_set_{$suffix}(ptr {$arr->render()}, i32 {$idx->render()}, {$llvmType} {$val->render()})", 1);
+    }
+
+    private function arrayFuncSuffix(BaseType $type): string
+    {
+        return match ($type) {
+            BaseType::INT => 'int',
+            BaseType::FLOAT => 'float',
+            BaseType::BOOL => 'bool',
+            BaseType::STRING, BaseType::PTR => 'str',
+            default => throw new \RuntimeException("unsupported array element type: {$type->value}"),
+        };
+    }
+
+    private function arrayArgType(BaseType $type): string
+    {
+        return match ($type) {
+            BaseType::BOOL => 'i32',
+            default => $type->toLLVM(),
+        };
     }
 
     public function createRetVoid(): void
