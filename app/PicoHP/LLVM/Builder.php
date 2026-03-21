@@ -228,6 +228,13 @@ class Builder
         return $resultVal;
     }
 
+    public function createEnumValueLookup(string $enumName, int $caseCount, ValueAbstract $tag): ValueAbstract
+    {
+        $resultVal = new Instruction('enum_value', BaseType::PTR);
+        $this->addLine("{$resultVal->render()} = getelementptr inbounds [{$caseCount} x ptr], ptr @{$enumName}_values, i32 0, i32 {$tag->render()}", 1);
+        return $resultVal;
+    }
+
     public function createStringLen(ValueAbstract $str): ValueAbstract
     {
         $resultVal = new Instruction('strlen', BaseType::INT);

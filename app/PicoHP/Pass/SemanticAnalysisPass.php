@@ -3,7 +3,7 @@
 namespace App\PicoHP\Pass;
 
 use App\PicoHP\{PassInterface, SymbolTable};
-use App\PicoHP\SymbolTable\{ClassMetadata, DocTypeParser, PicoHPData};
+use App\PicoHP\SymbolTable\{ClassMetadata, DocTypeParser, EnumMetadata, PicoHPData};
 use App\PicoHP\{BaseType, PicoType};
 
 class SemanticAnalysisPass implements PassInterface
@@ -20,6 +20,9 @@ class SemanticAnalysisPass implements PassInterface
 
     /** @var array<string, ClassMetadata> */
     protected array $classRegistry = [];
+
+    /** @var array<string, EnumMetadata> */
+    protected array $enumRegistry = [];
 
     /**
      * @param array<\PhpParser\Node> $ast
@@ -43,6 +46,14 @@ class SemanticAnalysisPass implements PassInterface
     public function getClassRegistry(): array
     {
         return $this->classRegistry;
+    }
+
+    /**
+     * @return array<string, EnumMetadata>
+     */
+    public function getEnumRegistry(): array
+    {
+        return $this->enumRegistry;
     }
 
     public function exec(): void
@@ -82,15 +93,21 @@ class SemanticAnalysisPass implements PassInterface
                 foreach ($stmt->stmts as $classStmt) {
                     if ($classStmt instanceof \PhpParser\Node\Stmt\Property) {
                         assert($classStmt->type instanceof \PhpParser\Node\Identifier || $classStmt->type instanceof \PhpParser\Node\NullableType || $classStmt->type instanceof \PhpParser\Node\Name);
-                        // Use PHPDoc annotation if available (for generic types like array<int, string>)
                         $doc = $classStmt->getDocComment();
                         if ($doc !== null) {
                             $propType = $this->docTypeParser->parseType($doc->getText());
                         } else {
                             $propType = $this->typeFromNode($classStmt->type);
                         }
-                        foreach ($classStmt->props as $prop) {
-                            $classMeta->addProperty($prop->name->toString(), $propType);
+                        if ($classStmt->isStatic()) {
+                            foreach ($classStmt->props as $prop) {
+                                $classMeta->staticProperties[$prop->name->toString()] = $propType;
+                                $classMeta->staticDefaults[$prop->name->toString()] = $prop->default;
+                            }
+                        } else {
+                            foreach ($classStmt->props as $prop) {
+                                $classMeta->addProperty($prop->name->toString(), $propType);
+                            }
                         }
                     } elseif ($classStmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
                         $methodName = $classStmt->name->toString();
@@ -108,6 +125,28 @@ class SemanticAnalysisPass implements PassInterface
                         }
                         $classMeta->methods[$methodName] = $methodSymbol;
                         $classMeta->methodOwner[$methodName] = $className;
+                    }
+                }
+            }
+            if ($stmt instanceof \PhpParser\Node\Stmt\Enum_) {
+                assert($stmt->name instanceof \PhpParser\Node\Identifier);
+                $enumName = $stmt->name->toString();
+                $scalarTypeName = null;
+                if ($stmt->scalarType !== null) {
+                    $scalarTypeName = $stmt->scalarType->name;
+                }
+                $enumMeta = new EnumMetadata($enumName, $scalarTypeName);
+                $this->enumRegistry[$enumName] = $enumMeta;
+                foreach ($stmt->stmts as $enumStmt) {
+                    if ($enumStmt instanceof \PhpParser\Node\Stmt\EnumCase) {
+                        $caseName = $enumStmt->name->toString();
+                        $backingValue = null;
+                        if ($enumStmt->expr instanceof \PhpParser\Node\Scalar\String_) {
+                            $backingValue = $enumStmt->expr->value;
+                        } elseif ($enumStmt->expr instanceof \PhpParser\Node\Scalar\Int_) {
+                            $backingValue = $enumStmt->expr->value;
+                        }
+                        $enumMeta->addCase($caseName, $backingValue);
                     }
                 }
             }
@@ -151,7 +190,11 @@ class SemanticAnalysisPass implements PassInterface
             return PicoType::fromString('?' . $innerName);
         }
         if ($node instanceof \PhpParser\Node\Name) {
-            return PicoType::fromString($node->toString());
+            $name = $node->toString();
+            if (isset($this->enumRegistry[$name])) {
+                return PicoType::enum($name);
+            }
+            return PicoType::fromString($name);
         }
         return PicoType::fromString($node->name);
     }
@@ -299,6 +342,9 @@ class SemanticAnalysisPass implements PassInterface
             $this->resolveStmts($stmt->stmts);
             $this->currentFunctionReturnType = $previousReturnType;
             $this->symbolTable->exitScope();
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Enum_) {
+            // Enum cases already registered in registerClasses
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\EnumCase) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Use_) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Interface_) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Namespace_) {
@@ -424,6 +470,15 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Double) {
             $this->resolveExpr($expr->expr);
             return PicoType::fromString('float');
+        } elseif ($expr instanceof \PhpParser\Node\Expr\ClassConstFetch) {
+            assert($expr->class instanceof \PhpParser\Node\Name);
+            assert($expr->name instanceof \PhpParser\Node\Identifier);
+            $className = $expr->class->toString();
+            if (isset($this->enumRegistry[$className])) {
+                return PicoType::enum($className);
+            }
+            // Non-enum class constants not yet supported
+            throw new \Exception("class constant {$className}::{$expr->name->toString()} not supported");
         } elseif ($expr instanceof \PhpParser\Node\Expr\ConstFetch) {
             if ($expr->name->toLowerString() === 'null') {
                 return PicoType::fromString('string'); // null represented as ptr
@@ -482,8 +537,16 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\PropertyFetch) {
             $pData->lVal = $lVal;
             $objType = $this->resolveExpr($expr->var);
-            assert($objType->isObject(), "property fetch on non-object type: {$objType->toString()}");
             assert($expr->name instanceof \PhpParser\Node\Identifier);
+            // Enum ->value access
+            if ($objType->isEnum() && $expr->name->toString() === 'value') {
+                $enumMeta = $this->enumRegistry[$objType->getClassName()];
+                if ($enumMeta->backingType === 'string') {
+                    return PicoType::fromString('string');
+                }
+                return PicoType::fromString('int');
+            }
+            assert($objType->isObject(), "property fetch on non-object type: {$objType->toString()}");
             $classMeta = $this->classRegistry[$objType->getClassName()];
             return $classMeta->getPropertyType($expr->name->toString());
         } elseif ($expr instanceof \PhpParser\Node\Expr\MethodCall) {
@@ -496,6 +559,19 @@ class SemanticAnalysisPass implements PassInterface
             assert(isset($classMeta->methods[$methodName]), "method {$methodName} not found on class {$className}");
             $this->resolveArgs($expr->args);
             return $classMeta->methods[$methodName]->type;
+        } elseif ($expr instanceof \PhpParser\Node\Expr\StaticPropertyFetch) {
+            $pData->lVal = $lVal;
+            assert($expr->class instanceof \PhpParser\Node\Name);
+            assert($expr->name instanceof \PhpParser\Node\VarLikeIdentifier);
+            $className = $expr->class->toString();
+            if ($className === 'self') {
+                assert($this->currentClass !== null);
+                $className = $this->currentClass->name;
+            }
+            $classMeta = $this->classRegistry[$className];
+            $propName = $expr->name->toString();
+            assert(isset($classMeta->staticProperties[$propName]), "static property {$propName} not found on {$className}");
+            return $classMeta->staticProperties[$propName];
         } elseif ($expr instanceof \PhpParser\Node\Expr\StaticCall) {
             assert($expr->class instanceof \PhpParser\Node\Name);
             assert($expr->name instanceof \PhpParser\Node\Identifier);

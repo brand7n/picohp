@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "self-documenting-code": {
+      "source": "theswerd/aicode",
+      "sourceType": "github",
+      "computedHash": "39f983b5dc4308d8aabc2c1c6834dcfea4fe0c9cc340720a7703e2a8a8c809ac"
+    }
+  }
+}

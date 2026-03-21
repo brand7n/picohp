@@ -51,6 +51,9 @@ class PicoType
     // Class/object support
     protected ?string $className = null;
 
+    // Enum support
+    protected bool $isEnum = false;
+
     /**
      * @param array<BaseType> $params
      */
@@ -64,6 +67,10 @@ class PicoType
 
     public function isEqualTo(PicoType $type): bool
     {
+        // Enum/object types with matching class names are equal
+        if ($this->className !== null && $type->className !== null) {
+            return $this->className === $type->className;
+        }
         return $this->type === $type->type;
     }
 
@@ -119,6 +126,19 @@ class PicoType
     {
         assert($this->className !== null, 'getClassName() called on non-object PicoType');
         return $this->className;
+    }
+
+    public static function enum(string $name): PicoType
+    {
+        $pt = new PicoType(BaseType::INT); // enums represented as i32 tags
+        $pt->className = $name;
+        $pt->isEnum = true;
+        return $pt;
+    }
+
+    public function isEnum(): bool
+    {
+        return $this->isEnum;
     }
 
     public function isNullable(): bool

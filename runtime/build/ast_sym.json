@@ -1,0 +1,654 @@
+[
+    {
+        "nodeType": "Stmt_Function",
+        "attributes": {
+            "picoHP": {
+                "symbol": {
+                    "name": "main",
+                    "type": {},
+                    "params": [],
+                    "value": null,
+                    "func": true
+                },
+                "lVal": false,
+                "mycount": 1
+            }
+        },
+        "byRef": false,
+        "name": {
+            "nodeType": "Identifier",
+            "attributes": [],
+            "name": "main"
+        },
+        "params": [],
+        "returnType": {
+            "nodeType": "Identifier",
+            "attributes": [],
+            "name": "int"
+        },
+        "stmts": [
+            {
+                "nodeType": "Stmt_Declare",
+                "attributes": {
+                    "startLine": 3,
+                    "startTokenPos": 2,
+                    "startFilePos": 7,
+                    "endLine": 3,
+                    "endTokenPos": 8,
+                    "endFilePos": 30,
+                    "depth": 1,
+                    "picoHP": {
+                        "lVal": false,
+                        "mycount": 2
+                    }
+                },
+                "declares": [
+                    {
+                        "nodeType": "DeclareItem",
+                        "attributes": {
+                            "startLine": 3,
+                            "startTokenPos": 4,
+                            "startFilePos": 15,
+                            "endLine": 3,
+                            "endTokenPos": 6,
+                            "endFilePos": 28,
+                            "depth": 2
+                        },
+                        "key": {
+                            "nodeType": "Identifier",
+                            "attributes": {
+                                "startLine": 3,
+                                "startTokenPos": 4,
+                                "startFilePos": 15,
+                                "endLine": 3,
+                                "endTokenPos": 4,
+                                "endFilePos": 26,
+                                "depth": 3
+                            },
+                            "name": "strict_types"
+                        },
+                        "value": {
+                            "nodeType": "Scalar_Int",
+                            "attributes": {
+                                "startLine": 3,
+                                "startTokenPos": 6,
+                                "startFilePos": 28,
+                                "endLine": 3,
+                                "endTokenPos": 6,
+                                "endFilePos": 28,
+                                "rawValue": "1",
+                                "kind": 10,
+                                "depth": 3
+                            },
+                            "value": 1
+                        }
+                    }
+                ],
+                "stmts": null
+            },
+            {
+                "nodeType": "Stmt_Echo",
+                "attributes": {
+                    "startLine": 10,
+                    "startTokenPos": 42,
+                    "startFilePos": 118,
+                    "endLine": 10,
+                    "endTokenPos": 48,
+                    "endFilePos": 137,
+                    "depth": 1,
+                    "picoHP": {
+                        "lVal": false,
+                        "mycount": 3
+                    }
+                },
+                "exprs": [
+                    {
+                        "nodeType": "Expr_FuncCall",
+                        "attributes": {
+                            "startLine": 10,
+                            "startTokenPos": 44,
+                            "startFilePos": 123,
+                            "endLine": 10,
+                            "endTokenPos": 47,
+                            "endFilePos": 136,
+                            "depth": 2,
+                            "picoHP": {
+                                "symbol": {
+                                    "name": "greet",
+                                    "type": {},
+                                    "params": [
+                                        {}
+                                    ],
+                                    "value": null,
+                                    "func": true
+                                },
+                                "lVal": false,
+                                "mycount": 4
+                            }
+                        },
+                        "name": {
+                            "nodeType": "Name",
+                            "attributes": {
+                                "startLine": 10,
+                                "startTokenPos": 44,
+                                "startFilePos": 123,
+                                "endLine": 10,
+                                "endTokenPos": 44,
+                                "endFilePos": 127,
+                                "resolvedName": {
+                                    "nodeType": "Name_FullyQualified",
+                                    "attributes": {
+                                        "startLine": 10,
+                                        "startTokenPos": 44,
+                                        "startFilePos": 123,
+                                        "endLine": 10,
+                                        "endTokenPos": 44,
+                                        "endFilePos": 127
+                                    },
+                                    "name": "greet"
+                                },
+                                "depth": 3
+                            },
+                            "name": "greet"
+                        },
+                        "args": [
+                            {
+                                "nodeType": "Arg",
+                                "attributes": {
+                                    "startLine": 10,
+                                    "startTokenPos": 46,
+                                    "startFilePos": 129,
+                                    "endLine": 10,
+                                    "endTokenPos": 46,
+                                    "endFilePos": 135,
+                                    "depth": 3
+                                },
+                                "name": null,
+                                "value": {
+                                    "nodeType": "Scalar_String",
+                                    "attributes": {
+                                        "startLine": 10,
+                                        "startTokenPos": 46,
+                                        "startFilePos": 129,
+                                        "endLine": 10,
+                                        "endTokenPos": 46,
+                                        "endFilePos": 135,
+                                        "kind": 1,
+                                        "rawValue": "'alice'",
+                                        "depth": 4,
+                                        "picoHP": {
+                                            "lVal": false,
+                                            "mycount": 5
+                                        }
+                                    },
+                                    "value": "alice"
+                                },
+                                "byRef": false,
+                                "unpack": false
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "nodeType": "Stmt_Echo",
+                "attributes": {
+                    "startLine": 11,
+                    "startTokenPos": 50,
+                    "startFilePos": 139,
+                    "endLine": 11,
+                    "endTokenPos": 53,
+                    "endFilePos": 148,
+                    "depth": 1,
+                    "picoHP": {
+                        "lVal": false,
+                        "mycount": 6
+                    }
+                },
+                "exprs": [
+                    {
+                        "nodeType": "Scalar_String",
+                        "attributes": {
+                            "startLine": 11,
+                            "startTokenPos": 52,
+                            "startFilePos": 144,
+                            "endLine": 11,
+                            "endTokenPos": 52,
+                            "endFilePos": 147,
+                            "kind": 2,
+                            "rawValue": "\"\\n\"",
+                            "depth": 2,
+                            "picoHP": {
+                                "lVal": false,
+                                "mycount": 7
+                            }
+                        },
+                        "value": "\n"
+                    }
+                ]
+            },
+            {
+                "nodeType": "Stmt_Echo",
+                "attributes": {
+                    "startLine": 12,
+                    "startTokenPos": 55,
+                    "startFilePos": 150,
+                    "endLine": 12,
+                    "endTokenPos": 61,
+                    "endFilePos": 166,
+                    "depth": 1,
+                    "picoHP": {
+                        "lVal": false,
+                        "mycount": 8
+                    }
+                },
+                "exprs": [
+                    {
+                        "nodeType": "Expr_FuncCall",
+                        "attributes": {
+                            "startLine": 12,
+                            "startTokenPos": 57,
+                            "startFilePos": 155,
+                            "endLine": 12,
+                            "endTokenPos": 60,
+                            "endFilePos": 165,
+                            "depth": 2,
+                            "picoHP": {
+                                "symbol": {
+                                    "name": "greet",
+                                    "type": {},
+                                    "params": [
+                                        {}
+                                    ],
+                                    "value": null,
+                                    "func": true
+                                },
+                                "lVal": false,
+                                "mycount": 9
+                            }
+                        },
+                        "name": {
+                            "nodeType": "Name",
+                            "attributes": {
+                                "startLine": 12,
+                                "startTokenPos": 57,
+                                "startFilePos": 155,
+                                "endLine": 12,
+                                "endTokenPos": 57,
+                                "endFilePos": 159,
+                                "resolvedName": {
+                                    "nodeType": "Name_FullyQualified",
+                                    "attributes": {
+                                        "startLine": 12,
+                                        "startTokenPos": 57,
+                                        "startFilePos": 155,
+                                        "endLine": 12,
+                                        "endTokenPos": 57,
+                                        "endFilePos": 159
+                                    },
+                                    "name": "greet"
+                                },
+                                "depth": 3
+                            },
+                            "name": "greet"
+                        },
+                        "args": [
+                            {
+                                "nodeType": "Arg",
+                                "attributes": {
+                                    "startLine": 12,
+                                    "startTokenPos": 59,
+                                    "startFilePos": 161,
+                                    "endLine": 12,
+                                    "endTokenPos": 59,
+                                    "endFilePos": 164,
+                                    "depth": 3
+                                },
+                                "name": null,
+                                "value": {
+                                    "nodeType": "Expr_ConstFetch",
+                                    "attributes": {
+                                        "startLine": 12,
+                                        "startTokenPos": 59,
+                                        "startFilePos": 161,
+                                        "endLine": 12,
+                                        "endTokenPos": 59,
+                                        "endFilePos": 164,
+                                        "depth": 4,
+                                        "picoHP": {
+                                            "lVal": false,
+                                            "mycount": 10
+                                        }
+                                    },
+                                    "name": {
+                                        "nodeType": "Name",
+                                        "attributes": {
+                                            "startLine": 12,
+                                            "startTokenPos": 59,
+                                            "startFilePos": 161,
+                                            "endLine": 12,
+                                            "endTokenPos": 59,
+                                            "endFilePos": 164,
+                                            "resolvedName": {
+                                                "nodeType": "Name_FullyQualified",
+                                                "attributes": {
+                                                    "startLine": 12,
+                                                    "startTokenPos": 59,
+                                                    "startFilePos": 161,
+                                                    "endLine": 12,
+                                                    "endTokenPos": 59,
+                                                    "endFilePos": 164
+                                                },
+                                                "name": "null"
+                                            },
+                                            "depth": 5
+                                        },
+                                        "name": "null"
+                                    }
+                                },
+                                "byRef": false,
+                                "unpack": false
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "nodeType": "Stmt_Echo",
+                "attributes": {
+                    "startLine": 13,
+                    "startTokenPos": 63,
+                    "startFilePos": 168,
+                    "endLine": 13,
+                    "endTokenPos": 66,
+                    "endFilePos": 177,
+                    "depth": 1,
+                    "picoHP": {
+                        "lVal": false,
+                        "mycount": 11
+                    }
+                },
+                "exprs": [
+                    {
+                        "nodeType": "Scalar_String",
+                        "attributes": {
+                            "startLine": 13,
+                            "startTokenPos": 65,
+                            "startFilePos": 173,
+                            "endLine": 13,
+                            "endTokenPos": 65,
+                            "endFilePos": 176,
+                            "kind": 2,
+                            "rawValue": "\"\\n\"",
+                            "depth": 2,
+                            "picoHP": {
+                                "lVal": false,
+                                "mycount": 12
+                            }
+                        },
+                        "value": "\n"
+                    }
+                ]
+            },
+            {
+                "nodeType": "Stmt_Return",
+                "attributes": {
+                    "picoHP": {
+                        "lVal": false,
+                        "mycount": 13
+                    }
+                },
+                "expr": {
+                    "nodeType": "Scalar_Int",
+                    "attributes": {
+                        "picoHP": {
+                            "lVal": false,
+                            "mycount": 14
+                        }
+                    },
+                    "value": 0
+                }
+            }
+        ],
+        "attrGroups": []
+    },
+    {
+        "nodeType": "Stmt_Function",
+        "attributes": {
+            "startLine": 5,
+            "startTokenPos": 10,
+            "startFilePos": 33,
+            "endLine": 8,
+            "endTokenPos": 40,
+            "endFilePos": 115,
+            "depth": 1,
+            "picoHP": {
+                "symbol": {
+                    "name": "greet",
+                    "type": {},
+                    "params": [
+                        {}
+                    ],
+                    "value": null,
+                    "func": true
+                },
+                "lVal": false,
+                "mycount": 15
+            }
+        },
+        "byRef": false,
+        "name": {
+            "nodeType": "Identifier",
+            "attributes": {
+                "startLine": 5,
+                "startTokenPos": 12,
+                "startFilePos": 42,
+                "endLine": 5,
+                "endTokenPos": 12,
+                "endFilePos": 46,
+                "depth": 2
+            },
+            "name": "greet"
+        },
+        "params": [
+            {
+                "nodeType": "Param",
+                "attributes": {
+                    "startLine": 5,
+                    "startTokenPos": 14,
+                    "startFilePos": 48,
+                    "endLine": 5,
+                    "endTokenPos": 17,
+                    "endFilePos": 60,
+                    "depth": 2,
+                    "picoHP": {
+                        "symbol": {
+                            "name": "name",
+                            "type": {},
+                            "params": [],
+                            "value": null,
+                            "func": false
+                        },
+                        "lVal": false,
+                        "mycount": 16
+                    }
+                },
+                "type": {
+                    "nodeType": "NullableType",
+                    "attributes": {
+                        "startLine": 5,
+                        "startTokenPos": 14,
+                        "startFilePos": 48,
+                        "endLine": 5,
+                        "endTokenPos": 15,
+                        "endFilePos": 54,
+                        "depth": 3
+                    },
+                    "type": {
+                        "nodeType": "Identifier",
+                        "attributes": {
+                            "startLine": 5,
+                            "startTokenPos": 15,
+                            "startFilePos": 49,
+                            "endLine": 5,
+                            "endTokenPos": 15,
+                            "endFilePos": 54,
+                            "depth": 4
+                        },
+                        "name": "string"
+                    }
+                },
+                "byRef": false,
+                "variadic": false,
+                "var": {
+                    "nodeType": "Expr_Variable",
+                    "attributes": {
+                        "startLine": 5,
+                        "startTokenPos": 17,
+                        "startFilePos": 56,
+                        "endLine": 5,
+                        "endTokenPos": 17,
+                        "endFilePos": 60,
+                        "depth": 3
+                    },
+                    "name": "name"
+                },
+                "default": null,
+                "flags": 0,
+                "attrGroups": [],
+                "hooks": []
+            }
+        ],
+        "returnType": {
+            "nodeType": "Identifier",
+            "attributes": {
+                "startLine": 5,
+                "startTokenPos": 21,
+                "startFilePos": 64,
+                "endLine": 5,
+                "endTokenPos": 21,
+                "endFilePos": 69,
+                "depth": 2
+            },
+            "name": "string"
+        },
+        "stmts": [
+            {
+                "nodeType": "Stmt_Return",
+                "attributes": {
+                    "startLine": 7,
+                    "startTokenPos": 25,
+                    "startFilePos": 77,
+                    "endLine": 7,
+                    "endTokenPos": 38,
+                    "endFilePos": 113,
+                    "depth": 2,
+                    "picoHP": {
+                        "lVal": false,
+                        "mycount": 17
+                    }
+                },
+                "expr": {
+                    "nodeType": "Expr_BinaryOp_Concat",
+                    "attributes": {
+                        "startLine": 7,
+                        "startTokenPos": 27,
+                        "startFilePos": 84,
+                        "endLine": 7,
+                        "endTokenPos": 37,
+                        "endFilePos": 112,
+                        "depth": 3,
+                        "picoHP": {
+                            "lVal": false,
+                            "mycount": 18
+                        }
+                    },
+                    "left": {
+                        "nodeType": "Scalar_String",
+                        "attributes": {
+                            "startLine": 7,
+                            "startTokenPos": 27,
+                            "startFilePos": 84,
+                            "endLine": 7,
+                            "endTokenPos": 27,
+                            "endFilePos": 91,
+                            "kind": 1,
+                            "rawValue": "'hello '",
+                            "depth": 4,
+                            "picoHP": {
+                                "lVal": false,
+                                "mycount": 19
+                            }
+                        },
+                        "value": "hello "
+                    },
+                    "right": {
+                        "nodeType": "Expr_BinaryOp_Coalesce",
+                        "attributes": {
+                            "startLine": 7,
+                            "startTokenPos": 32,
+                            "startFilePos": 96,
+                            "endLine": 7,
+                            "endTokenPos": 36,
+                            "endFilePos": 111,
+                            "depth": 4,
+                            "picoHP": {
+                                "lVal": false,
+                                "mycount": 20
+                            }
+                        },
+                        "left": {
+                            "nodeType": "Expr_Variable",
+                            "attributes": {
+                                "startLine": 7,
+                                "startTokenPos": 32,
+                                "startFilePos": 96,
+                                "endLine": 7,
+                                "endTokenPos": 32,
+                                "endFilePos": 100,
+                                "depth": 5,
+                                "picoHP": {
+                                    "symbol": {
+                                        "name": "name",
+                                        "type": {},
+                                        "params": [],
+                                        "value": null,
+                                        "func": false
+                                    },
+                                    "lVal": false,
+                                    "mycount": 21
+                                }
+                            },
+                            "name": "name"
+                        },
+                        "right": {
+                            "nodeType": "Scalar_String",
+                            "attributes": {
+                                "startLine": 7,
+                                "startTokenPos": 36,
+                                "startFilePos": 105,
+                                "endLine": 7,
+                                "endTokenPos": 36,
+                                "endFilePos": 111,
+                                "kind": 1,
+                                "rawValue": "'world'",
+                                "depth": 5,
+                                "picoHP": {
+                                    "lVal": false,
+                                    "mycount": 22
+                                }
+                            },
+                            "value": "world"
+                        }
+                    }
+                }
+            }
+        ],
+        "attrGroups": [],
+        "namespacedName": {
+            "nodeType": "Name",
+            "attributes": [],
+            "name": "greet"
+        }
+    }
+]

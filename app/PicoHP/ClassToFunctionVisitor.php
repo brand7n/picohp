@@ -58,6 +58,15 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
             return NodeTraverser::REMOVE_NODE;
         }
 
+        // Resolve self:: in static property access to the actual class name
+        if ($node instanceof Node\Expr\StaticPropertyFetch) {
+            if ($node->class instanceof Node\Name && $node->class->toString() === 'self') {
+                assert($this->className !== null);
+                $node->class = new Node\Name($this->className);
+            }
+            return $node;
+        }
+
         // Convert static method calls (e.g., MyClass::methodName())
         // Skip parent:: and self:: — handled by semantic/IR passes
         if ($node instanceof Node\Expr\StaticCall) {
