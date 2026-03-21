@@ -213,7 +213,7 @@ class SemanticAnalysisPass implements PassInterface
             $valueVarPData = $this->getPicoData($stmt->valueVar);
             $valueVarPData->symbol = $this->symbolTable->addSymbol(
                 $stmt->valueVar->name,
-                new PicoType($arrayType->getElementType())
+                $arrayType->getElementType()
             );
             // TODO: key var support
             $this->resolveStmts($stmt->stmts);
@@ -303,7 +303,7 @@ class SemanticAnalysisPass implements PassInterface
                     assert($dimType->isEqualTo(PicoType::fromString('int')), "{$dimType->toString()} is not an int");
                 }
                 // dim === null means $arr[] = ... (push), resolved at Assign
-                return new PicoType($type->getElementType());
+                return $type->getElementType();
             }
             // string indexing
             assert($type->isEqualTo(PicoType::fromString('string')), "{$type->toString()} is not a string or array");
@@ -412,16 +412,16 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\PreDec) {
             return $this->resolveExpr($expr->var);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Array_) {
-            $elementType = BaseType::STRING; // default
+            $elemType = PicoType::fromString('string'); // default
             $first = true;
             foreach ($expr->items as $item) {
                 $itemType = $this->resolveExpr($item->value);
                 if ($first) {
-                    $elementType = $itemType->toBase();
+                    $elemType = $itemType;
                     $first = false;
                 }
             }
-            return PicoType::array($elementType);
+            return PicoType::array($elemType);
         } elseif ($expr instanceof \PhpParser\Node\Expr\New_) {
             assert($expr->class instanceof \PhpParser\Node\Name);
             $className = $expr->class->toString();

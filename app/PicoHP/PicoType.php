@@ -46,7 +46,7 @@ class PicoType
 
     // Array support
     protected bool $isArray = false;
-    protected ?BaseType $elementType = null;
+    protected ?PicoType $elementPicoType = null;
 
     // Class/object support
     protected ?string $className = null;
@@ -81,7 +81,7 @@ class PicoType
             return $pt;
         }
         if (preg_match('/^array<[^,]+,\s*(\w+)>$/', $type, $m) === 1) {
-            return self::array(BaseType::from($m[1]));
+            return self::array(self::fromString($m[1]));
         }
         $baseType = BaseType::tryFrom($type);
         if ($baseType !== null) {
@@ -91,11 +91,11 @@ class PicoType
         return self::object($type);
     }
 
-    public static function array(BaseType $elementType): PicoType
+    public static function array(PicoType $elementType): PicoType
     {
         $pt = new PicoType(BaseType::PTR);
         $pt->isArray = true;
-        $pt->elementType = $elementType;
+        $pt->elementPicoType = $elementType;
         return $pt;
     }
 
@@ -127,10 +127,15 @@ class PicoType
         return $this->isArray;
     }
 
-    public function getElementType(): BaseType
+    public function getElementType(): PicoType
     {
-        assert($this->elementType !== null, 'getElementType() called on non-array PicoType');
-        return $this->elementType;
+        assert($this->elementPicoType !== null, 'getElementType() called on non-array PicoType');
+        return $this->elementPicoType;
+    }
+
+    public function getElementBaseType(): BaseType
+    {
+        return $this->getElementType()->toBase();
     }
 
     public function toString(): string

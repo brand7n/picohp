@@ -317,7 +317,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->builder->createBranch([$cond, $bodyLabel, $endLabel]);
 
             $this->builder->setInsertPoint($bodyBB);
-            $elemVal = $this->builder->createArrayGet($arrayPtr, $idx, $arrayType->getElementType());
+            $elemVal = $this->builder->createArrayGet($arrayPtr, $idx, $arrayType->getElementBaseType());
             $this->builder->createStore($elemVal, $valuePtr);
             $this->buildStmts($stmt->stmts);
             $idxNext = $this->builder->createInstruction('add', [$idx, new Constant(1, BaseType::INT)]);
@@ -358,11 +358,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $arrayType = $arrVarPData->getSymbol()->type;
                 if ($expr->var->dim === null) {
                     // $arr[] = val (push)
-                    $this->builder->createArrayPush($arrPtr, $rval, $arrayType->getElementType());
+                    $this->builder->createArrayPush($arrPtr, $rval, $arrayType->getElementBaseType());
                 } else {
                     // $arr[idx] = val (set)
                     $idx = $this->buildExpr($expr->var->dim);
-                    $this->builder->createArraySet($arrPtr, $idx, $rval, $arrayType->getElementType());
+                    $this->builder->createArraySet($arrPtr, $idx, $rval, $arrayType->getElementBaseType());
                 }
                 return $rval;
             }
@@ -533,7 +533,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 assert($expr->dim !== null, "array read requires index");
                 $arrPtr = $this->builder->createLoad($varData->getValue());
                 $idx = $this->buildExpr($expr->dim);
-                return $this->builder->createArrayGet($arrPtr, $idx, $varType->getElementType());
+                return $this->builder->createArrayGet($arrPtr, $idx, $varType->getElementBaseType());
             }
             // String indexing (existing behavior)
             assert($expr->dim !== null);
@@ -685,7 +685,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     protected function buildArrayInit(\PhpParser\Node\Expr\Array_ $arrayExpr, \App\PicoHP\PicoType $arrayType): ValueAbstract
     {
         $arrPtr = $this->builder->createArrayNew();
-        $elementType = $arrayType->getElementType();
+        $elementType = $arrayType->getElementBaseType();
         foreach ($arrayExpr->items as $item) {
             $elemVal = $this->buildExpr($item->value);
             $this->builder->createArrayPush($arrPtr, $elemVal, $elementType);

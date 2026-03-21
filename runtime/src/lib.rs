@@ -54,6 +54,7 @@ enum PicoValue {
     Float(f64),
     Bool(bool),
     Str(*const c_char),
+    Ptr(*mut u8),
 }
 
 pub struct PicoArray {
@@ -162,6 +163,29 @@ pub extern "C" fn pico_array_set_str(arr: *mut PicoArray, index: i32, val: *cons
     arr.data[index as usize] = PicoValue::Str(val);
 }
 
+// -- ptr (object pointers) --------------------------------------------------
+
+#[no_mangle]
+pub extern "C" fn pico_array_push_ptr(arr: *mut PicoArray, val: *mut u8) {
+    let arr = unsafe { &mut *arr };
+    arr.data.push(PicoValue::Ptr(val));
+}
+
+#[no_mangle]
+pub extern "C" fn pico_array_get_ptr(arr: *const PicoArray, index: i32) -> *mut u8 {
+    let arr = unsafe { &*arr };
+    match &arr.data[index as usize] {
+        PicoValue::Ptr(v) => *v,
+        _ => panic!("pico_array_get_ptr: element is not a pointer"),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn pico_array_set_ptr(arr: *mut PicoArray, index: i32, val: *mut u8) {
+    let arr = unsafe { &mut *arr };
+    arr.data[index as usize] = PicoValue::Ptr(val);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -189,6 +213,18 @@ mod tests {
     #[test]
     fn test_version() {
         assert_eq!(pico_rt_version(), 1);
+    }
+
+    #[test]
+    fn test_array_push_get_ptr() {
+        let arr = pico_array_new();
+        let obj1 = picohp_object_alloc(16, 0);
+        let obj2 = picohp_object_alloc(16, 1);
+        pico_array_push_ptr(arr, obj1);
+        pico_array_push_ptr(arr, obj2);
+        assert_eq!(pico_array_len(arr), 2);
+        assert_eq!(pico_array_get_ptr(arr, 0), obj1);
+        assert_eq!(pico_array_get_ptr(arr, 1), obj2);
     }
 
     #[test]

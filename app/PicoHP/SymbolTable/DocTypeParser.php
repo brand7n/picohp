@@ -12,7 +12,7 @@ use PHPStan\PhpDocParser\Parser\TokenIterator;
 use PHPStan\PhpDocParser\Parser\TypeParser;
 use PHPStan\PhpDocParser\Ast\PhpDoc\{GenericTagValueNode};
 use PHPStan\PhpDocParser\Ast\Type\{GenericTypeNode, IdentifierTypeNode};
-use App\PicoHP\{BaseType, PicoType};
+use App\PicoHP\PicoType;
 
 class DocTypeParser
 {
@@ -42,7 +42,7 @@ class DocTypeParser
                 && count($typeNode->genericTypes) === 2
                 && $typeNode->genericTypes[1] instanceof IdentifierTypeNode
             ) {
-                return PicoType::array(BaseType::from($typeNode->genericTypes[1]->name));
+                return PicoType::array(PicoType::fromString($typeNode->genericTypes[1]->name));
             }
             return PicoType::fromString((string)$typeNode);
         }
