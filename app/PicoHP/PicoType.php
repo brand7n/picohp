@@ -76,7 +76,7 @@ class PicoType
     {
         if (str_starts_with($type, '?')) {
             $inner = substr($type, 1);
-            $pt = new PicoType(BaseType::from($inner));
+            $pt = self::fromString($inner);
             $pt->nullable = true;
             return $pt;
         }

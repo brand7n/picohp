@@ -324,6 +324,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
             $this->builder->setInsertPoint($endBB);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Interface_) {
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Use_) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Namespace_) {
             $this->buildStmts($stmt->stmts);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\InlineHTML) {
@@ -547,6 +548,14 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 assert($expr->args[0] instanceof \PhpParser\Node\Arg);
                 $strVal = $this->buildExpr($expr->args[0]->value);
                 return $this->builder->createCall('pico_string_trim', [$strVal], BaseType::STRING);
+            }
+            if ($funcName === 'str_repeat') {
+                assert(count($expr->args) === 2);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                assert($expr->args[1] instanceof \PhpParser\Node\Arg);
+                $strVal = $this->buildExpr($expr->args[0]->value);
+                $times = $this->buildExpr($expr->args[1]->value);
+                return $this->builder->createCall('pico_string_repeat', [$strVal, $times], BaseType::STRING);
             }
             $args = (new Collection($expr->args))
                 ->map(function ($arg): ValueAbstract {

@@ -64,6 +64,10 @@ class SemanticAnalysisPass implements PassInterface
                 $this->registerClasses($stmt->stmts);
                 continue;
             }
+            if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
+                $this->registerClasses($stmt->stmts);
+                continue;
+            }
             if ($stmt instanceof \PhpParser\Node\Stmt\Class_) {
                 assert($stmt->name instanceof \PhpParser\Node\Identifier);
                 $className = $stmt->name->toString();
@@ -271,6 +275,7 @@ class SemanticAnalysisPass implements PassInterface
             $this->resolveStmts($stmt->stmts);
             $this->currentFunctionReturnType = $previousReturnType;
             $this->symbolTable->exitScope();
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Use_) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Interface_) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Namespace_) {
             $this->resolveStmts($stmt->stmts);
@@ -411,7 +416,7 @@ class SemanticAnalysisPass implements PassInterface
             if ($funcName === 'str_starts_with' || $funcName === 'str_contains') {
                 return PicoType::fromString('bool');
             }
-            if ($funcName === 'substr' || $funcName === 'trim') {
+            if ($funcName === 'substr' || $funcName === 'trim' || $funcName === 'str_repeat') {
                 return PicoType::fromString('string');
             }
             $s = $this->symbolTable->lookup($expr->name->name);

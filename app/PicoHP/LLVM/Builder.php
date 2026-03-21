@@ -36,6 +36,7 @@ class Builder
         $this->addLine('declare i32 @pico_string_contains(ptr, ptr)');
         $this->addLine('declare ptr @pico_string_substr(ptr, i32, i32)');
         $this->addLine('declare ptr @pico_string_trim(ptr)');
+        $this->addLine('declare ptr @pico_string_repeat(ptr, i32)');
         $this->addLine('declare ptr @picohp_object_alloc(i64, i32)');
         $this->addLine();
         $this->addLine('; array runtime');
