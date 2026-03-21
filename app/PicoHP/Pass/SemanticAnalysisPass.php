@@ -82,15 +82,21 @@ class SemanticAnalysisPass implements PassInterface
                 foreach ($stmt->stmts as $classStmt) {
                     if ($classStmt instanceof \PhpParser\Node\Stmt\Property) {
                         assert($classStmt->type instanceof \PhpParser\Node\Identifier || $classStmt->type instanceof \PhpParser\Node\NullableType || $classStmt->type instanceof \PhpParser\Node\Name);
-                        // Use PHPDoc annotation if available (for generic types like array<int, string>)
                         $doc = $classStmt->getDocComment();
                         if ($doc !== null) {
                             $propType = $this->docTypeParser->parseType($doc->getText());
                         } else {
                             $propType = $this->typeFromNode($classStmt->type);
                         }
-                        foreach ($classStmt->props as $prop) {
-                            $classMeta->addProperty($prop->name->toString(), $propType);
+                        if ($classStmt->isStatic()) {
+                            foreach ($classStmt->props as $prop) {
+                                $classMeta->staticProperties[$prop->name->toString()] = $propType;
+                                $classMeta->staticDefaults[$prop->name->toString()] = $prop->default;
+                            }
+                        } else {
+                            foreach ($classStmt->props as $prop) {
+                                $classMeta->addProperty($prop->name->toString(), $propType);
+                            }
                         }
                     } elseif ($classStmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
                         $methodName = $classStmt->name->toString();
@@ -496,6 +502,19 @@ class SemanticAnalysisPass implements PassInterface
             assert(isset($classMeta->methods[$methodName]), "method {$methodName} not found on class {$className}");
             $this->resolveArgs($expr->args);
             return $classMeta->methods[$methodName]->type;
+        } elseif ($expr instanceof \PhpParser\Node\Expr\StaticPropertyFetch) {
+            $pData->lVal = $lVal;
+            assert($expr->class instanceof \PhpParser\Node\Name);
+            assert($expr->name instanceof \PhpParser\Node\VarLikeIdentifier);
+            $className = $expr->class->toString();
+            if ($className === 'self') {
+                assert($this->currentClass !== null);
+                $className = $this->currentClass->name;
+            }
+            $classMeta = $this->classRegistry[$className];
+            $propName = $expr->name->toString();
+            assert(isset($classMeta->staticProperties[$propName]), "static property {$propName} not found on {$className}");
+            return $classMeta->staticProperties[$propName];
         } elseif ($expr instanceof \PhpParser\Node\Expr\StaticCall) {
             assert($expr->class instanceof \PhpParser\Node\Name);
             assert($expr->name instanceof \PhpParser\Node\Identifier);

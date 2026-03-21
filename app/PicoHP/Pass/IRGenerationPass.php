@@ -200,7 +200,30 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             assert(isset($this->classRegistry[$className]));
             $classMeta = $this->classRegistry[$className];
             $fields = $classMeta->toLLVMStructFields();
-            $this->module->addLine(new IRLine("%struct.{$className} = type { {$fields} }"));
+            if ($fields !== '') {
+                $this->module->addLine(new IRLine("%struct.{$className} = type { {$fields} }"));
+            }
+            // Emit static properties as globals
+            foreach ($classMeta->staticProperties as $propName => $propType) {
+                $llvmType = $propType->toBase()->toLLVM();
+                $default = $classMeta->staticDefaults[$propName] ?? null;
+                $initVal = '0';
+                if ($default instanceof \PhpParser\Node\Scalar\Int_) {
+                    $initVal = (string) $default->value;
+                } elseif ($default instanceof \PhpParser\Node\Scalar\Float_) {
+                    $initVal = sprintf('%e', $default->value);
+                } elseif ($default instanceof \PhpParser\Node\Scalar\String_) {
+                    $initVal = 'null'; // string pointers default to null
+                } elseif ($default instanceof \PhpParser\Node\Expr\ConstFetch) {
+                    $name = $default->name->toLowerString();
+                    if ($name === 'true') {
+                        $initVal = '1';
+                    } elseif ($name === 'false' || $name === 'null') {
+                        $initVal = '0';
+                    }
+                }
+                $this->module->addLine(new IRLine("@{$className}_{$propName} = global {$llvmType} {$initVal}"));
+            }
             $this->currentClassName = $className;
             $this->buildStmts($stmt->stmts);
             $this->currentClassName = null;
@@ -701,6 +724,23 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             $qualifiedName = "{$targetClass}_{$methodName}";
             return $this->builder->createCall($qualifiedName, $allArgs, $methodSymbol->type->toBase());
+        } elseif ($expr instanceof \PhpParser\Node\Expr\StaticPropertyFetch) {
+            assert($expr->class instanceof \PhpParser\Node\Name);
+            assert($expr->name instanceof \PhpParser\Node\VarLikeIdentifier);
+            $className = $expr->class->toString();
+            if ($className === 'self') {
+                assert($this->currentClassName !== null);
+                $className = $this->currentClassName;
+            }
+            $propName = $expr->name->toString();
+            $classMeta = $this->classRegistry[$className];
+            $propType = $classMeta->staticProperties[$propName];
+            $globalName = "{$className}_{$propName}";
+            $globalPtr = new \App\PicoHP\LLVM\Value\Global_($globalName, $propType->toBase());
+            if ($pData->lVal) {
+                return $globalPtr;
+            }
+            return $this->builder->createLoad($globalPtr);
         } else {
             throw new \Exception("unknown node type in expr: " . get_class($expr));
         }
