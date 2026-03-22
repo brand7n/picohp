@@ -111,7 +111,7 @@ class Build extends Command
             file_put_contents($astWithSymbolOutput, json_encode($transformedAst, JSON_PRETTY_PRINT));
         }
 
-        $pass = new IRGenerationPass($transformedAst, $semanticPass->getClassRegistry(), $semanticPass->getEnumRegistry());
+        $pass = new IRGenerationPass($transformedAst, $semanticPass->getClassRegistry(), $semanticPass->getEnumRegistry(), $semanticPass->getTypeIdMap());
         $pass->exec();
 
         $f = fopen($llvmIRoutput, 'w');

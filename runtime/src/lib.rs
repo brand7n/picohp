@@ -155,6 +155,112 @@ pub extern "C" fn pico_string_trim(s: *const c_char) -> *mut c_char {
 }
 
 // ---------------------------------------------------------------------------
+// Exception handling (setjmp/longjmp based)
+// ---------------------------------------------------------------------------
+
+struct ExceptionState {
+    /// Pointer to the current in-flight exception object (null if none).
+    exception_ptr: *mut u8,
+    /// The type_id of the current in-flight exception (for catch-clause matching).
+    exception_type_id: u32,
+    /// Stack of jmp_buf pointers — each try block pushes one.
+    handler_stack: Vec<*mut u8>,
+}
+
+static mut EXCEPTION_STATE: ExceptionState = ExceptionState {
+    exception_ptr: std::ptr::null_mut(),
+    exception_type_id: 0,
+    handler_stack: Vec::new(),
+};
+
+extern "C" {
+    fn longjmp(env: *mut u8, val: i32) -> !;
+}
+
+/// Push a jmp_buf pointer onto the exception handler stack.
+/// Called right before setjmp() in the generated IR.
+#[no_mangle]
+pub extern "C" fn picohp_eh_push(jmp_buf_ptr: *mut u8) {
+    unsafe {
+        EXCEPTION_STATE.handler_stack.push(jmp_buf_ptr);
+    }
+}
+
+/// Pop the top jmp_buf from the handler stack (normal exit from try block).
+#[no_mangle]
+pub extern "C" fn picohp_eh_pop() {
+    unsafe {
+        EXCEPTION_STATE.handler_stack.pop();
+    }
+}
+
+/// Throw an exception: store the object pointer and type_id, then longjmp.
+/// If no handler is on the stack, prints an error and aborts.
+#[no_mangle]
+pub extern "C" fn picohp_throw(exception_ptr: *mut u8, type_id: u32) {
+    unsafe {
+        EXCEPTION_STATE.exception_ptr = exception_ptr;
+        EXCEPTION_STATE.exception_type_id = type_id;
+        if let Some(&jmp_buf_ptr) = EXCEPTION_STATE.handler_stack.last() {
+            longjmp(jmp_buf_ptr, 1);
+        } else {
+            eprintln!("Fatal error: Uncaught exception (type_id={})", type_id);
+            std::process::exit(1);
+        }
+    }
+}
+
+/// Get the current in-flight exception object pointer.
+#[no_mangle]
+pub extern "C" fn picohp_eh_get_exception() -> *mut u8 {
+    unsafe { EXCEPTION_STATE.exception_ptr }
+}
+
+/// Get the type_id of the current in-flight exception.
+#[no_mangle]
+pub extern "C" fn picohp_eh_get_type_id() -> u32 {
+    unsafe { EXCEPTION_STATE.exception_type_id }
+}
+
+/// Check if exception type_id matches a given type_id or any of its ancestors.
+/// The ancestor_ids array is a null-terminated list of type_ids for the catch class
+/// and all its descendants. For simplicity, we just check if exception_type_id
+/// matches the given type_id.
+#[no_mangle]
+pub extern "C" fn picohp_eh_matches_type(catch_type_id: u32) -> i32 {
+    unsafe {
+        if EXCEPTION_STATE.exception_type_id == catch_type_id {
+            return 1;
+        }
+        0
+    }
+}
+
+/// Check if exception type matches any type in a list.
+/// type_ids is a pointer to an array of u32, count is the length.
+#[no_mangle]
+pub extern "C" fn picohp_eh_matches_any(type_ids: *const u32, count: u32) -> i32 {
+    unsafe {
+        let slice = std::slice::from_raw_parts(type_ids, count as usize);
+        for &tid in slice {
+            if EXCEPTION_STATE.exception_type_id == tid {
+                return 1;
+            }
+        }
+        0
+    }
+}
+
+/// Clear the current exception state (after it has been handled).
+#[no_mangle]
+pub extern "C" fn picohp_eh_clear() {
+    unsafe {
+        EXCEPTION_STATE.exception_ptr = std::ptr::null_mut();
+        EXCEPTION_STATE.exception_type_id = 0;
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Object allocation
 // ---------------------------------------------------------------------------
 
