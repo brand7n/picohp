@@ -495,6 +495,9 @@ class SemanticAnalysisPass implements PassInterface
             if ($funcName === 'str_starts_with' || $funcName === 'str_contains') {
                 return PicoType::fromString('bool');
             }
+            if ($funcName === 'strval') {
+                return PicoType::fromString('string');
+            }
             if ($funcName === 'substr' || $funcName === 'trim' || $funcName === 'str_repeat') {
                 return PicoType::fromString('string');
             }

@@ -567,6 +567,12 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $arrVal = $this->buildExpr($expr->args[0]->value);
                 return $this->builder->createArrayLen($arrVal);
             }
+            if ($funcName === 'strval') {
+                assert(count($expr->args) === 1);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                $val = $this->buildExpr($expr->args[0]->value);
+                return $this->builder->createCall('pico_int_to_string', [$val], BaseType::STRING);
+            }
             if ($funcName === 'strlen') {
                 assert(count($expr->args) === 1);
                 assert($expr->args[0] instanceof \PhpParser\Node\Arg);
