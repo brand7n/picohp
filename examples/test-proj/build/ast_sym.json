@@ -1,0 +1,1103 @@
+[
+    {
+        "nodeType": "Stmt_Function",
+        "attributes": {
+            "picoHP": {
+                "symbol": {
+                    "name": "main",
+                    "type": {},
+                    "params": [],
+                    "defaults": [],
+                    "paramNames": [],
+                    "value": null,
+                    "func": true
+                },
+                "lVal": false,
+                "mycount": 1
+            }
+        },
+        "byRef": false,
+        "name": {
+            "nodeType": "Identifier",
+            "attributes": [],
+            "name": "main"
+        },
+        "params": [],
+        "returnType": {
+            "nodeType": "Identifier",
+            "attributes": [],
+            "name": "int"
+        },
+        "stmts": [
+            {
+                "nodeType": "Stmt_Expression",
+                "attributes": {
+                    "startLine": 6,
+                    "startTokenPos": 9,
+                    "startFilePos": 108,
+                    "endLine": 6,
+                    "endTokenPos": 16,
+                    "endFilePos": 153,
+                    "comments": [
+                        {
+                            "nodeType": "Comment",
+                            "text": "\/\/ picoHP will ignore this but we will keep it in for PHP compatibility",
+                            "line": 5,
+                            "filePos": 36,
+                            "tokenPos": 7,
+                            "endLine": 5,
+                            "endFilePos": 106,
+                            "endTokenPos": 7
+                        }
+                    ],
+                    "depth": 2,
+                    "picoHP": {
+                        "lVal": false,
+                        "mycount": 2
+                    }
+                },
+                "expr": {
+                    "nodeType": "Expr_Include",
+                    "attributes": {
+                        "startLine": 6,
+                        "startTokenPos": 9,
+                        "startFilePos": 108,
+                        "endLine": 6,
+                        "endTokenPos": 15,
+                        "endFilePos": 152,
+                        "depth": 3,
+                        "picoHP": {
+                            "lVal": false,
+                            "mycount": 3
+                        }
+                    },
+                    "expr": {
+                        "nodeType": "Expr_BinaryOp_Concat",
+                        "attributes": {
+                            "startLine": 6,
+                            "startTokenPos": 11,
+                            "startFilePos": 121,
+                            "endLine": 6,
+                            "endTokenPos": 15,
+                            "endFilePos": 152,
+                            "depth": 4
+                        },
+                        "left": {
+                            "nodeType": "Scalar_MagicConst_Dir",
+                            "attributes": {
+                                "startLine": 6,
+                                "startTokenPos": 11,
+                                "startFilePos": 121,
+                                "endLine": 6,
+                                "endTokenPos": 11,
+                                "endFilePos": 127,
+                                "depth": 5
+                            }
+                        },
+                        "right": {
+                            "nodeType": "Scalar_String",
+                            "attributes": {
+                                "startLine": 6,
+                                "startTokenPos": 15,
+                                "startFilePos": 131,
+                                "endLine": 6,
+                                "endTokenPos": 15,
+                                "endFilePos": 152,
+                                "kind": 1,
+                                "rawValue": "'\/vendor\/autoload.php'",
+                                "depth": 5
+                            },
+                            "value": "\/vendor\/autoload.php"
+                        }
+                    },
+                    "type": 4
+                }
+            },
+            {
+                "nodeType": "Stmt_Return",
+                "attributes": {
+                    "startLine": 8,
+                    "startTokenPos": 18,
+                    "startFilePos": 156,
+                    "endLine": 8,
+                    "endTokenPos": 29,
+                    "endFilePos": 187,
+                    "depth": 2,
+                    "picoHP": {
+                        "lVal": false,
+                        "mycount": 4
+                    }
+                },
+                "expr": {
+                    "nodeType": "Expr_FuncCall",
+                    "attributes": {
+                        "depth": 3,
+                        "picoHP": {
+                            "symbol": {
+                                "name": "Test_test1",
+                                "type": {},
+                                "params": [
+                                    {},
+                                    {}
+                                ],
+                                "defaults": [
+                                    null,
+                                    null
+                                ],
+                                "paramNames": [
+                                    "b",
+                                    "f"
+                                ],
+                                "value": null,
+                                "func": true
+                            },
+                            "lVal": false,
+                            "mycount": 5
+                        }
+                    },
+                    "name": {
+                        "nodeType": "Name",
+                        "attributes": {
+                            "depth": 4
+                        },
+                        "name": "Test_test1"
+                    },
+                    "args": [
+                        {
+                            "nodeType": "Arg",
+                            "attributes": {
+                                "startLine": 8,
+                                "startTokenPos": 24,
+                                "startFilePos": 175,
+                                "endLine": 8,
+                                "endTokenPos": 24,
+                                "endFilePos": 178,
+                                "depth": 4
+                            },
+                            "name": null,
+                            "value": {
+                                "nodeType": "Expr_ConstFetch",
+                                "attributes": {
+                                    "startLine": 8,
+                                    "startTokenPos": 24,
+                                    "startFilePos": 175,
+                                    "endLine": 8,
+                                    "endTokenPos": 24,
+                                    "endFilePos": 178,
+                                    "depth": 5,
+                                    "picoHP": {
+                                        "lVal": false,
+                                        "mycount": 6
+                                    }
+                                },
+                                "name": {
+                                    "nodeType": "Name",
+                                    "attributes": {
+                                        "startLine": 8,
+                                        "startTokenPos": 24,
+                                        "startFilePos": 175,
+                                        "endLine": 8,
+                                        "endTokenPos": 24,
+                                        "endFilePos": 178,
+                                        "namespacedName": {
+                                            "nodeType": "Name_FullyQualified",
+                                            "attributes": {
+                                                "startLine": 8,
+                                                "startTokenPos": 24,
+                                                "startFilePos": 175,
+                                                "endLine": 8,
+                                                "endTokenPos": 24,
+                                                "endFilePos": 178
+                                            },
+                                            "name": "Brandin\\TestProj\\true"
+                                        },
+                                        "depth": 6
+                                    },
+                                    "name": "true"
+                                }
+                            },
+                            "byRef": false,
+                            "unpack": false
+                        },
+                        {
+                            "nodeType": "Arg",
+                            "attributes": {
+                                "startLine": 8,
+                                "startTokenPos": 27,
+                                "startFilePos": 181,
+                                "endLine": 8,
+                                "endTokenPos": 27,
+                                "endFilePos": 185,
+                                "depth": 4
+                            },
+                            "name": null,
+                            "value": {
+                                "nodeType": "Scalar_Float",
+                                "attributes": {
+                                    "startLine": 8,
+                                    "startTokenPos": 27,
+                                    "startFilePos": 181,
+                                    "endLine": 8,
+                                    "endTokenPos": 27,
+                                    "endFilePos": 185,
+                                    "rawValue": "1.234",
+                                    "depth": 5,
+                                    "picoHP": {
+                                        "lVal": false,
+                                        "mycount": 7
+                                    }
+                                },
+                                "value": 1.234
+                            },
+                            "byRef": false,
+                            "unpack": false
+                        }
+                    ]
+                }
+            },
+            {
+                "nodeType": "Stmt_Return",
+                "attributes": {
+                    "picoHP": {
+                        "lVal": false,
+                        "mycount": 8
+                    }
+                },
+                "expr": {
+                    "nodeType": "Scalar_Int",
+                    "attributes": {
+                        "picoHP": {
+                            "lVal": false,
+                            "mycount": 9
+                        }
+                    },
+                    "value": 0
+                }
+            }
+        ],
+        "attrGroups": []
+    },
+    {
+        "nodeType": "Stmt_Function",
+        "attributes": {
+            "depth": 1,
+            "picoHP": {
+                "symbol": {
+                    "name": "Test_test1",
+                    "type": {},
+                    "params": [
+                        {},
+                        {}
+                    ],
+                    "defaults": [
+                        null,
+                        null
+                    ],
+                    "paramNames": [
+                        "b",
+                        "f"
+                    ],
+                    "value": null,
+                    "func": true
+                },
+                "lVal": false,
+                "mycount": 10
+            }
+        },
+        "byRef": false,
+        "name": {
+            "nodeType": "Identifier",
+            "attributes": {
+                "depth": 2
+            },
+            "name": "Test_test1"
+        },
+        "params": [
+            {
+                "nodeType": "Param",
+                "attributes": {
+                    "startLine": 7,
+                    "startTokenPos": 25,
+                    "startFilePos": 107,
+                    "endLine": 7,
+                    "endTokenPos": 27,
+                    "endFilePos": 113,
+                    "depth": 2,
+                    "picoHP": {
+                        "symbol": {
+                            "name": "b",
+                            "type": {},
+                            "params": [],
+                            "defaults": [],
+                            "paramNames": [],
+                            "value": null,
+                            "func": false
+                        },
+                        "lVal": false,
+                        "mycount": 11
+                    }
+                },
+                "type": {
+                    "nodeType": "Identifier",
+                    "attributes": {
+                        "startLine": 7,
+                        "startTokenPos": 25,
+                        "startFilePos": 107,
+                        "endLine": 7,
+                        "endTokenPos": 25,
+                        "endFilePos": 110,
+                        "depth": 3
+                    },
+                    "name": "bool"
+                },
+                "byRef": false,
+                "variadic": false,
+                "var": {
+                    "nodeType": "Expr_Variable",
+                    "attributes": {
+                        "startLine": 7,
+                        "startTokenPos": 27,
+                        "startFilePos": 112,
+                        "endLine": 7,
+                        "endTokenPos": 27,
+                        "endFilePos": 113,
+                        "depth": 3
+                    },
+                    "name": "b"
+                },
+                "default": null,
+                "flags": 0,
+                "attrGroups": [],
+                "hooks": []
+            },
+            {
+                "nodeType": "Param",
+                "attributes": {
+                    "startLine": 7,
+                    "startTokenPos": 30,
+                    "startFilePos": 116,
+                    "endLine": 7,
+                    "endTokenPos": 32,
+                    "endFilePos": 123,
+                    "depth": 2,
+                    "picoHP": {
+                        "symbol": {
+                            "name": "f",
+                            "type": {},
+                            "params": [],
+                            "defaults": [],
+                            "paramNames": [],
+                            "value": null,
+                            "func": false
+                        },
+                        "lVal": false,
+                        "mycount": 12
+                    }
+                },
+                "type": {
+                    "nodeType": "Identifier",
+                    "attributes": {
+                        "startLine": 7,
+                        "startTokenPos": 30,
+                        "startFilePos": 116,
+                        "endLine": 7,
+                        "endTokenPos": 30,
+                        "endFilePos": 120,
+                        "depth": 3
+                    },
+                    "name": "float"
+                },
+                "byRef": false,
+                "variadic": false,
+                "var": {
+                    "nodeType": "Expr_Variable",
+                    "attributes": {
+                        "startLine": 7,
+                        "startTokenPos": 32,
+                        "startFilePos": 122,
+                        "endLine": 7,
+                        "endTokenPos": 32,
+                        "endFilePos": 123,
+                        "depth": 3
+                    },
+                    "name": "f"
+                },
+                "default": null,
+                "flags": 0,
+                "attrGroups": [],
+                "hooks": []
+            }
+        ],
+        "returnType": {
+            "nodeType": "Identifier",
+            "attributes": {
+                "startLine": 7,
+                "startTokenPos": 36,
+                "startFilePos": 127,
+                "endLine": 7,
+                "endTokenPos": 36,
+                "endFilePos": 129,
+                "depth": 2
+            },
+            "name": "int"
+        },
+        "stmts": [
+            {
+                "nodeType": "Stmt_Expression",
+                "attributes": {
+                    "startLine": 9,
+                    "startTokenPos": 40,
+                    "startFilePos": 145,
+                    "endLine": 9,
+                    "endTokenPos": 55,
+                    "endFilePos": 171,
+                    "depth": 2,
+                    "picoHP": {
+                        "lVal": false,
+                        "mycount": 13
+                    }
+                },
+                "expr": {
+                    "nodeType": "Expr_Assign",
+                    "attributes": {
+                        "startLine": 9,
+                        "startTokenPos": 40,
+                        "startFilePos": 145,
+                        "endLine": 9,
+                        "endTokenPos": 54,
+                        "endFilePos": 170,
+                        "depth": 3,
+                        "picoHP": {
+                            "lVal": false,
+                            "mycount": 14
+                        }
+                    },
+                    "var": {
+                        "nodeType": "Expr_Variable",
+                        "attributes": {
+                            "startLine": 9,
+                            "startTokenPos": 40,
+                            "startFilePos": 145,
+                            "endLine": 9,
+                            "endTokenPos": 40,
+                            "endFilePos": 146,
+                            "depth": 4,
+                            "picoHP": {
+                                "symbol": {
+                                    "name": "c",
+                                    "type": {},
+                                    "params": [],
+                                    "defaults": [],
+                                    "paramNames": [],
+                                    "value": null,
+                                    "func": false
+                                },
+                                "lVal": true,
+                                "mycount": 20
+                            }
+                        },
+                        "name": "c"
+                    },
+                    "expr": {
+                        "nodeType": "Expr_BinaryOp_Plus",
+                        "attributes": {
+                            "startLine": 9,
+                            "startTokenPos": 44,
+                            "startFilePos": 150,
+                            "endLine": 9,
+                            "endTokenPos": 54,
+                            "endFilePos": 170,
+                            "depth": 4,
+                            "picoHP": {
+                                "lVal": false,
+                                "mycount": 15
+                            }
+                        },
+                        "left": {
+                            "nodeType": "Expr_Cast_Int",
+                            "attributes": {
+                                "startLine": 9,
+                                "startTokenPos": 44,
+                                "startFilePos": 150,
+                                "endLine": 9,
+                                "endTokenPos": 47,
+                                "endFilePos": 158,
+                                "kind": 1,
+                                "depth": 5,
+                                "picoHP": {
+                                    "lVal": false,
+                                    "mycount": 16
+                                }
+                            },
+                            "expr": {
+                                "nodeType": "Expr_Variable",
+                                "attributes": {
+                                    "startLine": 9,
+                                    "startTokenPos": 46,
+                                    "startFilePos": 156,
+                                    "endLine": 9,
+                                    "endTokenPos": 46,
+                                    "endFilePos": 157,
+                                    "depth": 6,
+                                    "picoHP": {
+                                        "symbol": {
+                                            "name": "b",
+                                            "type": {},
+                                            "params": [],
+                                            "defaults": [],
+                                            "paramNames": [],
+                                            "value": null,
+                                            "func": false
+                                        },
+                                        "lVal": false,
+                                        "mycount": 17
+                                    }
+                                },
+                                "name": "b"
+                            }
+                        },
+                        "right": {
+                            "nodeType": "Expr_Cast_Int",
+                            "attributes": {
+                                "startLine": 9,
+                                "startTokenPos": 51,
+                                "startFilePos": 162,
+                                "endLine": 9,
+                                "endTokenPos": 54,
+                                "endFilePos": 170,
+                                "kind": 1,
+                                "depth": 5,
+                                "picoHP": {
+                                    "lVal": false,
+                                    "mycount": 18
+                                }
+                            },
+                            "expr": {
+                                "nodeType": "Expr_Variable",
+                                "attributes": {
+                                    "startLine": 9,
+                                    "startTokenPos": 53,
+                                    "startFilePos": 168,
+                                    "endLine": 9,
+                                    "endTokenPos": 53,
+                                    "endFilePos": 169,
+                                    "depth": 6,
+                                    "picoHP": {
+                                        "symbol": {
+                                            "name": "f",
+                                            "type": {},
+                                            "params": [],
+                                            "defaults": [],
+                                            "paramNames": [],
+                                            "value": null,
+                                            "func": false
+                                        },
+                                        "lVal": false,
+                                        "mycount": 19
+                                    }
+                                },
+                                "name": "f"
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "nodeType": "Stmt_Echo",
+                "attributes": {
+                    "startLine": 10,
+                    "startTokenPos": 58,
+                    "startFilePos": 200,
+                    "endLine": 10,
+                    "endTokenPos": 61,
+                    "endFilePos": 207,
+                    "comments": [
+                        {
+                            "nodeType": "Comment",
+                            "text": "\/\/ + self::blah(5);",
+                            "line": 9,
+                            "filePos": 172,
+                            "tokenPos": 56,
+                            "endLine": 9,
+                            "endFilePos": 190,
+                            "endTokenPos": 56
+                        }
+                    ],
+                    "depth": 2,
+                    "picoHP": {
+                        "lVal": false,
+                        "mycount": 21
+                    }
+                },
+                "exprs": [
+                    {
+                        "nodeType": "Expr_Variable",
+                        "attributes": {
+                            "startLine": 10,
+                            "startTokenPos": 60,
+                            "startFilePos": 205,
+                            "endLine": 10,
+                            "endTokenPos": 60,
+                            "endFilePos": 206,
+                            "depth": 3,
+                            "picoHP": {
+                                "symbol": {
+                                    "name": "c",
+                                    "type": {},
+                                    "params": [],
+                                    "defaults": [],
+                                    "paramNames": [],
+                                    "value": null,
+                                    "func": false
+                                },
+                                "lVal": false,
+                                "mycount": 22
+                            }
+                        },
+                        "name": "c"
+                    }
+                ]
+            },
+            {
+                "nodeType": "Stmt_Return",
+                "attributes": {
+                    "startLine": 11,
+                    "startTokenPos": 63,
+                    "startFilePos": 217,
+                    "endLine": 11,
+                    "endTokenPos": 66,
+                    "endFilePos": 226,
+                    "depth": 2,
+                    "picoHP": {
+                        "lVal": false,
+                        "mycount": 23
+                    }
+                },
+                "expr": {
+                    "nodeType": "Expr_Variable",
+                    "attributes": {
+                        "startLine": 11,
+                        "startTokenPos": 65,
+                        "startFilePos": 224,
+                        "endLine": 11,
+                        "endTokenPos": 65,
+                        "endFilePos": 225,
+                        "depth": 3,
+                        "picoHP": {
+                            "symbol": {
+                                "name": "c",
+                                "type": {},
+                                "params": [],
+                                "defaults": [],
+                                "paramNames": [],
+                                "value": null,
+                                "func": false
+                            },
+                            "lVal": false,
+                            "mycount": 24
+                        }
+                    },
+                    "name": "c"
+                }
+            }
+        ],
+        "attrGroups": []
+    },
+    {
+        "nodeType": "Stmt_Function",
+        "attributes": {
+            "depth": 1,
+            "picoHP": {
+                "symbol": {
+                    "name": "Test_blah",
+                    "type": {},
+                    "params": [
+                        {}
+                    ],
+                    "defaults": [
+                        null
+                    ],
+                    "paramNames": [
+                        "a"
+                    ],
+                    "value": null,
+                    "func": true
+                },
+                "lVal": false,
+                "mycount": 25
+            }
+        },
+        "byRef": false,
+        "name": {
+            "nodeType": "Identifier",
+            "attributes": {
+                "depth": 2
+            },
+            "name": "Test_blah"
+        },
+        "params": [
+            {
+                "nodeType": "Param",
+                "attributes": {
+                    "startLine": 14,
+                    "startTokenPos": 78,
+                    "startFilePos": 267,
+                    "endLine": 14,
+                    "endTokenPos": 80,
+                    "endFilePos": 272,
+                    "depth": 2,
+                    "picoHP": {
+                        "symbol": {
+                            "name": "a",
+                            "type": {},
+                            "params": [],
+                            "defaults": [],
+                            "paramNames": [],
+                            "value": null,
+                            "func": false
+                        },
+                        "lVal": false,
+                        "mycount": 26
+                    }
+                },
+                "type": {
+                    "nodeType": "Identifier",
+                    "attributes": {
+                        "startLine": 14,
+                        "startTokenPos": 78,
+                        "startFilePos": 267,
+                        "endLine": 14,
+                        "endTokenPos": 78,
+                        "endFilePos": 269,
+                        "depth": 3
+                    },
+                    "name": "int"
+                },
+                "byRef": false,
+                "variadic": false,
+                "var": {
+                    "nodeType": "Expr_Variable",
+                    "attributes": {
+                        "startLine": 14,
+                        "startTokenPos": 80,
+                        "startFilePos": 271,
+                        "endLine": 14,
+                        "endTokenPos": 80,
+                        "endFilePos": 272,
+                        "depth": 3
+                    },
+                    "name": "a"
+                },
+                "default": null,
+                "flags": 0,
+                "attrGroups": [],
+                "hooks": []
+            }
+        ],
+        "returnType": {
+            "nodeType": "Identifier",
+            "attributes": {
+                "startLine": 14,
+                "startTokenPos": 84,
+                "startFilePos": 276,
+                "endLine": 14,
+                "endTokenPos": 84,
+                "endFilePos": 280,
+                "depth": 2
+            },
+            "name": "float"
+        },
+        "stmts": [
+            {
+                "nodeType": "Stmt_Return",
+                "attributes": {
+                    "startLine": 16,
+                    "startTokenPos": 88,
+                    "startFilePos": 296,
+                    "endLine": 16,
+                    "endTokenPos": 91,
+                    "endFilePos": 308,
+                    "depth": 2,
+                    "picoHP": {
+                        "lVal": false,
+                        "mycount": 27
+                    }
+                },
+                "expr": {
+                    "nodeType": "Scalar_Float",
+                    "attributes": {
+                        "startLine": 16,
+                        "startTokenPos": 90,
+                        "startFilePos": 303,
+                        "endLine": 16,
+                        "endTokenPos": 90,
+                        "endFilePos": 307,
+                        "rawValue": "1.234",
+                        "depth": 3,
+                        "picoHP": {
+                            "lVal": false,
+                            "mycount": 28
+                        }
+                    },
+                    "value": 1.234
+                }
+            }
+        ],
+        "attrGroups": []
+    },
+    {
+        "nodeType": "Stmt_Namespace",
+        "attributes": {
+            "startLine": 3,
+            "startTokenPos": 2,
+            "startFilePos": 7,
+            "endLine": 8,
+            "endTokenPos": 30,
+            "endFilePos": 110,
+            "kind": 1,
+            "depth": 1,
+            "picoHP": {
+                "lVal": false,
+                "mycount": 29
+            }
+        },
+        "name": {
+            "nodeType": "Name",
+            "attributes": {
+                "startLine": 3,
+                "startTokenPos": 4,
+                "startFilePos": 17,
+                "endLine": 3,
+                "endTokenPos": 4,
+                "endFilePos": 32,
+                "depth": 2
+            },
+            "name": "Brandin\\TestProj"
+        },
+        "stmts": [
+            {
+                "nodeType": "Stmt_Interface",
+                "attributes": {
+                    "startLine": 5,
+                    "startTokenPos": 7,
+                    "startFilePos": 36,
+                    "endLine": 8,
+                    "endTokenPos": 30,
+                    "endFilePos": 110,
+                    "depth": 2,
+                    "picoHP": {
+                        "lVal": false,
+                        "mycount": 30
+                    }
+                },
+                "name": {
+                    "nodeType": "Identifier",
+                    "attributes": {
+                        "startLine": 5,
+                        "startTokenPos": 9,
+                        "startFilePos": 46,
+                        "endLine": 5,
+                        "endTokenPos": 9,
+                        "endFilePos": 58,
+                        "depth": 3
+                    },
+                    "name": "BlahInterface"
+                },
+                "stmts": [
+                    {
+                        "nodeType": "Stmt_ClassMethod",
+                        "attributes": {
+                            "startLine": 7,
+                            "startTokenPos": 13,
+                            "startFilePos": 66,
+                            "endLine": 7,
+                            "endTokenPos": 28,
+                            "endFilePos": 108,
+                            "depth": 3
+                        },
+                        "flags": 9,
+                        "byRef": false,
+                        "name": {
+                            "nodeType": "Identifier",
+                            "attributes": {
+                                "startLine": 7,
+                                "startTokenPos": 19,
+                                "startFilePos": 89,
+                                "endLine": 7,
+                                "endTokenPos": 19,
+                                "endFilePos": 92,
+                                "depth": 4
+                            },
+                            "name": "blah"
+                        },
+                        "params": [
+                            {
+                                "nodeType": "Param",
+                                "attributes": {
+                                    "startLine": 7,
+                                    "startTokenPos": 21,
+                                    "startFilePos": 94,
+                                    "endLine": 7,
+                                    "endTokenPos": 23,
+                                    "endFilePos": 99,
+                                    "depth": 4
+                                },
+                                "type": {
+                                    "nodeType": "Identifier",
+                                    "attributes": {
+                                        "startLine": 7,
+                                        "startTokenPos": 21,
+                                        "startFilePos": 94,
+                                        "endLine": 7,
+                                        "endTokenPos": 21,
+                                        "endFilePos": 96,
+                                        "depth": 5
+                                    },
+                                    "name": "int"
+                                },
+                                "byRef": false,
+                                "variadic": false,
+                                "var": {
+                                    "nodeType": "Expr_Variable",
+                                    "attributes": {
+                                        "startLine": 7,
+                                        "startTokenPos": 23,
+                                        "startFilePos": 98,
+                                        "endLine": 7,
+                                        "endTokenPos": 23,
+                                        "endFilePos": 99,
+                                        "depth": 5
+                                    },
+                                    "name": "a"
+                                },
+                                "default": null,
+                                "flags": 0,
+                                "attrGroups": [],
+                                "hooks": []
+                            }
+                        ],
+                        "returnType": {
+                            "nodeType": "Identifier",
+                            "attributes": {
+                                "startLine": 7,
+                                "startTokenPos": 27,
+                                "startFilePos": 103,
+                                "endLine": 7,
+                                "endTokenPos": 27,
+                                "endFilePos": 107,
+                                "depth": 4
+                            },
+                            "name": "float"
+                        },
+                        "stmts": null,
+                        "attrGroups": []
+                    }
+                ],
+                "attrGroups": [],
+                "namespacedName": {
+                    "nodeType": "Name",
+                    "attributes": [],
+                    "name": "Brandin\\TestProj\\BlahInterface"
+                },
+                "extends": []
+            }
+        ]
+    },
+    {
+        "nodeType": "Stmt_Namespace",
+        "attributes": {
+            "startLine": 3,
+            "startTokenPos": 2,
+            "startFilePos": 7,
+            "endLine": 18,
+            "endTokenPos": 95,
+            "endFilePos": 316,
+            "kind": 1,
+            "depth": 1,
+            "picoHP": {
+                "lVal": false,
+                "mycount": 31
+            }
+        },
+        "name": {
+            "nodeType": "Name",
+            "attributes": {
+                "startLine": 3,
+                "startTokenPos": 4,
+                "startFilePos": 17,
+                "endLine": 3,
+                "endTokenPos": 4,
+                "endFilePos": 32,
+                "depth": 2
+            },
+            "name": "Brandin\\TestProj"
+        },
+        "stmts": [
+            {
+                "nodeType": "Stmt_Class",
+                "attributes": {
+                    "startLine": 5,
+                    "startTokenPos": 7,
+                    "startFilePos": 36,
+                    "endLine": 18,
+                    "endTokenPos": 95,
+                    "endFilePos": 316,
+                    "depth": 2,
+                    "picoHP": {
+                        "lVal": false,
+                        "mycount": 32
+                    }
+                },
+                "name": {
+                    "nodeType": "Identifier",
+                    "attributes": {
+                        "startLine": 5,
+                        "startTokenPos": 9,
+                        "startFilePos": 42,
+                        "endLine": 5,
+                        "endTokenPos": 9,
+                        "endFilePos": 45,
+                        "depth": 3
+                    },
+                    "name": "Test"
+                },
+                "stmts": [],
+                "attrGroups": [],
+                "namespacedName": {
+                    "nodeType": "Name",
+                    "attributes": [],
+                    "name": "Brandin\\TestProj\\Test"
+                },
+                "flags": 0,
+                "extends": null,
+                "implements": [
+                    {
+                        "nodeType": "Name",
+                        "attributes": {
+                            "startLine": 5,
+                            "startTokenPos": 13,
+                            "startFilePos": 58,
+                            "endLine": 5,
+                            "endTokenPos": 13,
+                            "endFilePos": 70,
+                            "resolvedName": {
+                                "nodeType": "Name_FullyQualified",
+                                "attributes": {
+                                    "startLine": 5,
+                                    "startTokenPos": 13,
+                                    "startFilePos": 58,
+                                    "endLine": 5,
+                                    "endTokenPos": 13,
+                                    "endFilePos": 70
+                                },
+                                "name": "Brandin\\TestProj\\BlahInterface"
+                            },
+                            "depth": 3
+                        },
+                        "name": "BlahInterface"
+                    }
+                ]
+            }
+        ]
+    }
+]

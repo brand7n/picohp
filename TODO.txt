@@ -1,0 +1,34 @@
+at a base level types will be static, incl classes, structs, etc allocated with RAII
+above this we can link into pVal (instead of ZVal) with more dynamic features like assoc arrays etc
+
+
+TODO:
+
+- refactor type handling between PHP/LLVM types
+- LLVM vector/struct for array/class implementation?
+- different runtimes in rust, 8-bit micro, hosted OS, etc
+- integrate phpstan, extension for narrowing language? other PHP tools?
+- can we use type info from phpstan or some other lib?
+  - abstraction layer between AST Node from parser and LLVM/generic emitter layer
+- parse class properties, methods
+
+write a libc in picoHP
+Add cargo like tools? Use composer?
+Pull rust runtime from git using compser
+
+FIRST PASS: static analysis w/ phpstan, psalm, eithor or/both
+2ND PASS: parse to AST (^^^ reduce redundancy)
+3RD PASS: semantic analysis
+4TH PASS: IR generation
+5TH PASS: output bitcode, WASM, assembly, C, Xtensa, ARM32, 68K?
+
+//echo (new \Exception())->getTraceAsString() . PHP_EOL;
+
+/* todo: implement cast from bool to int
+         mul function for fixed point
+*/
+
+// HANDLE GLOBALS
+// MIXED TYPE
+// FIXED PT MULT/RECIP
+// FLOAT OPS

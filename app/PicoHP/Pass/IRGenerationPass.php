@@ -7,7 +7,7 @@ namespace App\PicoHP\Pass;
 use App\PicoHP\{BaseType};
 use App\PicoHP\LLVM\{Module, Builder, ValueAbstract, IRLine};
 use App\PicoHP\LLVM\Value\{Constant, Void_, Label, Param, NullConstant};
-use App\PicoHP\SymbolTable\{ClassMetadata, PicoHPData};
+use App\PicoHP\SymbolTable\{ClassMetadata, EnumMetadata, PicoHPData};
 use Illuminate\Support\Collection;
 
 class IRGenerationPass implements \App\PicoHP\PassInterface
@@ -26,16 +26,21 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     /** @var array<string, ClassMetadata> */
     protected array $classRegistry = [];
 
+    /** @var array<string, EnumMetadata> */
+    protected array $enumRegistry = [];
+
     /**
      * @param array<\PhpParser\Node> $stmts
      * @param array<string, ClassMetadata> $classRegistry
+     * @param array<string, EnumMetadata> $enumRegistry
      */
-    public function __construct(array $stmts, array $classRegistry = [])
+    public function __construct(array $stmts, array $classRegistry = [], array $enumRegistry = [])
     {
         $this->module = new Module("test_module");
         $this->builder = $this->module->getBuilder();
         $this->stmts = $stmts;
         $this->classRegistry = $classRegistry;
+        $this->enumRegistry = $enumRegistry;
     }
 
     public function exec(): void
@@ -350,6 +355,24 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
             $this->builder->setInsertPoint($endBB);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Interface_) {
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Enum_) {
+            assert($stmt->name instanceof \PhpParser\Node\Identifier);
+            $enumName = $stmt->name->toString();
+            $enumMeta = $this->enumRegistry[$enumName];
+            // Emit backing value lookup table as a global array of ptrs
+            if ($enumMeta->backingType === 'string') {
+                $ptrs = [];
+                foreach ($enumMeta->cases as $caseName => $tag) {
+                    $value = $enumMeta->backingValues[$caseName];
+                    assert(is_string($value));
+                    $constVal = $this->builder->createStringConstant($value);
+                    $ptrs[] = "ptr {$constVal->render()}";
+                }
+                $count = count($ptrs);
+                $init = implode(', ', $ptrs);
+                $this->module->addLine(new IRLine("@{$enumName}_values = global [{$count} x ptr] [{$init}]"));
+            }
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\EnumCase) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Use_) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Namespace_) {
             $this->buildStmts($stmt->stmts);
@@ -492,6 +515,16 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 }
             }
             return new Void_();
+        } elseif ($expr instanceof \PhpParser\Node\Expr\ClassConstFetch) {
+            assert($expr->class instanceof \PhpParser\Node\Name);
+            assert($expr->name instanceof \PhpParser\Node\Identifier);
+            $className = $expr->class->toString();
+            $caseName = $expr->name->toString();
+            if (isset($this->enumRegistry[$className])) {
+                $tag = $this->enumRegistry[$className]->getCaseTag($caseName);
+                return new Constant($tag, BaseType::INT);
+            }
+            throw new \RuntimeException("class constant {$className}::{$caseName} not supported");
         } elseif ($expr instanceof \PhpParser\Node\Expr\ConstFetch) {
             $constName = $expr->name->toLowerString();
             if ($constName === 'null') {
@@ -664,6 +697,16 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             assert($expr->name instanceof \PhpParser\Node\Identifier);
             $objVal = $this->buildExpr($expr->var);
             $varType = $this->getExprResolvedType($expr->var);
+            // Enum ->value access
+            if ($varType->isEnum() && $expr->name->toString() === 'value') {
+                $enumName = $varType->getClassName();
+                $enumMeta = $this->enumRegistry[$enumName];
+                if ($enumMeta->backingType === 'string') {
+                    $elemPtr = $this->builder->createEnumValueLookup($enumName, count($enumMeta->cases), $objVal);
+                    return $this->builder->createLoad($elemPtr);
+                }
+                return $objVal; // int-backed: tag IS the value
+            }
             $className = $varType->getClassName();
             $classMeta = $this->classRegistry[$className];
             $propName = $expr->name->toString();
