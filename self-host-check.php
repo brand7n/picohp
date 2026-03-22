@@ -109,7 +109,14 @@ function multiFileCheck(string $picoHP, string $tmpDir, bool $verbose): void
     @mkdir($tmpDir, 0755, true);
 
     $groups = [
-        'LLVM Value hierarchy' => [
+        'LLVM Value core - BaseType + ValueAbstract + NullConstant + Param' => [
+            __DIR__ . '/tests/programs/self_compile/basetype_stub.php',
+            __DIR__ . '/app/PicoHP/LLVM/ValueAbstract.php',
+            __DIR__ . '/app/PicoHP/LLVM/Value/NullConstant.php',
+            __DIR__ . '/app/PicoHP/LLVM/Value/Param.php',
+        ],
+        'LLVM Value full hierarchy + BaseType' => [
+            __DIR__ . '/tests/programs/self_compile/basetype_stub.php',
             __DIR__ . '/app/PicoHP/LLVM/ValueAbstract.php',
             __DIR__ . '/app/PicoHP/LLVM/Value/Void_.php',
             __DIR__ . '/app/PicoHP/LLVM/Value/NullConstant.php',
