@@ -41,6 +41,16 @@ class Builder
         $this->addLine('declare ptr @pico_string_replace(ptr, ptr, ptr)');
         $this->addLine('declare ptr @picohp_object_alloc(i64, i32)');
         $this->addLine();
+        $this->addLine('; exception handling');
+        $this->addLine('declare i32 @setjmp(ptr)');
+        $this->addLine('declare void @picohp_eh_push(ptr)');
+        $this->addLine('declare void @picohp_eh_pop()');
+        $this->addLine('declare void @picohp_throw(ptr, i32)');
+        $this->addLine('declare ptr @picohp_eh_get_exception()');
+        $this->addLine('declare i32 @picohp_eh_get_type_id()');
+        $this->addLine('declare i32 @picohp_eh_matches_type(i32)');
+        $this->addLine('declare void @picohp_eh_clear()');
+        $this->addLine();
         $this->addLine('; array runtime');
         $this->addLine('declare ptr @pico_array_new()');
         $this->addLine('declare i32 @pico_array_len(ptr)');
@@ -328,6 +338,78 @@ class Builder
     public function createRetVoid(): void
     {
         $this->addLine('ret void', 1);
+    }
+
+    // -- exception handling --------------------------------------------------
+
+    /**
+     * Allocate a jmp_buf on the stack (48 x i32 = 192 bytes on macOS arm64).
+     */
+    public function createJmpBufAlloca(): ValueAbstract
+    {
+        $resultVal = new AllocaInst('jmpbuf', BaseType::PTR);
+        $this->addLine("{$resultVal->render()} = alloca [48 x i32], align 8", 1);
+        return $resultVal;
+    }
+
+    /**
+     * Push the jmp_buf onto the exception handler stack, then call setjmp.
+     * Returns i32: 0 = normal entry, nonzero = exception caught.
+     */
+    public function createSetjmp(ValueAbstract $jmpBuf): ValueAbstract
+    {
+        $this->addLine("call void @picohp_eh_push(ptr {$jmpBuf->render()})", 1);
+        $resultVal = new Instruction('setjmp', BaseType::INT);
+        $this->addLine("{$resultVal->render()} = call i32 @setjmp(ptr {$jmpBuf->render()})", 1);
+        return $resultVal;
+    }
+
+    /**
+     * Pop the current exception handler (normal exit from try block).
+     */
+    public function createEhPop(): void
+    {
+        $this->addLine('call void @picohp_eh_pop()', 1);
+    }
+
+    /**
+     * Throw an exception object with a given type_id.
+     */
+    public function createThrow(ValueAbstract $exceptionPtr, int $typeId): void
+    {
+        $this->addLine("call void @picohp_throw(ptr {$exceptionPtr->render()}, i32 {$typeId})", 1);
+        $this->addLine('unreachable', 1);
+    }
+
+    /**
+     * Get the current in-flight exception object pointer.
+     */
+    public function createEhGetException(): ValueAbstract
+    {
+        $resultVal = new Instruction('eh_exception', BaseType::PTR);
+        $this->addLine("{$resultVal->render()} = call ptr @picohp_eh_get_exception()", 1);
+        return $resultVal;
+    }
+
+    /**
+     * Check if the current exception matches a given type_id.
+     * Returns i1 (bool).
+     */
+    public function createEhMatchesType(int $typeId): ValueAbstract
+    {
+        $callResult = new Instruction('eh_match', BaseType::INT);
+        $this->addLine("{$callResult->render()} = call i32 @picohp_eh_matches_type(i32 {$typeId})", 1);
+        $boolResult = new Instruction('eh_match_bool', BaseType::BOOL);
+        $this->addLine("{$boolResult->render()} = icmp ne i32 {$callResult->render()}, 0", 1);
+        return $boolResult;
+    }
+
+    /**
+     * Clear the current exception state (after it's been handled).
+     */
+    public function createEhClear(): void
+    {
+        $this->addLine('call void @picohp_eh_clear()', 1);
     }
 
     // public function createGlobal(string $name, ValueAbstract $val): ValueAbstract

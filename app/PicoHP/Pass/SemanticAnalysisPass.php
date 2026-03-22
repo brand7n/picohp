@@ -56,11 +56,42 @@ class SemanticAnalysisPass implements PassInterface
         return $this->enumRegistry;
     }
 
+    /** @var int */
+    protected int $nextTypeId = 1;
+
+    /** @var array<string, int> class name => type_id for exception type matching */
+    protected array $typeIdMap = [];
+
+    /**
+     * @return array<string, int>
+     */
+    public function getTypeIdMap(): array
+    {
+        return $this->typeIdMap;
+    }
+
     public function exec(): void
     {
+        $this->registerBuiltinClasses();
         $this->registerClasses($this->ast);
         $this->registerFunctions($this->ast);
         $this->resolveStmts($this->ast);
+    }
+
+    protected function registerBuiltinClasses(): void
+    {
+        $exceptionMeta = new ClassMetadata('Exception');
+        $exceptionMeta->addProperty('message', PicoType::fromString('string'));
+        $getMessageSymbol = new \App\PicoHP\SymbolTable\Symbol('getMessage', PicoType::fromString('string'), func: true);
+        $exceptionMeta->methods['getMessage'] = $getMessageSymbol;
+        $exceptionMeta->methodOwner['getMessage'] = 'Exception';
+        $ctorSymbol = new \App\PicoHP\SymbolTable\Symbol('__construct', PicoType::fromString('void'), func: true);
+        $ctorSymbol->params = [PicoType::fromString('string')];
+        $ctorSymbol->paramNames = [0 => 'message'];
+        $exceptionMeta->methods['__construct'] = $ctorSymbol;
+        $exceptionMeta->methodOwner['__construct'] = 'Exception';
+        $this->classRegistry['Exception'] = $exceptionMeta;
+        $this->typeIdMap['Exception'] = $this->nextTypeId++;
     }
 
     /**
@@ -89,6 +120,10 @@ class SemanticAnalysisPass implements PassInterface
                     $parentName = $stmt->extends->toString();
                     assert(isset($this->classRegistry[$parentName]), "parent class {$parentName} not found");
                     $classMeta->inheritFrom($this->classRegistry[$parentName]);
+                }
+                // Assign type_id if this class is throwable (extends Exception hierarchy)
+                if ($this->isExceptionClass($className)) {
+                    $this->typeIdMap[$className] = $this->nextTypeId++;
                 }
                 foreach ($stmt->stmts as $classStmt) {
                     if ($classStmt instanceof \PhpParser\Node\Stmt\Property) {
@@ -181,6 +216,53 @@ class SemanticAnalysisPass implements PassInterface
                 }
             }
         }
+    }
+
+    /**
+     * Check if a class is an exception class (is or extends Exception).
+     */
+    protected function isExceptionClass(string $className): bool
+    {
+        if ($className === 'Exception') {
+            return true;
+        }
+        $meta = $this->classRegistry[$className] ?? null;
+        if ($meta === null) {
+            return false;
+        }
+        if ($meta->parentName !== null) {
+            return $this->isExceptionClass($meta->parentName);
+        }
+        return false;
+    }
+
+    /**
+     * Get all type_ids that should match a catch clause for a given class.
+     * Includes the class itself and all its descendants.
+     *
+     * @return array<int>
+     */
+    public function getMatchingTypeIds(string $className): array
+    {
+        $ids = [];
+        foreach ($this->typeIdMap as $name => $id) {
+            if ($this->isSubclassOf($name, $className)) {
+                $ids[] = $id;
+            }
+        }
+        return $ids;
+    }
+
+    protected function isSubclassOf(string $className, string $parentName): bool
+    {
+        if ($className === $parentName) {
+            return true;
+        }
+        $meta = $this->classRegistry[$className] ?? null;
+        if ($meta === null || $meta->parentName === null) {
+            return false;
+        }
+        return $this->isSubclassOf($meta->parentName, $parentName);
     }
 
     private function typeFromNode(\PhpParser\Node\Identifier|\PhpParser\Node\NullableType|\PhpParser\Node\Name $node): PicoType
@@ -347,6 +429,30 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\EnumCase) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Use_) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Interface_) {
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\TryCatch) {
+            $this->resolveStmts($stmt->stmts);
+            foreach ($stmt->catches as $catch) {
+                assert(count($catch->types) > 0);
+                $catchTypeName = $catch->types[0]->toString();
+                assert(isset($this->classRegistry[$catchTypeName]), "catch class {$catchTypeName} not found");
+                if ($catch->var !== null) {
+                    assert(is_string($catch->var->name));
+                    $catchPData = $this->getPicoData($catch->var);
+                    $existing = $this->symbolTable->lookupCurrentScope($catch->var->name);
+                    if ($existing !== null) {
+                        $catchPData->symbol = $existing;
+                    } else {
+                        $catchPData->symbol = $this->symbolTable->addSymbol(
+                            $catch->var->name,
+                            PicoType::object($catchTypeName)
+                        );
+                    }
+                }
+                $this->resolveStmts($catch->stmts);
+            }
+            if ($stmt->finally !== null) {
+                $this->resolveStmts($stmt->finally->stmts);
+            }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Namespace_) {
             $this->resolveStmts($stmt->stmts);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\InlineHTML) {
@@ -593,6 +699,9 @@ class SemanticAnalysisPass implements PassInterface
             $classMeta = $this->classRegistry[$className];
             assert(isset($classMeta->methods[$methodName]), "method {$methodName} not found on {$className}");
             return $classMeta->methods[$methodName]->type;
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Throw_) {
+            $this->resolveExpr($expr->expr);
+            return PicoType::fromString('void');
         } else {
             $line = $this->getLine($expr);
             throw new \Exception("line {$line}, unknown node type in expr resolver: " . get_class($expr));
