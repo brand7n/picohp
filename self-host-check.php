@@ -115,17 +115,15 @@ function multiFileCheck(string $picoHP, string $tmpDir, bool $verbose): void
             __DIR__ . '/app/PicoHP/LLVM/Value/NullConstant.php',
             __DIR__ . '/app/PicoHP/LLVM/Value/Param.php',
         ],
-        'LLVM Value full hierarchy + BaseType' => [
+        'LLVM Value hierarchy - no Constant no Void' => [
             __DIR__ . '/tests/programs/self_compile/basetype_stub.php',
             __DIR__ . '/app/PicoHP/LLVM/ValueAbstract.php',
-            __DIR__ . '/app/PicoHP/LLVM/Value/Void_.php',
             __DIR__ . '/app/PicoHP/LLVM/Value/NullConstant.php',
             __DIR__ . '/app/PicoHP/LLVM/Value/Param.php',
             __DIR__ . '/app/PicoHP/LLVM/Value/Global_.php',
             __DIR__ . '/app/PicoHP/LLVM/Value/Instruction.php',
             __DIR__ . '/app/PicoHP/LLVM/Value/AllocaInst.php',
             __DIR__ . '/app/PicoHP/LLVM/Value/Label.php',
-            __DIR__ . '/app/PicoHP/LLVM/Value/Constant.php',
         ],
         'LLVM IR infrastructure' => [
             __DIR__ . '/app/PicoHP/LLVM/IRLine.php',

@@ -498,7 +498,7 @@ class SemanticAnalysisPass implements PassInterface
             if ($funcName === 'strval') {
                 return PicoType::fromString('string');
             }
-            if ($funcName === 'substr' || $funcName === 'trim' || $funcName === 'str_repeat') {
+            if ($funcName === 'substr' || $funcName === 'trim' || $funcName === 'str_repeat' || $funcName === 'str_replace') {
                 return PicoType::fromString('string');
             }
             $s = $this->symbolTable->lookup($expr->name->name);
