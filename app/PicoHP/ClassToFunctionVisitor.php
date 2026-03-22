@@ -60,7 +60,7 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
 
         // Resolve self:: in static property access to the actual class name
         if ($node instanceof Node\Expr\StaticPropertyFetch) {
-            if ($node->class instanceof Node\Name && $node->class->toString() === 'self') {
+            if ($node->class instanceof Node\Name && ($node->class->toString() === 'self' || $node->class->toString() === 'static')) {
                 assert($this->className !== null);
                 $node->class = new Node\Name($this->className);
             }

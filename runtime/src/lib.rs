@@ -101,6 +101,45 @@ pub extern "C" fn pico_string_repeat(s: *const c_char, times: i32) -> *mut c_cha
 }
 
 #[no_mangle]
+pub extern "C" fn pico_string_replace(
+    search: *const c_char,
+    replace: *const c_char,
+    subject: *const c_char,
+) -> *mut c_char {
+    let search_bytes = unsafe { CStr::from_ptr(search) }.to_bytes();
+    let replace_bytes = unsafe { CStr::from_ptr(replace) }.to_bytes();
+    let subject_bytes = unsafe { CStr::from_ptr(subject) }.to_bytes();
+
+    if search_bytes.is_empty() {
+        // PHP returns subject unchanged for empty search
+        let mut result = Vec::with_capacity(subject_bytes.len() + 1);
+        result.extend_from_slice(subject_bytes);
+        result.push(0);
+        let ptr = result.as_mut_ptr() as *mut c_char;
+        std::mem::forget(result);
+        return ptr;
+    }
+
+    let mut result = Vec::new();
+    let mut i = 0;
+    while i < subject_bytes.len() {
+        if i + search_bytes.len() <= subject_bytes.len()
+            && &subject_bytes[i..i + search_bytes.len()] == search_bytes
+        {
+            result.extend_from_slice(replace_bytes);
+            i += search_bytes.len();
+        } else {
+            result.push(subject_bytes[i]);
+            i += 1;
+        }
+    }
+    result.push(0);
+    let ptr = result.as_mut_ptr() as *mut c_char;
+    std::mem::forget(result);
+    ptr
+}
+
+#[no_mangle]
 pub extern "C" fn pico_string_trim(s: *const c_char) -> *mut c_char {
     let bytes = unsafe { CStr::from_ptr(s) }.to_bytes();
     let trimmed = match std::str::from_utf8(bytes) {
@@ -312,6 +351,22 @@ mod tests {
         assert_eq!(unsafe { CStr::from_ptr(r2) }.to_str().unwrap(), "world");
         let r3 = pico_string_substr(s.as_ptr(), -5, 5);
         assert_eq!(unsafe { CStr::from_ptr(r3) }.to_str().unwrap(), "world");
+    }
+
+    #[test]
+    fn test_string_replace() {
+        let search = CString::new("world").unwrap();
+        let replace = CString::new("rust").unwrap();
+        let subject = CString::new("hello world").unwrap();
+        let r = pico_string_replace(search.as_ptr(), replace.as_ptr(), subject.as_ptr());
+        assert_eq!(unsafe { CStr::from_ptr(r) }.to_str().unwrap(), "hello rust");
+
+        // Multiple occurrences
+        let search2 = CString::new("o").unwrap();
+        let replace2 = CString::new("0").unwrap();
+        let subject2 = CString::new("foobar").unwrap();
+        let r2 = pico_string_replace(search2.as_ptr(), replace2.as_ptr(), subject2.as_ptr());
+        assert_eq!(unsafe { CStr::from_ptr(r2) }.to_str().unwrap(), "f00bar");
     }
 
     #[test]

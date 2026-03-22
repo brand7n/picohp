@@ -614,6 +614,16 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $strVal = $this->buildExpr($expr->args[0]->value);
                 return $this->builder->createCall('pico_string_trim', [$strVal], BaseType::STRING);
             }
+            if ($funcName === 'str_replace') {
+                assert(count($expr->args) === 3);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                assert($expr->args[1] instanceof \PhpParser\Node\Arg);
+                assert($expr->args[2] instanceof \PhpParser\Node\Arg);
+                $search = $this->buildExpr($expr->args[0]->value);
+                $replace = $this->buildExpr($expr->args[1]->value);
+                $subject = $this->buildExpr($expr->args[2]->value);
+                return $this->builder->createCall('pico_string_replace', [$search, $replace, $subject], BaseType::STRING);
+            }
             if ($funcName === 'str_repeat') {
                 assert(count($expr->args) === 2);
                 assert($expr->args[0] instanceof \PhpParser\Node\Arg);

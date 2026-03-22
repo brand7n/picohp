@@ -38,6 +38,7 @@ class Builder
         $this->addLine('declare ptr @pico_string_substr(ptr, i32, i32)');
         $this->addLine('declare ptr @pico_string_trim(ptr)');
         $this->addLine('declare ptr @pico_string_repeat(ptr, i32)');
+        $this->addLine('declare ptr @pico_string_replace(ptr, ptr, ptr)');
         $this->addLine('declare ptr @picohp_object_alloc(i64, i32)');
         $this->addLine();
         $this->addLine('; array runtime');
