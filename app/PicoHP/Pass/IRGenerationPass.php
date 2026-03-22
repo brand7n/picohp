@@ -663,15 +663,13 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\Include_) {
             return new Void_();
         } elseif ($expr instanceof \PhpParser\Node\Expr\PostInc) {
-            $varPData = PicoHPData::getPData($expr->var);
-            $ptr = $varPData->getValue();
+            $ptr = $this->resolveVarPtr($expr->var);
             $oldVal = $this->builder->createLoad($ptr);
             $newVal = $this->builder->createInstruction('add', [$oldVal, new Constant(1, $oldVal->getType())]);
             $this->builder->createStore($newVal, $ptr);
             return $oldVal;
         } elseif ($expr instanceof \PhpParser\Node\Expr\PostDec) {
-            $varPData = PicoHPData::getPData($expr->var);
-            $ptr = $varPData->getValue();
+            $ptr = $this->resolveVarPtr($expr->var);
             $oldVal = $this->builder->createLoad($ptr);
             $newVal = $this->builder->createInstruction('sub', [$oldVal, new Constant(1, $oldVal->getType())]);
             $this->builder->createStore($newVal, $ptr);
@@ -680,15 +678,13 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $val = $this->buildExpr($expr->expr);
             return $this->builder->createInstruction('xor', [$val, new Constant(1, BaseType::BOOL)], resultType: BaseType::BOOL);
         } elseif ($expr instanceof \PhpParser\Node\Expr\PreInc) {
-            $varPData = PicoHPData::getPData($expr->var);
-            $ptr = $varPData->getValue();
+            $ptr = $this->resolveVarPtr($expr->var);
             $oldVal = $this->builder->createLoad($ptr);
             $newVal = $this->builder->createInstruction('add', [$oldVal, new Constant(1, $oldVal->getType())]);
             $this->builder->createStore($newVal, $ptr);
             return $newVal;
         } elseif ($expr instanceof \PhpParser\Node\Expr\PreDec) {
-            $varPData = PicoHPData::getPData($expr->var);
-            $ptr = $varPData->getValue();
+            $ptr = $this->resolveVarPtr($expr->var);
             $oldVal = $this->builder->createLoad($ptr);
             $newVal = $this->builder->createInstruction('sub', [$oldVal, new Constant(1, $oldVal->getType())]);
             $this->builder->createStore($newVal, $ptr);
@@ -803,6 +799,27 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         } else {
             throw new \Exception("unknown node type in expr: " . get_class($expr));
         }
+    }
+
+    /**
+     * Get a pointer (for load/store) from a variable expression.
+     * Handles local variables and static properties.
+     */
+    protected function resolveVarPtr(\PhpParser\Node\Expr $var): ValueAbstract
+    {
+        if ($var instanceof \PhpParser\Node\Expr\StaticPropertyFetch) {
+            assert($var->class instanceof \PhpParser\Node\Name);
+            assert($var->name instanceof \PhpParser\Node\VarLikeIdentifier);
+            $className = $var->class->toString();
+            if ($className === 'self' || $className === 'static') {
+                assert($this->currentClassName !== null);
+                $className = $this->currentClassName;
+            }
+            $classMeta = $this->classRegistry[$className];
+            $propType = $classMeta->staticProperties[$var->name->toString()];
+            return new \App\PicoHP\LLVM\Value\Global_("{$className}_{$var->name->toString()}", $propType->toBase());
+        }
+        return PicoHPData::getPData($var)->getValue();
     }
 
     /**
