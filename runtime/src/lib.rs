@@ -28,6 +28,13 @@ pub extern "C" fn pico_string_concat(a: *const c_char, b: *const c_char) -> *mut
 // ---------------------------------------------------------------------------
 
 #[no_mangle]
+pub extern "C" fn pico_int_to_string(val: i32) -> *mut c_char {
+    let s = val.to_string();
+    let c_str = std::ffi::CString::new(s).unwrap();
+    c_str.into_raw()
+}
+
+#[no_mangle]
 pub extern "C" fn pico_string_len(s: *const c_char) -> i32 {
     let s = unsafe { CStr::from_ptr(s) };
     s.to_bytes().len() as i32
