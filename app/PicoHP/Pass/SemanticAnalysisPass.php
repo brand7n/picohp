@@ -127,7 +127,7 @@ class SemanticAnalysisPass implements PassInterface
                 }
                 foreach ($stmt->stmts as $classStmt) {
                     if ($classStmt instanceof \PhpParser\Node\Stmt\Property) {
-                        assert($classStmt->type instanceof \PhpParser\Node\Identifier || $classStmt->type instanceof \PhpParser\Node\NullableType || $classStmt->type instanceof \PhpParser\Node\Name);
+                        assert($classStmt->type instanceof \PhpParser\Node\Identifier || $classStmt->type instanceof \PhpParser\Node\NullableType || $classStmt->type instanceof \PhpParser\Node\Name || $classStmt->type instanceof \PhpParser\Node\UnionType);
                         $doc = $classStmt->getDocComment();
                         if ($doc !== null) {
                             $propType = $this->docTypeParser->parseType($doc->getText());
@@ -146,7 +146,7 @@ class SemanticAnalysisPass implements PassInterface
                         }
                     } elseif ($classStmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
                         $methodName = $classStmt->name->toString();
-                        assert($classStmt->returnType === null || $classStmt->returnType instanceof \PhpParser\Node\Identifier || $classStmt->returnType instanceof \PhpParser\Node\NullableType || $classStmt->returnType instanceof \PhpParser\Node\Name);
+                        assert($classStmt->returnType === null || $classStmt->returnType instanceof \PhpParser\Node\Identifier || $classStmt->returnType instanceof \PhpParser\Node\NullableType || $classStmt->returnType instanceof \PhpParser\Node\Name || $classStmt->returnType instanceof \PhpParser\Node\UnionType);
                         $returnType = $classStmt->returnType !== null
                             ? $this->typeFromNode($classStmt->returnType)
                             : PicoType::fromString('void');
@@ -198,7 +198,7 @@ class SemanticAnalysisPass implements PassInterface
     {
         foreach ($stmts as $stmt) {
             if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
-                assert($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType || $stmt->returnType instanceof \PhpParser\Node\Name);
+                assert($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType || $stmt->returnType instanceof \PhpParser\Node\Name || $stmt->returnType instanceof \PhpParser\Node\UnionType);
                 $existing = $this->symbolTable->lookupCurrentScope($stmt->name->name);
                 if ($existing === null) {
                     $sym = $this->symbolTable->addSymbol(
@@ -265,8 +265,11 @@ class SemanticAnalysisPass implements PassInterface
         return $this->isSubclassOf($meta->parentName, $parentName);
     }
 
-    private function typeFromNode(\PhpParser\Node\Identifier|\PhpParser\Node\NullableType|\PhpParser\Node\Name $node): PicoType
+    private function typeFromNode(\PhpParser\Node\Identifier|\PhpParser\Node\NullableType|\PhpParser\Node\Name|\PhpParser\Node\UnionType $node): PicoType
     {
+        if ($node instanceof \PhpParser\Node\UnionType) {
+            return $this->resolveUnionType($node);
+        }
         if ($node instanceof \PhpParser\Node\NullableType) {
             $innerName = $node->type instanceof \PhpParser\Node\Name ? $node->type->toString() : $node->type->name;
             return PicoType::fromString('?' . $innerName);
@@ -279,6 +282,24 @@ class SemanticAnalysisPass implements PassInterface
             return PicoType::fromString($name);
         }
         return PicoType::fromString($node->name);
+    }
+
+    private function resolveUnionType(\PhpParser\Node\UnionType $node): PicoType
+    {
+        $types = [];
+        foreach ($node->types as $type) {
+            assert($type instanceof \PhpParser\Node\Identifier || $type instanceof \PhpParser\Node\Name);
+            $types[] = $this->typeFromNode($type);
+        }
+
+        // Widen int|float to float
+        $bases = array_map(fn (PicoType $t) => $t->toBase(), $types);
+        if (in_array(BaseType::FLOAT, $bases, true) && in_array(BaseType::INT, $bases, true)) {
+            return PicoType::fromString('float');
+        }
+
+        // For other unions, use the first type as a fallback
+        return $types[0];
     }
 
     /**
@@ -298,7 +319,7 @@ class SemanticAnalysisPass implements PassInterface
 
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
             assert(!is_null($stmt->returnType));
-            assert($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType || $stmt->returnType instanceof \PhpParser\Node\Name);
+            assert($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType || $stmt->returnType instanceof \PhpParser\Node\Name || $stmt->returnType instanceof \PhpParser\Node\UnionType);
             $returnType = $this->typeFromNode($stmt->returnType);
             $existing = $this->symbolTable->lookupCurrentScope($stmt->name->name);
             $pData->symbol = $existing ?? $this->symbolTable->addSymbol($stmt->name->name, $returnType, func: true);
@@ -406,7 +427,7 @@ class SemanticAnalysisPass implements PassInterface
             if ($stmt->stmts === null) {
                 return;
             }
-            assert($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType || $stmt->returnType instanceof \PhpParser\Node\Name || $stmt->returnType === null);
+            assert($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType || $stmt->returnType instanceof \PhpParser\Node\Name || $stmt->returnType instanceof \PhpParser\Node\UnionType || $stmt->returnType === null);
             $returnType = $stmt->returnType !== null ? $this->typeFromNode($stmt->returnType) : PicoType::fromString('void');
             $methodSymbol = $this->symbolTable->addSymbol($methodName, $returnType, func: true);
             $pData->symbol = $methodSymbol;
@@ -736,7 +757,7 @@ class SemanticAnalysisPass implements PassInterface
             $pData = $this->getPicoData($param);
             assert($param->var instanceof \PhpParser\Node\Expr\Variable);
             assert(is_string($param->var->name));
-            assert($param->type instanceof \PhpParser\Node\Identifier || $param->type instanceof \PhpParser\Node\NullableType || $param->type instanceof \PhpParser\Node\Name);
+            assert($param->type instanceof \PhpParser\Node\Identifier || $param->type instanceof \PhpParser\Node\NullableType || $param->type instanceof \PhpParser\Node\Name || $param->type instanceof \PhpParser\Node\UnionType);
             $paramType = $this->typeFromNode($param->type);
             $pData->symbol = $this->symbolTable->addSymbol($param->var->name, $paramType);
             $paramTypes[] = $paramType;
