@@ -119,8 +119,11 @@ function stubbedSingleFileCheck(string $picoHP, string $tmpDir, bool $verbose): 
         __DIR__ . '/app/PicoHP/Tree/NodeInterface.php',
         __DIR__ . '/app/PicoHP/Tree/NodeTrait.php',
         __DIR__ . '/app/PicoHP/PassInterface.php',
+        __DIR__ . '/app/PicoHP/PicoType.php',
         __DIR__ . '/app/PicoHP/LLVM/ValueAbstract.php',
         __DIR__ . '/app/PicoHP/LLVM/Value/Instruction.php',
+        __DIR__ . '/app/PicoHP/LLVM/IRLine.php',
+        __DIR__ . '/app/PicoHP/SymbolTable/Symbol.php',
     ];
 
     // Files already included in stubs — skip testing them individually

@@ -443,7 +443,10 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Return_) {
             if (!is_null($stmt->expr)) {
                 $exprType = $this->resolveExpr($stmt->expr);
-                if ($this->currentFunctionReturnType !== null && !$exprType->isEqualTo($this->currentFunctionReturnType)) {
+                $returnTypeOk = $this->currentFunctionReturnType === null
+                    || $exprType->isEqualTo($this->currentFunctionReturnType)
+                    || ($this->currentFunctionReturnType->isNullable() && $stmt->expr instanceof \PhpParser\Node\Expr\ConstFetch && $stmt->expr->name->toLowerString() === 'null');
+                if (!$returnTypeOk) {
                     $line = $this->getLine($stmt);
                     throw new \Exception("line {$line}, return type mismatch: expected {$this->currentFunctionReturnType->toString()}, got {$exprType->toString()}");
                 }
@@ -758,6 +761,9 @@ class SemanticAnalysisPass implements PassInterface
             if ($funcName === 'intval') {
                 return PicoType::fromString('int');
             }
+            if ($funcName === 'assert') {
+                return PicoType::fromString('void');
+            }
             if ($funcName === 'preg_match') {
                 // 3rd arg is by-reference matches array — register it if new
                 if (count($expr->args) >= 3 && $expr->args[2] instanceof \PhpParser\Node\Arg) {
@@ -913,6 +919,15 @@ class SemanticAnalysisPass implements PassInterface
             }
             assert($resultType !== null);
             return $resultType;
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Ternary) {
+            $this->resolveExpr($expr->cond);
+            if ($expr->if !== null) {
+                $this->resolveExpr($expr->if);
+            }
+            return $this->resolveExpr($expr->else);
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Instanceof_) {
+            $this->resolveExpr($expr->expr);
+            return PicoType::fromString('bool');
         } elseif ($expr instanceof \PhpParser\Node\Expr\Throw_) {
             $this->resolveExpr($expr->expr);
             return PicoType::fromString('void');
