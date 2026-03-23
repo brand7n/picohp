@@ -837,6 +837,110 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 return $globalPtr;
             }
             return $this->builder->createLoad($globalPtr);
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Match_) {
+            assert($this->currentFunction !== null);
+            $count = $pData->mycount;
+            $condVal = $this->buildExpr($expr->cond);
+            $condType = $condVal->getType();
+
+            $currentFunc = $this->currentFunction;
+            $endBlock = $currentFunc->addBasicBlock("match_end{$count}");
+            $endLabel = new Label($endBlock->getName());
+
+            // Separate default arm from conditional arms
+            $defaultArm = null;
+            $conditionalArms = [];
+            foreach ($expr->arms as $arm) {
+                if ($arm->conds === null) {
+                    $defaultArm = $arm;
+                } else {
+                    $conditionalArms[] = $arm;
+                }
+            }
+
+            // Create blocks for each arm body and next-check
+            $armBlocks = [];
+            $nextBlocks = [];
+            foreach ($conditionalArms as $i => $arm) {
+                $armBlocks[] = $currentFunc->addBasicBlock("match_arm{$count}_{$i}");
+                // Only create next-check blocks for non-last arms
+                if ($i + 1 < count($conditionalArms)) {
+                    $nextBlocks[] = $currentFunc->addBasicBlock("match_next{$count}_{$i}");
+                }
+            }
+            $defaultBlock = $defaultArm !== null
+                ? $currentFunc->addBasicBlock("match_default{$count}")
+                : $endBlock;
+
+            // Determine result type from first arm body, allocate result
+            $firstBody = $defaultArm !== null ? $defaultArm->body : $conditionalArms[0]->body;
+            $firstBodyType = $this->resolveMatchArmType($firstBody);
+            $resultPtr = $this->builder->createAlloca("match_result{$count}", $firstBodyType);
+
+            // Emit condition checks and arm bodies
+            foreach ($conditionalArms as $i => $arm) {
+                assert($arm->conds !== null);
+
+                if (count($arm->conds) === 1) {
+                    $armCondVal = $this->buildExpr($arm->conds[0]);
+                    $isFloat = $condType === BaseType::FLOAT;
+                    $cmpResult = $this->builder->createInstruction(
+                        $isFloat ? 'fcmp oeq' : 'icmp eq',
+                        [$condVal, $armCondVal],
+                        resultType: BaseType::BOOL
+                    );
+                } else {
+                    // Multiple conditions: OR them together
+                    $orResult = null;
+                    foreach ($arm->conds as $armCond) {
+                        $armCondVal = $this->buildExpr($armCond);
+                        $isFloat = $condType === BaseType::FLOAT;
+                        $cmpResult = $this->builder->createInstruction(
+                            $isFloat ? 'fcmp oeq' : 'icmp eq',
+                            [$condVal, $armCondVal],
+                            resultType: BaseType::BOOL
+                        );
+                        if ($orResult === null) {
+                            $orResult = $cmpResult;
+                        } else {
+                            $orResult = $this->builder->createInstruction('or', [$orResult, $cmpResult], resultType: BaseType::BOOL);
+                        }
+                    }
+                    $cmpResult = $orResult;
+                    assert($cmpResult !== null);
+                }
+
+                $armLabel = new Label($armBlocks[$i]->getName());
+                if ($i + 1 < count($conditionalArms)) {
+                    $fallthrough = new Label($nextBlocks[$i]->getName());
+                } else {
+                    $fallthrough = new Label($defaultBlock->getName());
+                }
+                $this->builder->createBranch([$cmpResult, $armLabel, $fallthrough]);
+
+                // Emit arm body
+                $this->builder->setInsertPoint($armBlocks[$i]);
+                $bodyVal = $this->buildExpr($arm->body);
+                $this->builder->createStore($bodyVal, $resultPtr);
+                $this->builder->createBranch([$endLabel]);
+
+                // Set insert point to next check block
+                if ($i + 1 < count($conditionalArms)) {
+                    $this->builder->setInsertPoint($nextBlocks[$i]);
+                }
+            }
+
+            // Emit default arm
+            if ($defaultArm !== null) {
+                $this->builder->setInsertPoint($defaultBlock);
+                $bodyVal = $this->buildExpr($defaultArm->body);
+                $this->builder->createStore($bodyVal, $resultPtr);
+                $this->builder->createBranch([$endLabel]);
+            }
+
+            // Continue from end block
+            $this->builder->setInsertPoint($endBlock);
+            return $this->builder->createLoad($resultPtr);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Throw_) {
             // throw new ClassName(args...)
             assert($expr->expr instanceof \PhpParser\Node\Expr\New_);
@@ -985,6 +1089,32 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             return $classMeta->getPropertyType($expr->name->toString());
         }
         throw new \RuntimeException('getExprResolvedType: unsupported expr type ' . get_class($expr));
+    }
+
+    /**
+     * Determine the BaseType of a match arm body expression from the semantic analysis data.
+     */
+    protected function resolveMatchArmType(\PhpParser\Node\Expr $expr): BaseType
+    {
+        if ($expr instanceof \PhpParser\Node\Scalar\String_) {
+            return BaseType::STRING;
+        }
+        if ($expr instanceof \PhpParser\Node\Scalar\Int_) {
+            return BaseType::INT;
+        }
+        if ($expr instanceof \PhpParser\Node\Scalar\Float_) {
+            return BaseType::FLOAT;
+        }
+        if ($expr instanceof \PhpParser\Node\Expr\ConstFetch) {
+            $name = $expr->name->toLowerString();
+            if ($name === 'null') {
+                return BaseType::PTR;
+            }
+            return BaseType::BOOL;
+        }
+        // Fall back to the type stored during semantic analysis
+        $pData = PicoHPData::getPData($expr);
+        return $pData->getSymbol()->type->toBase();
     }
 
     protected function buildShortCircuit(\PhpParser\Node\Expr\BinaryOp $expr, PicoHPData $pData): ValueAbstract
