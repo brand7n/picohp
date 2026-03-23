@@ -736,9 +736,9 @@ class SemanticAnalysisPass implements PassInterface
             }
             return PicoType::fromString('bool');
         } elseif ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
-            $this->resolveArgs($expr->args);
             assert($expr->name instanceof \PhpParser\Node\Name);
             $funcName = $expr->name->toLowerString();
+            $this->resolveArgs($expr->args);
             // Built-in functions
             if ($funcName === 'count' || $funcName === 'strlen') {
                 return PicoType::fromString('int');
@@ -767,20 +767,6 @@ class SemanticAnalysisPass implements PassInterface
                 return PicoType::fromString('void');
             }
             if ($funcName === 'preg_match') {
-                // 3rd arg is by-reference matches array — register it if new
-                if (count($expr->args) >= 3 && $expr->args[2] instanceof \PhpParser\Node\Arg) {
-                    $matchVar = $expr->args[2]->value;
-                    if ($matchVar instanceof \PhpParser\Node\Expr\Variable && is_string($matchVar->name)) {
-                        $existing = $this->symbolTable->lookupCurrentScope($matchVar->name);
-                        if ($existing === null) {
-                            $matchPData = $this->getPicoData($matchVar);
-                            $matchPData->symbol = $this->symbolTable->addSymbol(
-                                $matchVar->name,
-                                PicoType::array(PicoType::fromString('string'))
-                            );
-                        }
-                    }
-                }
                 return PicoType::fromString('int');
             }
             if ($funcName === 'end') {
