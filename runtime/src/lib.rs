@@ -1,4 +1,4 @@
-use std::ffi::{c_char, CStr};
+use std::ffi::{c_char, c_int, CStr, CString};
 
 /// Returns the runtime version as an integer.
 #[no_mangle]
@@ -30,7 +30,38 @@ pub extern "C" fn pico_string_concat(a: *const c_char, b: *const c_char) -> *mut
 #[no_mangle]
 pub extern "C" fn pico_int_to_string(val: i32) -> *mut c_char {
     let s = val.to_string();
-    let c_str = std::ffi::CString::new(s).unwrap();
+    let c_str = CString::new(s).unwrap();
+    c_str.into_raw()
+}
+
+extern "C" {
+    fn snprintf(s: *mut c_char, n: usize, format: *const c_char, ...) -> c_int;
+}
+
+/// Convert f64 to string matching PHP's `(string)` cast (%.14G format).
+#[no_mangle]
+pub extern "C" fn pico_float_to_string(val: f64) -> *mut c_char {
+    let mut buf = [0u8; 64];
+    let fmt = b"%.14G\0";
+    let len = unsafe {
+        snprintf(
+            buf.as_mut_ptr() as *mut c_char,
+            buf.len(),
+            fmt.as_ptr() as *const c_char,
+            val,
+        )
+    };
+    let s = &buf[..len as usize];
+    let c_str = CString::new(s).unwrap();
+    c_str.into_raw()
+}
+
+/// Convert f64 to its IEEE 754 hex representation (e.g. "0x400921FB54442D18").
+#[no_mangle]
+pub extern "C" fn pico_float_to_hex(val: f64) -> *mut c_char {
+    let bits = val.to_bits();
+    let s = format!("0x{:016X}", bits);
+    let c_str = CString::new(s).unwrap();
     c_str.into_raw()
 }
 
@@ -596,6 +627,33 @@ mod tests {
         pico_array_push_float(arr, 1.0);
         pico_array_set_float(arr, 0, 9.9);
         assert!((pico_array_get_float(arr, 0) - 9.9).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_float_to_string() {
+        let check = |val: f64, expected: &str| {
+            let ptr = pico_float_to_string(val);
+            let result = unsafe { CStr::from_ptr(ptr) }.to_str().unwrap();
+            assert_eq!(result, expected, "pico_float_to_string({}) = {:?}, expected {:?}", val, result, expected);
+        };
+        check(3.14, "3.14");
+        check(0.0, "0");
+        check(100.0, "100");
+        check(-2.5, "-2.5");
+        check(1e10, "10000000000");
+        check(0.1, "0.1");
+        check(0.5, "0.5");
+    }
+
+    #[test]
+    fn test_float_to_hex() {
+        let ptr = pico_float_to_hex(3.14);
+        let result = unsafe { CStr::from_ptr(ptr) }.to_str().unwrap();
+        assert_eq!(result, "0x40091EB851EB851F");
+
+        let ptr2 = pico_float_to_hex(0.0);
+        let result2 = unsafe { CStr::from_ptr(ptr2) }.to_str().unwrap();
+        assert_eq!(result2, "0x0000000000000000");
     }
 
     #[test]

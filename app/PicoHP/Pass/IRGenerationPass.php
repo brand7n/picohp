@@ -627,6 +627,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             switch ($val->getType()) {
                 case BaseType::INT:
                     return $this->builder->createCall('pico_int_to_string', [$val], BaseType::STRING);
+                case BaseType::FLOAT:
+                    return $this->builder->createCall('pico_float_to_string', [$val], BaseType::STRING);
                 case BaseType::STRING:
                     return $val;
                 default:
@@ -646,6 +648,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 assert(count($expr->args) === 1);
                 assert($expr->args[0] instanceof \PhpParser\Node\Arg);
                 $val = $this->buildExpr($expr->args[0]->value);
+                if ($val->getType() === BaseType::FLOAT) {
+                    return $this->builder->createCall('pico_float_to_string', [$val], BaseType::STRING);
+                }
                 return $this->builder->createCall('pico_int_to_string', [$val], BaseType::STRING);
             }
             if ($funcName === 'strlen') {
