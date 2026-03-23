@@ -757,6 +757,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                         BaseType::FLOAT => 'float',
                         BaseType::BOOL => 'bool',
                         BaseType::STRING => 'str',
+                        BaseType::PTR => 'ptr',
                         default => throw new \RuntimeException("unsupported map get type"),
                     };
                     return $this->builder->createCall($getFunc, [$arrPtr, $idx], $varType->getElementBaseType());
@@ -1169,6 +1170,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $objType = $this->getExprResolvedType($expr->var);
             $classMeta = $this->classRegistry[$objType->getClassName()];
             return $classMeta->getPropertyType($expr->name->toString());
+        }
+        if ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
+            $arrType = $this->getExprResolvedType($expr->var);
+            assert($arrType->isArray());
+            return $arrType->getElementType();
         }
         throw new \RuntimeException('getExprResolvedType: unsupported expr type ' . get_class($expr));
     }

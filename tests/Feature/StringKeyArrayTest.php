@@ -71,3 +71,17 @@ it('handles string-keyed arrays with float values', function () {
 
     expect($compiled_output)->toBe($php_output);
 });
+
+it('handles string-keyed arrays with object values', function () {
+    $file = 'tests/programs/arrays/string_keys_object_values.php';
+
+    /** @phpstan-ignore-next-line */
+    $this->artisan("build --debug {$file}")->assertExitCode(0);
+
+    $buildPath = config('app.build_path');
+    assert(is_string($buildPath));
+    $compiled_output = shell_exec("{$buildPath}/a.out");
+    $php_output = shell_exec("php {$file}");
+
+    expect($compiled_output)->toBe($php_output);
+});
