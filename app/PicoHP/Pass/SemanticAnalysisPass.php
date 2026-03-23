@@ -720,6 +720,22 @@ class SemanticAnalysisPass implements PassInterface
             $classMeta = $this->classRegistry[$className];
             assert(isset($classMeta->methods[$methodName]), "method {$methodName} not found on {$className}");
             return $classMeta->methods[$methodName]->type;
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Match_) {
+            $this->resolveExpr($expr->cond);
+            $resultType = null;
+            foreach ($expr->arms as $arm) {
+                if ($arm->conds !== null) {
+                    foreach ($arm->conds as $cond) {
+                        $this->resolveExpr($cond);
+                    }
+                }
+                $bodyType = $this->resolveExpr($arm->body);
+                if ($resultType === null) {
+                    $resultType = $bodyType;
+                }
+            }
+            assert($resultType !== null);
+            return $resultType;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Throw_) {
             $this->resolveExpr($expr->expr);
             return PicoType::fromString('void');
