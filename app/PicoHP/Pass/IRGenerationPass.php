@@ -602,6 +602,30 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 default:
                     throw new \Exception("casting to float from unknown type");
             }
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Bool_) {
+            $val = $this->buildExpr($expr->expr);
+
+            switch ($val->getType()) {
+                case BaseType::INT:
+                    return $this->builder->createInstruction('icmp ne', [$val, new Constant(0, BaseType::INT)], resultType: BaseType::BOOL);
+                case BaseType::FLOAT:
+                    return $this->builder->createInstruction('fcmp one', [$val, new Constant(0.0, BaseType::FLOAT)], resultType: BaseType::BOOL);
+                case BaseType::BOOL:
+                    return $val;
+                default:
+                    throw new \Exception("casting to bool from unknown type");
+            }
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\String_) {
+            $val = $this->buildExpr($expr->expr);
+
+            switch ($val->getType()) {
+                case BaseType::INT:
+                    return $this->builder->createCall('pico_int_to_string', [$val], BaseType::STRING);
+                case BaseType::STRING:
+                    return $val;
+                default:
+                    throw new \Exception("casting to string from unsupported type");
+            }
         } elseif ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
             assert($expr->name instanceof \PhpParser\Node\Name);
             $funcName = $expr->name->toLowerString();
