@@ -41,6 +41,10 @@ class Builder
         $this->addLine('declare ptr @pico_string_trim(ptr)');
         $this->addLine('declare ptr @pico_string_repeat(ptr, i32)');
         $this->addLine('declare ptr @pico_string_replace(ptr, ptr, ptr)');
+        $this->addLine('declare ptr @pico_string_upper(ptr)');
+        $this->addLine('declare ptr @pico_string_lower(ptr)');
+        $this->addLine('declare ptr @pico_dechex(i32)');
+        $this->addLine('declare ptr @pico_string_pad(ptr, i32, ptr, i32)');
         $this->addLine('declare ptr @picohp_object_alloc(i64, i32)');
         $this->addLine();
         $this->addLine('; exception handling');
@@ -71,6 +75,10 @@ class Builder
         $this->addLine('declare void @pico_array_push_ptr(ptr, ptr)');
         $this->addLine('declare ptr @pico_array_get_ptr(ptr, i32)');
         $this->addLine('declare void @pico_array_set_ptr(ptr, i32, ptr)');
+        $this->addLine('declare i32 @pico_array_search_int(ptr, i32)');
+        $this->addLine('declare void @pico_array_splice(ptr, i32, i32)');
+        $this->addLine('declare i32 @pico_array_last_int(ptr)');
+        $this->addLine('declare ptr @pico_array_last_str(ptr)');
         $this->addLine();
         $this->addLine('; map runtime (string-keyed associative arrays)');
         $this->addLine('declare ptr @pico_map_new()');

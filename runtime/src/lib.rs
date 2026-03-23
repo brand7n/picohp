@@ -304,6 +304,55 @@ pub extern "C" fn picohp_object_alloc(size: u64, _type_id: u32) -> *mut u8 {
 }
 
 // ---------------------------------------------------------------------------
+// String utility functions
+// ---------------------------------------------------------------------------
+
+/// Convert string to uppercase.
+#[no_mangle]
+pub extern "C" fn pico_string_upper(s: *const c_char) -> *mut c_char {
+    let s = unsafe { CStr::from_ptr(s) }.to_str().unwrap();
+    let upper = s.to_uppercase();
+    CString::new(upper).unwrap().into_raw()
+}
+
+/// Convert string to lowercase.
+#[no_mangle]
+pub extern "C" fn pico_string_lower(s: *const c_char) -> *mut c_char {
+    let s = unsafe { CStr::from_ptr(s) }.to_str().unwrap();
+    let lower = s.to_lowercase();
+    CString::new(lower).unwrap().into_raw()
+}
+
+/// Convert integer to hexadecimal string.
+#[no_mangle]
+pub extern "C" fn pico_dechex(val: i32) -> *mut c_char {
+    let s = format!("{:x}", val);
+    CString::new(s).unwrap().into_raw()
+}
+
+/// Pad a string to a certain length. pad_type: 0=STR_PAD_LEFT, 1=STR_PAD_RIGHT.
+#[no_mangle]
+pub extern "C" fn pico_string_pad(s: *const c_char, length: i32, pad: *const c_char, pad_type: i32) -> *mut c_char {
+    let s = unsafe { CStr::from_ptr(s) }.to_str().unwrap();
+    let pad_str = unsafe { CStr::from_ptr(pad) }.to_str().unwrap();
+    let length = length as usize;
+    let result = if s.len() >= length {
+        s.to_string()
+    } else {
+        let needed = length - s.len();
+        let padding: String = pad_str.chars().cycle().take(needed).collect();
+        if pad_type == 0 {
+            // STR_PAD_LEFT
+            format!("{}{}", padding, s)
+        } else {
+            // STR_PAD_RIGHT (1)
+            format!("{}{}", s, padding)
+        }
+    };
+    CString::new(result).unwrap().into_raw()
+}
+
+// ---------------------------------------------------------------------------
 // Dynamic arrays
 // ---------------------------------------------------------------------------
 
@@ -442,6 +491,54 @@ pub extern "C" fn pico_array_get_ptr(arr: *const PicoArray, index: i32) -> *mut 
 pub extern "C" fn pico_array_set_ptr(arr: *mut PicoArray, index: i32, val: *mut u8) {
     let arr = unsafe { &mut *arr };
     arr.data[index as usize] = PicoValue::Ptr(val);
+}
+
+// -- array utility functions -------------------------------------------------
+
+/// Search for an int value in an array. Returns index or -1 if not found.
+#[no_mangle]
+pub extern "C" fn pico_array_search_int(arr: *const PicoArray, val: i32) -> i32 {
+    let arr = unsafe { &*arr };
+    for (i, item) in arr.data.iter().enumerate() {
+        if let PicoValue::Int(v) = item {
+            if *v == val {
+                return i as i32;
+            }
+        }
+    }
+    -1
+}
+
+/// Remove elements from an array at offset for length.
+#[no_mangle]
+pub extern "C" fn pico_array_splice(arr: *mut PicoArray, offset: i32, length: i32) {
+    let arr = unsafe { &mut *arr };
+    let offset = offset as usize;
+    let length = length as usize;
+    if offset < arr.data.len() {
+        let end = (offset + length).min(arr.data.len());
+        arr.data.drain(offset..end);
+    }
+}
+
+/// Get the last element of an int array, or 0 if empty.
+#[no_mangle]
+pub extern "C" fn pico_array_last_int(arr: *const PicoArray) -> i32 {
+    let arr = unsafe { &*arr };
+    match arr.data.last() {
+        Some(PicoValue::Int(v)) => *v,
+        _ => 0,
+    }
+}
+
+/// Get the last element of a string array, or empty string if empty.
+#[no_mangle]
+pub extern "C" fn pico_array_last_str(arr: *const PicoArray) -> *const c_char {
+    let arr = unsafe { &*arr };
+    match arr.data.last() {
+        Some(PicoValue::Str(v)) => *v,
+        _ => c"".as_ptr(),
+    }
 }
 
 // ---------------------------------------------------------------------------
