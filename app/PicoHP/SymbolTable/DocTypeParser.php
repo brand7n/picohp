@@ -43,7 +43,13 @@ class DocTypeParser
                 if (count($typeNode->genericTypes) === 2
                     && $typeNode->genericTypes[1] instanceof IdentifierTypeNode
                 ) {
-                    return PicoType::array(PicoType::fromString($typeNode->genericTypes[1]->name));
+                    $arr = PicoType::array(PicoType::fromString($typeNode->genericTypes[1]->name));
+                    if ($typeNode->genericTypes[0] instanceof IdentifierTypeNode
+                        && $typeNode->genericTypes[0]->name === 'string'
+                    ) {
+                        $arr->setStringKeys();
+                    }
+                    return $arr;
                 }
                 if (count($typeNode->genericTypes) === 1
                     && $typeNode->genericTypes[0] instanceof IdentifierTypeNode

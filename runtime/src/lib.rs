@@ -444,6 +444,152 @@ pub extern "C" fn pico_array_set_ptr(arr: *mut PicoArray, index: i32, val: *mut 
     arr.data[index as usize] = PicoValue::Ptr(val);
 }
 
+// ---------------------------------------------------------------------------
+// String-keyed maps (associative arrays)
+// ---------------------------------------------------------------------------
+
+struct PicoMapEntry {
+    key: *const c_char,
+    value: PicoValue,
+}
+
+pub struct PicoMap {
+    entries: Vec<PicoMapEntry>,
+}
+
+impl PicoMap {
+    fn find_index(&self, key: *const c_char) -> Option<usize> {
+        let needle = unsafe { CStr::from_ptr(key) }.to_bytes();
+        self.entries.iter().position(|e| {
+            unsafe { CStr::from_ptr(e.key) }.to_bytes() == needle
+        })
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn pico_map_new() -> *mut PicoMap {
+    Box::into_raw(Box::new(PicoMap { entries: Vec::new() }))
+}
+
+#[no_mangle]
+pub extern "C" fn pico_map_len(map: *const PicoMap) -> i32 {
+    let map = unsafe { &*map };
+    map.entries.len() as i32
+}
+
+// -- set (insert or update) -------------------------------------------------
+
+#[no_mangle]
+pub extern "C" fn pico_map_set_int(map: *mut PicoMap, key: *const c_char, val: i32) {
+    let map = unsafe { &mut *map };
+    if let Some(i) = map.find_index(key) {
+        map.entries[i].value = PicoValue::Int(val);
+    } else {
+        map.entries.push(PicoMapEntry { key, value: PicoValue::Int(val) });
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn pico_map_set_float(map: *mut PicoMap, key: *const c_char, val: f64) {
+    let map = unsafe { &mut *map };
+    if let Some(i) = map.find_index(key) {
+        map.entries[i].value = PicoValue::Float(val);
+    } else {
+        map.entries.push(PicoMapEntry { key, value: PicoValue::Float(val) });
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn pico_map_set_bool(map: *mut PicoMap, key: *const c_char, val: i32) {
+    let map = unsafe { &mut *map };
+    if let Some(i) = map.find_index(key) {
+        map.entries[i].value = PicoValue::Bool(val != 0);
+    } else {
+        map.entries.push(PicoMapEntry { key, value: PicoValue::Bool(val != 0) });
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn pico_map_set_str(map: *mut PicoMap, key: *const c_char, val: *const c_char) {
+    let map = unsafe { &mut *map };
+    if let Some(i) = map.find_index(key) {
+        map.entries[i].value = PicoValue::Str(val);
+    } else {
+        map.entries.push(PicoMapEntry { key, value: PicoValue::Str(val) });
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn pico_map_set_ptr(map: *mut PicoMap, key: *const c_char, val: *mut u8) {
+    let map = unsafe { &mut *map };
+    if let Some(i) = map.find_index(key) {
+        map.entries[i].value = PicoValue::Ptr(val);
+    } else {
+        map.entries.push(PicoMapEntry { key, value: PicoValue::Ptr(val) });
+    }
+}
+
+// -- get --------------------------------------------------------------------
+
+#[no_mangle]
+pub extern "C" fn pico_map_get_int(map: *const PicoMap, key: *const c_char) -> i32 {
+    let map = unsafe { &*map };
+    let i = map.find_index(key).expect("pico_map_get_int: key not found");
+    match &map.entries[i].value {
+        PicoValue::Int(v) => *v,
+        _ => panic!("pico_map_get_int: value is not an int"),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn pico_map_get_float(map: *const PicoMap, key: *const c_char) -> f64 {
+    let map = unsafe { &*map };
+    let i = map.find_index(key).expect("pico_map_get_float: key not found");
+    match &map.entries[i].value {
+        PicoValue::Float(v) => *v,
+        _ => panic!("pico_map_get_float: value is not a float"),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn pico_map_get_str(map: *const PicoMap, key: *const c_char) -> *const c_char {
+    let map = unsafe { &*map };
+    let i = map.find_index(key).expect("pico_map_get_str: key not found");
+    match &map.entries[i].value {
+        PicoValue::Str(v) => *v,
+        _ => panic!("pico_map_get_str: value is not a string"),
+    }
+}
+
+// -- foreach support --------------------------------------------------------
+
+/// Get the key at the given index (for ordered iteration).
+#[no_mangle]
+pub extern "C" fn pico_map_get_key(map: *const PicoMap, index: i32) -> *const c_char {
+    let map = unsafe { &*map };
+    map.entries[index as usize].key
+}
+
+/// Get int value at the given index (for ordered iteration).
+#[no_mangle]
+pub extern "C" fn pico_map_get_value_int(map: *const PicoMap, index: i32) -> i32 {
+    let map = unsafe { &*map };
+    match &map.entries[index as usize].value {
+        PicoValue::Int(v) => *v,
+        _ => panic!("pico_map_get_value_int: value is not an int"),
+    }
+}
+
+/// Get string value at the given index (for ordered iteration).
+#[no_mangle]
+pub extern "C" fn pico_map_get_value_str(map: *const PicoMap, index: i32) -> *const c_char {
+    let map = unsafe { &*map };
+    match &map.entries[index as usize].value {
+        PicoValue::Str(v) => *v,
+        _ => panic!("pico_map_get_value_str: value is not a string"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -654,6 +800,53 @@ mod tests {
         let ptr2 = pico_float_to_hex(0.0);
         let result2 = unsafe { CStr::from_ptr(ptr2) }.to_str().unwrap();
         assert_eq!(result2, "0x0000000000000000");
+    }
+
+    #[test]
+    fn test_map_basic() {
+        let map = pico_map_new();
+        let k1 = CString::new("name").unwrap();
+        let v1 = CString::new("Alice").unwrap();
+        let k2 = CString::new("city").unwrap();
+        let v2 = CString::new("NYC").unwrap();
+        pico_map_set_str(map, k1.as_ptr(), v1.as_ptr());
+        pico_map_set_str(map, k2.as_ptr(), v2.as_ptr());
+        assert_eq!(pico_map_len(map), 2);
+        let r1 = unsafe { CStr::from_ptr(pico_map_get_str(map, k1.as_ptr())) };
+        assert_eq!(r1.to_str().unwrap(), "Alice");
+        // Update existing key
+        let v3 = CString::new("LA").unwrap();
+        pico_map_set_str(map, k2.as_ptr(), v3.as_ptr());
+        assert_eq!(pico_map_len(map), 2); // no new entry
+        let r2 = unsafe { CStr::from_ptr(pico_map_get_str(map, k2.as_ptr())) };
+        assert_eq!(r2.to_str().unwrap(), "LA");
+    }
+
+    #[test]
+    fn test_map_int_values() {
+        let map = pico_map_new();
+        let k1 = CString::new("math").unwrap();
+        let k2 = CString::new("english").unwrap();
+        pico_map_set_int(map, k1.as_ptr(), 95);
+        pico_map_set_int(map, k2.as_ptr(), 87);
+        assert_eq!(pico_map_get_int(map, k1.as_ptr()), 95);
+        assert_eq!(pico_map_get_int(map, k2.as_ptr()), 87);
+    }
+
+    #[test]
+    fn test_map_iteration() {
+        let map = pico_map_new();
+        let k1 = CString::new("a").unwrap();
+        let k2 = CString::new("b").unwrap();
+        pico_map_set_int(map, k1.as_ptr(), 1);
+        pico_map_set_int(map, k2.as_ptr(), 2);
+        // Iterate in insertion order
+        let key0 = unsafe { CStr::from_ptr(pico_map_get_key(map, 0)) };
+        assert_eq!(key0.to_str().unwrap(), "a");
+        assert_eq!(pico_map_get_value_int(map, 0), 1);
+        let key1 = unsafe { CStr::from_ptr(pico_map_get_key(map, 1)) };
+        assert_eq!(key1.to_str().unwrap(), "b");
+        assert_eq!(pico_map_get_value_int(map, 1), 2);
     }
 
     #[test]

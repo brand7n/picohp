@@ -47,6 +47,7 @@ class PicoType
     // Array support
     protected bool $isArray = false;
     protected ?PicoType $elementPicoType = null;
+    protected ?BaseType $keyType = null; // null = int keys, STRING = string keys
 
     // Class/object support
     protected ?string $className = null;
@@ -87,8 +88,14 @@ class PicoType
             $pt->nullable = true;
             return $pt;
         }
-        if (preg_match('/^array<[^,]+,\s*(\w+)>$/', $type, $m) === 1) {
-            return self::array(self::fromString($m[1]));
+        if (preg_match('/^array<(\w+),\s*(\w+)>$/', $type, $m) === 1) {
+            $keyTypeName = $m[1];
+            $valTypeName = $m[2];
+            $arr = self::array(self::fromString($valTypeName));
+            if ($keyTypeName === 'string') {
+                $arr->keyType = BaseType::STRING;
+            }
+            return $arr;
         }
         if ($type === 'array') {
             // Bare array type without generics — untyped, element type unknown
@@ -160,6 +167,16 @@ class PicoType
     public function getElementBaseType(): BaseType
     {
         return $this->getElementType()->toBase();
+    }
+
+    public function hasStringKeys(): bool
+    {
+        return $this->keyType === BaseType::STRING;
+    }
+
+    public function setStringKeys(): void
+    {
+        $this->keyType = BaseType::STRING;
     }
 
     public function toString(): string
