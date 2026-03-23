@@ -460,7 +460,15 @@ class SemanticAnalysisPass implements PassInterface
                 $stmt->valueVar->name,
                 $arrayType->getElementType()
             );
-            // TODO: key var support
+            if ($stmt->keyVar !== null) {
+                assert($stmt->keyVar instanceof \PhpParser\Node\Expr\Variable);
+                assert(is_string($stmt->keyVar->name));
+                $keyVarPData = $this->getPicoData($stmt->keyVar);
+                $keyVarPData->symbol = $this->symbolTable->addSymbol(
+                    $stmt->keyVar->name,
+                    PicoType::fromString('int')
+                );
+            }
             $this->resolveStmts($stmt->stmts);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Class_) {
             assert($stmt->name instanceof \PhpParser\Node\Identifier);

@@ -389,6 +389,12 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->builder->setInsertPoint($bodyBB);
             $elemVal = $this->builder->createArrayGet($arrayPtr, $idx, $arrayType->getElementBaseType());
             $this->builder->createStore($elemVal, $valuePtr);
+            if ($stmt->keyVar !== null) {
+                assert($stmt->keyVar instanceof \PhpParser\Node\Expr\Variable);
+                $keyVarPData = PicoHPData::getPData($stmt->keyVar);
+                $keyPtr = $keyVarPData->getValue();
+                $this->builder->createStore($idx, $keyPtr);
+            }
             $this->buildStmts($stmt->stmts);
             $idxNext = $this->builder->createInstruction('add', [$idx, new Constant(1, BaseType::INT)]);
             $this->builder->createStore($idxNext, $counterPtr);
