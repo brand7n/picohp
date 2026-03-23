@@ -740,8 +740,29 @@ class SemanticAnalysisPass implements PassInterface
             if ($funcName === 'strval') {
                 return PicoType::fromString('string');
             }
-            if ($funcName === 'substr' || $funcName === 'trim' || $funcName === 'str_repeat' || $funcName === 'str_replace') {
+            if ($funcName === 'substr' || $funcName === 'trim' || $funcName === 'str_repeat' || $funcName === 'str_replace'
+                || $funcName === 'strtoupper' || $funcName === 'strtolower' || $funcName === 'dechex' || $funcName === 'str_pad') {
                 return PicoType::fromString('string');
+            }
+            if ($funcName === 'is_int' || $funcName === 'is_string' || $funcName === 'is_float' || $funcName === 'is_bool'
+                || $funcName === 'array_key_exists') {
+                return PicoType::fromString('bool');
+            }
+            if ($funcName === 'array_search') {
+                return PicoType::fromString('int'); // returns index or false, simplified to int
+            }
+            if ($funcName === 'intval') {
+                return PicoType::fromString('int');
+            }
+            if ($funcName === 'end') {
+                assert(count($expr->args) === 1);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                $arrType = $this->resolveExpr($expr->args[0]->value);
+                assert($arrType->isArray());
+                return $arrType->getElementType();
+            }
+            if ($funcName === 'array_splice') {
+                return PicoType::fromString('void');
             }
             $s = $this->symbolTable->lookup($expr->name->name);
             $line = $this->getLine($expr);

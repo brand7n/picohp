@@ -741,6 +741,84 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $times = $this->buildExpr($expr->args[1]->value);
                 return $this->builder->createCall('pico_string_repeat', [$strVal, $times], BaseType::STRING);
             }
+            if ($funcName === 'strtoupper') {
+                assert(count($expr->args) === 1);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                $strVal = $this->buildExpr($expr->args[0]->value);
+                return $this->builder->createCall('pico_string_upper', [$strVal], BaseType::STRING);
+            }
+            if ($funcName === 'strtolower') {
+                assert(count($expr->args) === 1);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                $strVal = $this->buildExpr($expr->args[0]->value);
+                return $this->builder->createCall('pico_string_lower', [$strVal], BaseType::STRING);
+            }
+            if ($funcName === 'dechex') {
+                assert(count($expr->args) === 1);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                $val = $this->buildExpr($expr->args[0]->value);
+                return $this->builder->createCall('pico_dechex', [$val], BaseType::STRING);
+            }
+            if ($funcName === 'str_pad') {
+                assert(count($expr->args) >= 2);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                assert($expr->args[1] instanceof \PhpParser\Node\Arg);
+                $strVal = $this->buildExpr($expr->args[0]->value);
+                $length = $this->buildExpr($expr->args[1]->value);
+                $padStr = (count($expr->args) >= 3 && $expr->args[2] instanceof \PhpParser\Node\Arg)
+                    ? $this->buildExpr($expr->args[2]->value)
+                    : $this->builder->createStringConstant(' ');
+                // STR_PAD_RIGHT = 1 (default), STR_PAD_LEFT = 0
+                $padType = (count($expr->args) >= 4 && $expr->args[3] instanceof \PhpParser\Node\Arg)
+                    ? $this->buildExpr($expr->args[3]->value)
+                    : new Constant(1, BaseType::INT);
+                return $this->builder->createCall('pico_string_pad', [$strVal, $length, $padStr, $padType], BaseType::STRING);
+            }
+            if ($funcName === 'array_search') {
+                assert(count($expr->args) >= 2);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                assert($expr->args[1] instanceof \PhpParser\Node\Arg);
+                $needle = $this->buildExpr($expr->args[0]->value);
+                $haystack = $this->buildExpr($expr->args[1]->value);
+                return $this->builder->createCall('pico_array_search_int', [$haystack, $needle], BaseType::INT);
+            }
+            if ($funcName === 'array_splice') {
+                assert(count($expr->args) >= 3);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                assert($expr->args[1] instanceof \PhpParser\Node\Arg);
+                assert($expr->args[2] instanceof \PhpParser\Node\Arg);
+                $arrPtr = $this->buildExpr($expr->args[0]->value);
+                $offset = $this->buildExpr($expr->args[1]->value);
+                $length = $this->buildExpr($expr->args[2]->value);
+                $this->builder->createCall('pico_array_splice', [$arrPtr, $offset, $length], BaseType::VOID);
+                return new Void_();
+            }
+            if ($funcName === 'end') {
+                assert(count($expr->args) === 1);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                $arrPtr = $this->buildExpr($expr->args[0]->value);
+                $arrType = $this->getExprResolvedType($expr->args[0]->value);
+                if ($arrType->getElementBaseType() === BaseType::STRING) {
+                    return $this->builder->createCall('pico_array_last_str', [$arrPtr], BaseType::STRING);
+                }
+                return $this->builder->createCall('pico_array_last_int', [$arrPtr], BaseType::INT);
+            }
+            if ($funcName === 'is_int') {
+                // At compile time we know the type — always returns true for int vars
+                assert(count($expr->args) === 1);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                $val = $this->buildExpr($expr->args[0]->value);
+                return new Constant($val->getType() === BaseType::INT ? 1 : 0, BaseType::BOOL);
+            }
+            if ($funcName === 'intval') {
+                assert(count($expr->args) === 1);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                $val = $this->buildExpr($expr->args[0]->value);
+                if ($val->getType() === BaseType::FLOAT) {
+                    return $this->builder->createFpToSi($val);
+                }
+                return $val;
+            }
             $funcSymbol = $pData->getSymbol();
             $args = $this->buildArgsWithDefaults($expr->args, $funcSymbol);
             $returnType = $funcSymbol->type->toBase();
