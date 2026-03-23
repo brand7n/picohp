@@ -1,4 +1,5 @@
 use std::ffi::{c_char, c_int, CStr, CString};
+use regex::Regex;
 
 /// Returns the runtime version as an integer.
 #[no_mangle]
@@ -301,6 +302,49 @@ pub extern "C" fn picohp_eh_clear() {
 pub extern "C" fn picohp_object_alloc(size: u64, _type_id: u32) -> *mut u8 {
     let layout = std::alloc::Layout::from_size_align(size as usize, 8).unwrap();
     unsafe { std::alloc::alloc_zeroed(layout) }
+}
+
+// ---------------------------------------------------------------------------
+// Regex
+// ---------------------------------------------------------------------------
+
+/// PHP-compatible preg_match. Strips PCRE delimiters, runs regex, populates
+/// matches array with captured groups. Returns 1 on match, 0 on no match.
+#[no_mangle]
+pub extern "C" fn pico_preg_match(
+    pattern: *const c_char,
+    subject: *const c_char,
+    matches: *mut PicoArray,
+) -> i32 {
+    let pattern = unsafe { CStr::from_ptr(pattern) }.to_str().unwrap();
+    let subject = unsafe { CStr::from_ptr(subject) }.to_str().unwrap();
+
+    // Strip PHP PCRE delimiters: /pattern/flags -> pattern
+    let regex_pattern = if pattern.starts_with('/') {
+        let end = pattern.rfind('/').unwrap_or(pattern.len());
+        if end > 0 { &pattern[1..end] } else { pattern }
+    } else {
+        pattern
+    };
+
+    let re = match Regex::new(regex_pattern) {
+        Ok(r) => r,
+        Err(_) => return 0,
+    };
+
+    match re.captures(subject) {
+        Some(caps) => {
+            let arr = unsafe { &mut *matches };
+            arr.data.clear();
+            for i in 0..caps.len() {
+                let m = caps.get(i).map(|m| m.as_str()).unwrap_or("");
+                let c_str = CString::new(m).unwrap();
+                arr.data.push(PicoValue::Str(c_str.into_raw()));
+            }
+            1
+        }
+        None => 0,
+    }
 }
 
 // ---------------------------------------------------------------------------

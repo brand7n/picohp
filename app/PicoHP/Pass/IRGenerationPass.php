@@ -524,6 +524,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 return $this->builder->createStringConcat($lval, $rval);
             }
 
+            // Different types with === / !== — result is known at compile time
+            if ($lval->getType() !== $rval->getType() && ($sigil === '===' || $sigil === '!==')) {
+                return new Constant($sigil === '!==' ? 1 : 0, BaseType::BOOL);
+            }
+
             $isFloat = $lval->getType() === BaseType::FLOAT;
             $operandType = $lval->getType();
             switch ($sigil) {
@@ -802,6 +807,21 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                     return $this->builder->createCall('pico_array_last_str', [$arrPtr], BaseType::STRING);
                 }
                 return $this->builder->createCall('pico_array_last_int', [$arrPtr], BaseType::INT);
+            }
+            if ($funcName === 'preg_match') {
+                assert(count($expr->args) >= 2);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                assert($expr->args[1] instanceof \PhpParser\Node\Arg);
+                $pattern = $this->buildExpr($expr->args[0]->value);
+                $subject = $this->buildExpr($expr->args[1]->value);
+                if (count($expr->args) >= 3 && $expr->args[2] instanceof \PhpParser\Node\Arg) {
+                    // 3rd arg is by-reference matches array — load the array ptr
+                    $matchesPtr = $this->buildExpr($expr->args[2]->value);
+                    return $this->builder->createCall('pico_preg_match', [$pattern, $subject, $matchesPtr], BaseType::INT);
+                }
+                // No matches arg — create a temp array and discard
+                $tmpArr = $this->builder->createArrayNew();
+                return $this->builder->createCall('pico_preg_match', [$pattern, $subject, $tmpArr], BaseType::INT);
             }
             if ($funcName === 'is_int') {
                 // At compile time we know the type — always returns true for int vars

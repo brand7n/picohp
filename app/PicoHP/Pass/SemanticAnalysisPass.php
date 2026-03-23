@@ -645,7 +645,11 @@ class SemanticAnalysisPass implements PassInterface
             $ltype = $this->resolveExpr($expr->left);
             $rtype = $this->resolveExpr($expr->right);
             $line = $this->getLine($expr);
-            assert($ltype->isEqualTo($rtype), "line {$line}, type mismatch in binary op: {$ltype->toString()} {$expr->getOperatorSigil()} {$rtype->toString()}");
+            // === and !== can compare different types (that's the point of strict comparison)
+            $sigil = $expr->getOperatorSigil();
+            if ($sigil !== '===' && $sigil !== '!==') {
+                assert($ltype->isEqualTo($rtype), "line {$line}, type mismatch in binary op: {$ltype->toString()} {$sigil} {$rtype->toString()}");
+            }
             switch ($expr->getOperatorSigil()) {
                 case '.':
                     $type = PicoType::fromString('string');
@@ -752,6 +756,23 @@ class SemanticAnalysisPass implements PassInterface
                 return PicoType::fromString('int'); // returns index or false, simplified to int
             }
             if ($funcName === 'intval') {
+                return PicoType::fromString('int');
+            }
+            if ($funcName === 'preg_match') {
+                // 3rd arg is by-reference matches array — register it if new
+                if (count($expr->args) >= 3 && $expr->args[2] instanceof \PhpParser\Node\Arg) {
+                    $matchVar = $expr->args[2]->value;
+                    if ($matchVar instanceof \PhpParser\Node\Expr\Variable && is_string($matchVar->name)) {
+                        $existing = $this->symbolTable->lookupCurrentScope($matchVar->name);
+                        if ($existing === null) {
+                            $matchPData = $this->getPicoData($matchVar);
+                            $matchPData->symbol = $this->symbolTable->addSymbol(
+                                $matchVar->name,
+                                PicoType::array(PicoType::fromString('string'))
+                            );
+                        }
+                    }
+                }
                 return PicoType::fromString('int');
             }
             if ($funcName === 'end') {

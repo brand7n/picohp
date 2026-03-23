@@ -41,6 +41,7 @@ class Builder
         $this->addLine('declare ptr @pico_string_trim(ptr)');
         $this->addLine('declare ptr @pico_string_repeat(ptr, i32)');
         $this->addLine('declare ptr @pico_string_replace(ptr, ptr, ptr)');
+        $this->addLine('declare i32 @pico_preg_match(ptr, ptr, ptr)');
         $this->addLine('declare ptr @pico_string_upper(ptr)');
         $this->addLine('declare ptr @pico_string_lower(ptr)');
         $this->addLine('declare ptr @pico_dechex(i32)');
