@@ -25,7 +25,7 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
             $this->insideTrait = true;
         }
         // Capture the class name for use in transformations
-        if ($node instanceof Node\Stmt\Class_) {
+        if ($node instanceof Node\Stmt\Class_ || $node instanceof Node\Stmt\Enum_) {
             assert($node->name !== null);
             $this->className = $node->name->name;
         }
@@ -76,6 +76,13 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
                 assert($this->className !== null);
                 $node->class = new Node\Name($this->className);
             }
+            return $node;
+        }
+
+        // Resolve self:: in class constant fetch (e.g., self::CASE_NAME)
+        if ($node instanceof Node\Expr\ClassConstFetch && $node->class instanceof Node\Name && $node->class->toString() === 'self') {
+            assert($this->className !== null);
+            $node->class = new Node\Name($this->className);
             return $node;
         }
 

@@ -672,6 +672,10 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             assert($expr->name instanceof \PhpParser\Node\Name);
             $funcName = $expr->name->toLowerString();
             // Built-in functions
+            if ($funcName === 'assert') {
+                // Compile assert as no-op (assertions stripped in compiled code)
+                return new Void_();
+            }
             if ($funcName === 'count') {
                 assert(count($expr->args) === 1);
                 assert($expr->args[0] instanceof \PhpParser\Node\Arg);
@@ -1121,6 +1125,37 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             // Continue from end block
             $this->builder->setInsertPoint($endBlock);
             return $this->builder->createLoad($resultPtr);
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Ternary) {
+            assert($this->currentFunction !== null);
+            $count = $pData->mycount;
+
+            $condVal = $this->buildExpr($expr->cond);
+            if ($condVal->getType() !== BaseType::BOOL) {
+                $condVal = $this->builder->createInstruction('icmp ne', [$condVal, new Constant(0, $condVal->getType())], resultType: BaseType::BOOL);
+            }
+
+            $thenBB = $this->currentFunction->addBasicBlock("ternary_then{$count}");
+            $elseBB = $this->currentFunction->addBasicBlock("ternary_else{$count}");
+            $endBB = $this->currentFunction->addBasicBlock("ternary_end{$count}");
+            $this->builder->createBranch([$condVal, new Label($thenBB->getName()), new Label($elseBB->getName())]);
+
+            $this->builder->setInsertPoint($thenBB);
+            $thenVal = $this->buildExpr($expr->if ?? $expr->cond);
+            $resultPtr = $this->builder->createAlloca("ternary_result{$count}", $thenVal->getType());
+            $this->builder->createStore($thenVal, $resultPtr);
+            $this->builder->createBranch([new Label($endBB->getName())]);
+
+            $this->builder->setInsertPoint($elseBB);
+            $elseVal = $this->buildExpr($expr->else);
+            $this->builder->createStore($elseVal, $resultPtr);
+            $this->builder->createBranch([new Label($endBB->getName())]);
+
+            $this->builder->setInsertPoint($endBB);
+            return $this->builder->createLoad($resultPtr);
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Instanceof_) {
+            $this->buildExpr($expr->expr);
+            // Compile-time: assume instanceof checks pass (used in assertions)
+            return new Constant(1, BaseType::BOOL);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Throw_) {
             // throw new ClassName(args...)
             assert($expr->expr instanceof \PhpParser\Node\Expr\New_);
@@ -1253,6 +1288,18 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         if ($expr instanceof \PhpParser\Node\Expr\UnaryMinus && $expr->expr instanceof \PhpParser\Node\Scalar\Int_) {
             return new Constant(-$expr->expr->value, BaseType::INT);
         }
+        if ($expr instanceof \PhpParser\Node\Expr\ClassConstFetch) {
+            // Enum case as default value — resolve directly
+            assert($expr->class instanceof \PhpParser\Node\Name);
+            assert($expr->name instanceof \PhpParser\Node\Identifier);
+            $className = $expr->class->toString();
+            $caseName = $expr->name->toString();
+            if (isset($this->enumRegistry[$className])) {
+                $tag = $this->enumRegistry[$className]->getCaseTag($caseName);
+                return new Constant($tag, BaseType::INT);
+            }
+            throw new \RuntimeException("unsupported ClassConstFetch default: {$className}::{$caseName}");
+        }
         throw new \RuntimeException('unsupported default value type: ' . get_class($expr));
     }
 
@@ -1277,6 +1324,12 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $arrType = $this->getExprResolvedType($expr->var);
             assert($arrType->isArray());
             return $arrType->getElementType();
+        }
+        if ($expr instanceof \PhpParser\Node\Expr\MethodCall) {
+            assert($expr->name instanceof \PhpParser\Node\Identifier);
+            $objType = $this->getExprResolvedType($expr->var);
+            $classMeta = $this->classRegistry[$objType->getClassName()];
+            return $classMeta->methods[$expr->name->toString()]->type;
         }
         throw new \RuntimeException('getExprResolvedType: unsupported expr type ' . get_class($expr));
     }
