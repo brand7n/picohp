@@ -34,3 +34,9 @@ auth.json
 
 # Rust runtime build artifacts
 runtime/target/
+
+# Build artifacts
+build/
+
+# Claude Code worktrees
+.claude/worktrees/

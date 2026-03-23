@@ -3,7 +3,7 @@
         'name' => 'brandin/test-proj',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '45c88b518ec5ebe03dcaf404df218fedef3c75a3',
+        'reference' => 'c6499054254cf702a108d4b6b8c5e9a3f8d82cfb',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,7 +13,7 @@
         'brandin/test-proj' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '45c88b518ec5ebe03dcaf404df218fedef3c75a3',
+            'reference' => 'c6499054254cf702a108d4b6b8c5e9a3f8d82cfb',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

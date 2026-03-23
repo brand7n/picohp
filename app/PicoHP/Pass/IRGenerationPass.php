@@ -360,7 +360,6 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             assert($this->currentFunction !== null);
             $count = $pData->mycount;
 
-            // Load array pointer (works for variables, property fetches, etc.)
             $arrayPtr = $this->buildExpr($stmt->expr);
             $arrayType = $this->getExprResolvedType($stmt->expr);
 
@@ -382,18 +381,36 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
             $this->builder->setInsertPoint($condBB);
             $idx = $this->builder->createLoad($counterPtr);
-            $lenVal = $this->builder->createArrayLen($arrayPtr);
+            if ($arrayType->hasStringKeys()) {
+                $lenVal = $this->builder->createCall('pico_map_len', [$arrayPtr], BaseType::INT);
+            } else {
+                $lenVal = $this->builder->createArrayLen($arrayPtr);
+            }
             $cond = $this->builder->createInstruction('icmp slt', [$idx, $lenVal], resultType: BaseType::BOOL);
             $this->builder->createBranch([$cond, $bodyLabel, $endLabel]);
 
             $this->builder->setInsertPoint($bodyBB);
-            $elemVal = $this->builder->createArrayGet($arrayPtr, $idx, $arrayType->getElementBaseType());
+            if ($arrayType->hasStringKeys()) {
+                $getValueFunc = 'pico_map_get_value_' . match ($arrayType->getElementBaseType()) {
+                    BaseType::INT => 'int',
+                    BaseType::STRING => 'str',
+                    default => throw new \RuntimeException("unsupported map foreach value type"),
+                };
+                $elemVal = $this->builder->createCall($getValueFunc, [$arrayPtr, $idx], $arrayType->getElementBaseType());
+            } else {
+                $elemVal = $this->builder->createArrayGet($arrayPtr, $idx, $arrayType->getElementBaseType());
+            }
             $this->builder->createStore($elemVal, $valuePtr);
             if ($stmt->keyVar !== null) {
                 assert($stmt->keyVar instanceof \PhpParser\Node\Expr\Variable);
                 $keyVarPData = PicoHPData::getPData($stmt->keyVar);
                 $keyPtr = $keyVarPData->getValue();
-                $this->builder->createStore($idx, $keyPtr);
+                if ($arrayType->hasStringKeys()) {
+                    $keyVal = $this->builder->createCall('pico_map_get_key', [$arrayPtr, $idx], BaseType::STRING);
+                    $this->builder->createStore($keyVal, $keyPtr);
+                } else {
+                    $this->builder->createStore($idx, $keyPtr);
+                }
             }
             $this->buildStmts($stmt->stmts);
             $idxNext = $this->builder->createInstruction('add', [$idx, new Constant(1, BaseType::INT)]);
@@ -450,12 +467,24 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             // Array element write: $arr[idx] = val or $arr[] = val
             if ($expr->var instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
                 $rval = $this->buildExpr($expr->expr);
-                // buildExpr in lVal context returns a pointer TO the array ptr — load it
                 $arrVarExpr = $expr->var->var;
                 $arrPtrPtr = $this->buildExpr($arrVarExpr);
                 $arrPtr = $this->builder->createLoad($arrPtrPtr);
                 $arrayType = $this->getExprResolvedType($arrVarExpr);
-                if ($expr->var->dim === null) {
+                if ($arrayType->hasStringKeys()) {
+                    // Map set: $map['key'] = val
+                    assert($expr->var->dim !== null, "map push not supported");
+                    $keyVal = $this->buildExpr($expr->var->dim);
+                    $setFunc = 'pico_map_set_' . match ($arrayType->getElementBaseType()) {
+                        BaseType::INT => 'int',
+                        BaseType::FLOAT => 'float',
+                        BaseType::BOOL => 'bool',
+                        BaseType::STRING => 'str',
+                        BaseType::PTR => 'ptr',
+                        default => throw new \RuntimeException("unsupported map set type"),
+                    };
+                    $this->builder->createCall($setFunc, [$arrPtr, $keyVal, $rval], BaseType::VOID);
+                } elseif ($expr->var->dim === null) {
                     // $arr[] = val (push)
                     $this->builder->createArrayPush($arrPtr, $rval, $arrayType->getElementBaseType());
                 } else {
@@ -719,10 +748,20 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
             $varType = $this->getExprResolvedType($expr->var);
             if ($varType->isArray()) {
-                // Array read: $arr[$idx] — writes handled in Assign
                 assert($expr->dim !== null, "array read requires index");
                 $arrPtr = $this->buildExpr($expr->var);
                 $idx = $this->buildExpr($expr->dim);
+                if ($varType->hasStringKeys()) {
+                    $getFunc = 'pico_map_get_' . match ($varType->getElementBaseType()) {
+                        BaseType::INT => 'int',
+                        BaseType::FLOAT => 'float',
+                        BaseType::BOOL => 'bool',
+                        BaseType::STRING => 'str',
+                        BaseType::PTR => 'ptr',
+                        default => throw new \RuntimeException("unsupported map get type"),
+                    };
+                    return $this->builder->createCall($getFunc, [$arrPtr, $idx], $varType->getElementBaseType());
+                }
                 return $this->builder->createArrayGet($arrPtr, $idx, $varType->getElementBaseType());
             }
             $varData = PicoHPData::getPData($expr->var);
@@ -1132,6 +1171,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $classMeta = $this->classRegistry[$objType->getClassName()];
             return $classMeta->getPropertyType($expr->name->toString());
         }
+        if ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
+            $arrType = $this->getExprResolvedType($expr->var);
+            assert($arrType->isArray());
+            return $arrType->getElementType();
+        }
         throw new \RuntimeException('getExprResolvedType: unsupported expr type ' . get_class($expr));
     }
 
@@ -1199,6 +1243,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
     protected function buildArrayInit(\PhpParser\Node\Expr\Array_ $arrayExpr, \App\PicoHP\PicoType $arrayType): ValueAbstract
     {
+        if ($arrayType->hasStringKeys()) {
+            return $this->buildMapInit($arrayExpr, $arrayType);
+        }
         $arrPtr = $this->builder->createArrayNew();
         $elementType = $arrayType->getElementBaseType();
         foreach ($arrayExpr->items as $item) {
@@ -1206,6 +1253,27 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->builder->createArrayPush($arrPtr, $elemVal, $elementType);
         }
         return $arrPtr;
+    }
+
+    protected function buildMapInit(\PhpParser\Node\Expr\Array_ $arrayExpr, \App\PicoHP\PicoType $arrayType): ValueAbstract
+    {
+        $mapPtr = $this->builder->createCall('pico_map_new', [], BaseType::PTR);
+        $elementType = $arrayType->getElementBaseType();
+        foreach ($arrayExpr->items as $item) {
+            assert($item->key !== null);
+            $keyVal = $this->buildExpr($item->key);
+            $elemVal = $this->buildExpr($item->value);
+            $setFunc = 'pico_map_set_' . match ($elementType) {
+                BaseType::INT => 'int',
+                BaseType::FLOAT => 'float',
+                BaseType::BOOL => 'bool',
+                BaseType::STRING => 'str',
+                BaseType::PTR => 'ptr',
+                default => throw new \RuntimeException("unsupported map value type: {$elementType->value}"),
+            };
+            $this->builder->createCall($setFunc, [$mapPtr, $keyVal, $elemVal], BaseType::VOID);
+        }
+        return $mapPtr;
     }
 
     /**

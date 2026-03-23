@@ -496,9 +496,10 @@ class SemanticAnalysisPass implements PassInterface
                 assert($stmt->keyVar instanceof \PhpParser\Node\Expr\Variable);
                 assert(is_string($stmt->keyVar->name));
                 $keyVarPData = $this->getPicoData($stmt->keyVar);
+                $keyType = $arrayType->hasStringKeys() ? 'string' : 'int';
                 $keyVarPData->symbol = $this->symbolTable->addSymbol(
                     $stmt->keyVar->name,
-                    PicoType::fromString('int')
+                    PicoType::fromString($keyType)
                 );
             }
             $this->resolveStmts($stmt->stmts);
@@ -622,7 +623,11 @@ class SemanticAnalysisPass implements PassInterface
             if ($type->isArray()) {
                 if ($expr->dim !== null) {
                     $dimType = $this->resolveExpr($expr->dim);
-                    assert($dimType->isEqualTo(PicoType::fromString('int')), "{$dimType->toString()} is not an int");
+                    if ($type->hasStringKeys()) {
+                        assert($dimType->isEqualTo(PicoType::fromString('string')), "{$dimType->toString()} is not a string for string-keyed array");
+                    } else {
+                        assert($dimType->isEqualTo(PicoType::fromString('int')), "{$dimType->toString()} is not an int");
+                    }
                 }
                 // dim === null means $arr[] = ... (push), resolved at Assign
                 return $type->getElementType();
@@ -759,15 +764,26 @@ class SemanticAnalysisPass implements PassInterface
             return $this->resolveExpr($expr->var);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Array_) {
             $elemType = PicoType::fromString('string'); // default
+            $hasStringKeys = false;
             $first = true;
             foreach ($expr->items as $item) {
+                if ($item->key !== null) {
+                    $keyType = $this->resolveExpr($item->key);
+                    if ($keyType->isEqualTo(PicoType::fromString('string'))) {
+                        $hasStringKeys = true;
+                    }
+                }
                 $itemType = $this->resolveExpr($item->value);
                 if ($first) {
                     $elemType = $itemType;
                     $first = false;
                 }
             }
-            return PicoType::array($elemType);
+            $arrType = PicoType::array($elemType);
+            if ($hasStringKeys) {
+                $arrType->setStringKeys();
+            }
+            return $arrType;
         } elseif ($expr instanceof \PhpParser\Node\Expr\New_) {
             assert($expr->class instanceof \PhpParser\Node\Name);
             $className = $expr->class->toString();

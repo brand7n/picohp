@@ -71,6 +71,23 @@ class Builder
         $this->addLine('declare void @pico_array_push_ptr(ptr, ptr)');
         $this->addLine('declare ptr @pico_array_get_ptr(ptr, i32)');
         $this->addLine('declare void @pico_array_set_ptr(ptr, i32, ptr)');
+        $this->addLine();
+        $this->addLine('; map runtime (string-keyed associative arrays)');
+        $this->addLine('declare ptr @pico_map_new()');
+        $this->addLine('declare i32 @pico_map_len(ptr)');
+        $this->addLine('declare void @pico_map_set_int(ptr, ptr, i32)');
+        $this->addLine('declare void @pico_map_set_float(ptr, ptr, double)');
+        $this->addLine('declare void @pico_map_set_bool(ptr, ptr, i32)');
+        $this->addLine('declare void @pico_map_set_str(ptr, ptr, ptr)');
+        $this->addLine('declare void @pico_map_set_ptr(ptr, ptr, ptr)');
+        $this->addLine('declare i32 @pico_map_get_int(ptr, ptr)');
+        $this->addLine('declare double @pico_map_get_float(ptr, ptr)');
+        $this->addLine('declare i32 @pico_map_get_bool(ptr, ptr)');
+        $this->addLine('declare ptr @pico_map_get_str(ptr, ptr)');
+        $this->addLine('declare ptr @pico_map_get_ptr(ptr, ptr)');
+        $this->addLine('declare ptr @pico_map_get_key(ptr, i32)');
+        $this->addLine('declare i32 @pico_map_get_value_int(ptr, i32)');
+        $this->addLine('declare ptr @pico_map_get_value_str(ptr, i32)');
     }
 
     public function setInsertPoint(BasicBlock $bb): void
