@@ -79,6 +79,13 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
             return $node;
         }
 
+        // Resolve self in new expressions (e.g., new self())
+        if ($node instanceof Node\Expr\New_ && $node->class instanceof Node\Name && $node->class->toString() === 'self') {
+            assert($this->className !== null);
+            $node->class = new Node\Name($this->className);
+            return $node;
+        }
+
         // Convert static method calls (e.g., MyClass::methodName())
         if ($node instanceof Node\Expr\StaticCall) {
             if ($node->class instanceof Node\Name) {
