@@ -1129,9 +1129,6 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             assert($this->currentFunction !== null);
             $count = $pData->mycount;
 
-            // Alloca for result (use PTR as safe default, will be overwritten)
-            $resultPtr = $this->builder->createAlloca("ternary_result{$count}", BaseType::STRING);
-
             $condVal = $this->buildExpr($expr->cond);
             if ($condVal->getType() !== BaseType::BOOL) {
                 $condVal = $this->builder->createInstruction('icmp ne', [$condVal, new Constant(0, $condVal->getType())], resultType: BaseType::BOOL);
@@ -1144,6 +1141,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
             $this->builder->setInsertPoint($thenBB);
             $thenVal = $this->buildExpr($expr->if ?? $expr->cond);
+            $resultPtr = $this->builder->createAlloca("ternary_result{$count}", $thenVal->getType());
             $this->builder->createStore($thenVal, $resultPtr);
             $this->builder->createBranch([new Label($endBB->getName())]);
 

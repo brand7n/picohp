@@ -86,6 +86,34 @@ it('handles preg_match with capture groups', function () {
     expect($compiled_output)->toBe($php_output);
 });
 
+it('handles preg_match with no match and numeric capture', function () {
+    $file = 'tests/programs/functions/preg_match_no_match.php';
+
+    /** @phpstan-ignore-next-line */
+    $this->artisan("build --debug {$file}")->assertExitCode(0);
+
+    $buildPath = config('app.build_path');
+    assert(is_string($buildPath));
+    $compiled_output = shell_exec("{$buildPath}/a.out");
+    $php_output = shell_exec("php {$file}");
+
+    expect($compiled_output)->toBe($php_output);
+});
+
+it('handles end() on string arrays', function () {
+    $file = 'tests/programs/functions/builtins_end_str.php';
+
+    /** @phpstan-ignore-next-line */
+    $this->artisan("build --debug {$file}")->assertExitCode(0);
+
+    $buildPath = config('app.build_path');
+    assert(is_string($buildPath));
+    $compiled_output = shell_exec("{$buildPath}/a.out");
+    $php_output = shell_exec("php {$file}");
+
+    expect($compiled_output)->toBe($php_output);
+});
+
 it('handles array utility builtins (array_search, end, array_splice)', function () {
     $file = 'tests/programs/functions/builtins_array.php';
 
