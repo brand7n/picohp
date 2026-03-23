@@ -15,9 +15,15 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
     /** @var Node\Stmt[] */
     protected array $globalStatements = [];
 
+    protected bool $insideTrait = false;
+
     /** @return null|int|Node|Node[] */
     public function enterNode(Node $node)
     {
+        // Skip trait nodes — traits are inlined into classes during semantic analysis
+        if ($node instanceof Node\Stmt\Trait_) {
+            $this->insideTrait = true;
+        }
         // Capture the class name for use in transformations
         if ($node instanceof Node\Stmt\Class_) {
             assert($node->name !== null);
@@ -29,7 +35,13 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
     /** @return null|int|Node|Node[] */
     public function leaveNode(Node $node)
     {
-        // TODO: handle traits and interfaces
+        if ($node instanceof Node\Stmt\Trait_) {
+            $this->insideTrait = false;
+            return null;
+        }
+        if ($this->insideTrait) {
+            return null;
+        }
 
         // TODO: theoretically, we could remove the namespace declaration
         // but we need to handle the statements inside the namespace

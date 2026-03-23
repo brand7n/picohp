@@ -246,6 +246,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $fields = $classMeta->toLLVMStructFields();
             if ($fields !== '') {
                 $this->module->addLine(new IRLine("%struct.{$className} = type { {$fields} }"));
+            } else {
+                $this->module->addLine(new IRLine("%struct.{$className} = type {}"));
             }
             // Emit static properties as globals
             foreach ($classMeta->staticProperties as $propName => $propType) {
@@ -394,6 +396,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
             $this->builder->setInsertPoint($endBB);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Interface_) {
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Trait_) {
+            // Traits are inlined into classes at semantic analysis time; nothing to emit
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Enum_) {
             assert($stmt->name instanceof \PhpParser\Node\Identifier);
             $enumName = $stmt->name->toString();
