@@ -447,6 +447,7 @@ class SemanticAnalysisPass implements PassInterface
                 $exprType = $this->resolveExpr($stmt->expr);
                 $returnTypeOk = $this->currentFunctionReturnType === null
                     || $exprType->isEqualTo($this->currentFunctionReturnType)
+                    || ($this->currentFunctionReturnType->toBase() === BaseType::PTR && $exprType->toBase() === BaseType::PTR)
                     || ($this->currentFunctionReturnType->isNullable() && $stmt->expr instanceof \PhpParser\Node\Expr\ConstFetch && $stmt->expr->name->toLowerString() === 'null');
                 if (!$returnTypeOk) {
                     $line = $this->getLine($stmt);
@@ -602,7 +603,10 @@ class SemanticAnalysisPass implements PassInterface
             $rtype = $this->resolveExpr($expr->expr);
             $ltype = $this->resolveExpr($expr->var, $doc, lVal: true, rType: $rtype);
             $line = $this->getLine($expr);
-            assert($ltype->isEqualTo($rtype), "line {$line}, type mismatch in assignment");
+            // Allow assignment when types are compatible (same base type, or both ptr-based)
+            $compatible = $ltype->isEqualTo($rtype)
+                || ($ltype->toBase() === BaseType::PTR && $rtype->toBase() === BaseType::PTR);
+            assert($compatible, "line {$line}, type mismatch in assignment: {$ltype->toString()} = {$rtype->toString()}");
             return $rtype;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Variable) {
             $pData->lVal = $lVal;
