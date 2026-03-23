@@ -929,12 +929,17 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         $result = [];
         for ($i = 0; $i < $paramCount; $i++) {
             if (isset($argsByPos[$i])) {
-                $result[] = $this->buildExpr($argsByPos[$i]);
+                $val = $this->buildExpr($argsByPos[$i]);
             } elseif (isset($funcSymbol->defaults[$i])) {
-                $result[] = $this->buildDefaultValue($funcSymbol->defaults[$i]);
+                $val = $this->buildDefaultValue($funcSymbol->defaults[$i]);
             } else {
                 throw new \RuntimeException("missing argument {$i} for function {$funcSymbol->name} with no default");
             }
+            // Coerce int to float when param expects float (e.g. int|float union widened to float)
+            if ($val->getType() === BaseType::INT && $funcSymbol->params[$i]->toBase() === BaseType::FLOAT) {
+                $val = $this->builder->createSiToFp($val);
+            }
+            $result[] = $val;
         }
         return $result;
     }
