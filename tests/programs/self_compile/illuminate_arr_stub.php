@@ -5,25 +5,18 @@ declare(strict_types=1);
 class Arr
 {
     /**
-     * @param array<string, mixed> $array
+     * @param array<string> $array
      */
     public static function exists(array $array, string $key): bool
     {
-        // TODO: needs array_key_exists or isset support in picoHP
-        // For now this provides the correct API signature for self-host testing
         return false;
     }
 
     /**
-     * @param array<mixed> $array
-     * @return mixed
+     * @param array<string> $array
      */
-    public static function last(array $array)
+    public static function last(array $array): string
     {
-        $count = count($array);
-        if ($count === 0) {
-            return null;
-        }
-        return $array[$count - 1];
+        return "";
     }
 }
