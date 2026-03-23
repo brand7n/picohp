@@ -114,6 +114,8 @@ function stubbedSingleFileCheck(string $picoHP, string $tmpDir, bool $verbose): 
     $stubs = [
         __DIR__ . '/tests/programs/self_compile/basetype_stub.php',
         __DIR__ . '/tests/programs/self_compile/runtime_exception_stub.php',
+        __DIR__ . '/tests/programs/self_compile/illuminate_str_stub.php',
+        __DIR__ . '/tests/programs/self_compile/illuminate_arr_stub.php',
         __DIR__ . '/app/PicoHP/Tree/NodeInterface.php',
         __DIR__ . '/app/PicoHP/PassInterface.php',
         __DIR__ . '/app/PicoHP/LLVM/ValueAbstract.php',
@@ -229,10 +231,15 @@ function multiFileCheck(string $picoHP, string $tmpDir, bool $verbose): void
             __DIR__ . '/app/PicoHP/LLVM/Value/Label.php',
         ],
         'LLVM IR infrastructure' => [
+            __DIR__ . '/tests/programs/self_compile/runtime_exception_stub.php',
+            __DIR__ . '/tests/programs/self_compile/illuminate_str_stub.php',
+            __DIR__ . '/app/PicoHP/Tree/NodeInterface.php',
+            __DIR__ . '/app/PicoHP/Tree/NodeTrait.php',
             __DIR__ . '/app/PicoHP/LLVM/IRLine.php',
             __DIR__ . '/app/PicoHP/LLVM/BasicBlock.php',
         ],
         'Symbol table' => [
+            __DIR__ . '/tests/programs/self_compile/illuminate_arr_stub.php',
             __DIR__ . '/app/PicoHP/SymbolTable/Symbol.php',
             __DIR__ . '/app/PicoHP/SymbolTable/Scope.php',
             __DIR__ . '/app/PicoHP/SymbolTable.php',
