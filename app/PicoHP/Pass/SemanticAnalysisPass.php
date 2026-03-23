@@ -202,6 +202,31 @@ class SemanticAnalysisPass implements PassInterface
                     }
                 }
             }
+            if ($stmt instanceof \PhpParser\Node\Stmt\Interface_) {
+                assert($stmt->name instanceof \PhpParser\Node\Identifier);
+                $ifaceName = $stmt->name->toString();
+                $ifaceMeta = new ClassMetadata($ifaceName);
+                $this->classRegistry[$ifaceName] = $ifaceMeta;
+                foreach ($stmt->stmts as $ifaceStmt) {
+                    if ($ifaceStmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
+                        $methodName = $ifaceStmt->name->toString();
+                        assert($ifaceStmt->returnType === null || $ifaceStmt->returnType instanceof \PhpParser\Node\Identifier || $ifaceStmt->returnType instanceof \PhpParser\Node\NullableType || $ifaceStmt->returnType instanceof \PhpParser\Node\Name || $ifaceStmt->returnType instanceof \PhpParser\Node\UnionType);
+                        $returnType = $ifaceStmt->returnType !== null
+                            ? $this->typeFromNode($ifaceStmt->returnType)
+                            : PicoType::fromString('void');
+                        $methodSymbol = new \App\PicoHP\SymbolTable\Symbol($methodName, $returnType, func: true);
+                        $pi = 0;
+                        foreach ($ifaceStmt->params as $param) {
+                            $methodSymbol->defaults[$pi] = $param->default;
+                            assert($param->var instanceof \PhpParser\Node\Expr\Variable && is_string($param->var->name));
+                            $methodSymbol->paramNames[$pi] = $param->var->name;
+                            $pi++;
+                        }
+                        $ifaceMeta->methods[$methodName] = $methodSymbol;
+                        $ifaceMeta->methodOwner[$methodName] = $ifaceName;
+                    }
+                }
+            }
             if ($stmt instanceof \PhpParser\Node\Stmt\Enum_) {
                 assert($stmt->name instanceof \PhpParser\Node\Identifier);
                 $enumName = $stmt->name->toString();
@@ -770,6 +795,7 @@ class SemanticAnalysisPass implements PassInterface
             assert($expr->name instanceof \PhpParser\Node\Identifier);
             $className = $objType->getClassName();
             $methodName = $expr->name->toString();
+            assert(isset($this->classRegistry[$className]), "class {$className} not found in registry for method call {$methodName}");
             $classMeta = $this->classRegistry[$className];
             assert(isset($classMeta->methods[$methodName]), "method {$methodName} not found on class {$className}");
             $this->resolveArgs($expr->args);
