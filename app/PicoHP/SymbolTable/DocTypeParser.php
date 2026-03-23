@@ -39,10 +39,17 @@ class DocTypeParser
             $typeNode = $tag->type;
             if ($typeNode instanceof GenericTypeNode
                 && $typeNode->type->name === 'array'
-                && count($typeNode->genericTypes) === 2
-                && $typeNode->genericTypes[1] instanceof IdentifierTypeNode
             ) {
-                return PicoType::array(PicoType::fromString($typeNode->genericTypes[1]->name));
+                if (count($typeNode->genericTypes) === 2
+                    && $typeNode->genericTypes[1] instanceof IdentifierTypeNode
+                ) {
+                    return PicoType::array(PicoType::fromString($typeNode->genericTypes[1]->name));
+                }
+                if (count($typeNode->genericTypes) === 1
+                    && $typeNode->genericTypes[0] instanceof IdentifierTypeNode
+                ) {
+                    return PicoType::array(PicoType::fromString($typeNode->genericTypes[0]->name));
+                }
             }
             return PicoType::fromString((string)$typeNode);
         }
