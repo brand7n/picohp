@@ -763,6 +763,20 @@ class SemanticAnalysisPass implements PassInterface
             if ($funcName === 'intval') {
                 return PicoType::fromString('int');
             }
+            if ($funcName === 'array_reverse') {
+                assert(count($expr->args) >= 1);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                return $this->resolveExpr($expr->args[0]->value);
+            }
+            if ($funcName === 'array_pop' || $funcName === 'array_shift') {
+                return PicoType::fromString('void');
+            }
+            if ($funcName === 'array_merge') {
+                if (count($expr->args) >= 1 && $expr->args[0] instanceof \PhpParser\Node\Arg) {
+                    return $this->resolveExpr($expr->args[0]->value);
+                }
+                return PicoType::fromString('array');
+            }
             if ($funcName === 'assert') {
                 return PicoType::fromString('void');
             }
