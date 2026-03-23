@@ -159,12 +159,19 @@ class SemanticAnalysisPass implements PassInterface
                 $stmt->stmts = $inlinedStmts;
                 foreach ($stmt->stmts as $classStmt) {
                     if ($classStmt instanceof \PhpParser\Node\Stmt\Property) {
-                        assert($classStmt->type instanceof \PhpParser\Node\Identifier || $classStmt->type instanceof \PhpParser\Node\NullableType || $classStmt->type instanceof \PhpParser\Node\Name || $classStmt->type instanceof \PhpParser\Node\UnionType);
-                        $doc = $classStmt->getDocComment();
-                        if ($doc !== null) {
+                        if ($classStmt->type === null) {
+                            // No native type hint — require PHPDoc
+                            $doc = $classStmt->getDocComment();
+                            assert($doc !== null, 'untyped property requires PHPDoc type annotation');
                             $propType = $this->docTypeParser->parseType($doc->getText());
                         } else {
-                            $propType = $this->typeFromNode($classStmt->type);
+                            assert($classStmt->type instanceof \PhpParser\Node\Identifier || $classStmt->type instanceof \PhpParser\Node\NullableType || $classStmt->type instanceof \PhpParser\Node\Name || $classStmt->type instanceof \PhpParser\Node\UnionType);
+                            $doc = $classStmt->getDocComment();
+                            if ($doc !== null) {
+                                $propType = $this->docTypeParser->parseType($doc->getText());
+                            } else {
+                                $propType = $this->typeFromNode($classStmt->type);
+                            }
                         }
                         if ($classStmt->isStatic()) {
                             foreach ($classStmt->props as $prop) {
