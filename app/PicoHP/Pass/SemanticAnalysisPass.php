@@ -808,6 +808,10 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\New_) {
             assert($expr->class instanceof \PhpParser\Node\Name);
             $className = $expr->class->toString();
+            if ($className === 'self') {
+                assert($this->currentClass !== null);
+                $className = $this->currentClass->name;
+            }
             assert(isset($this->classRegistry[$className]), "class {$className} not found");
             $this->resolveArgs($expr->args);
             return PicoType::object($className);
@@ -856,6 +860,10 @@ class SemanticAnalysisPass implements PassInterface
             $className = $expr->class->toString();
             $methodName = $expr->name->toString();
             $this->resolveArgs($expr->args);
+            if ($className === 'self') {
+                assert($this->currentClass !== null);
+                $className = $this->currentClass->name;
+            }
             if ($className === 'parent') {
                 assert($this->currentClass !== null);
                 assert($this->currentClass->parentName !== null, "parent:: used but class has no parent");
