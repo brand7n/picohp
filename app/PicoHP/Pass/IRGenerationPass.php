@@ -755,6 +755,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                     $getFunc = 'pico_map_get_' . match ($varType->getElementBaseType()) {
                         BaseType::INT => 'int',
                         BaseType::FLOAT => 'float',
+                        BaseType::BOOL => 'bool',
                         BaseType::STRING => 'str',
                         default => throw new \RuntimeException("unsupported map get type"),
                     };

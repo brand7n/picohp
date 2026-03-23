@@ -82,7 +82,9 @@ class Builder
         $this->addLine('declare void @pico_map_set_ptr(ptr, ptr, ptr)');
         $this->addLine('declare i32 @pico_map_get_int(ptr, ptr)');
         $this->addLine('declare double @pico_map_get_float(ptr, ptr)');
+        $this->addLine('declare i32 @pico_map_get_bool(ptr, ptr)');
         $this->addLine('declare ptr @pico_map_get_str(ptr, ptr)');
+        $this->addLine('declare ptr @pico_map_get_ptr(ptr, ptr)');
         $this->addLine('declare ptr @pico_map_get_key(ptr, i32)');
         $this->addLine('declare i32 @pico_map_get_value_int(ptr, i32)');
         $this->addLine('declare ptr @pico_map_get_value_str(ptr, i32)');

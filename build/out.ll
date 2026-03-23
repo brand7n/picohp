@@ -12,12 +12,26 @@ declare i32 @printf(ptr, ...)
 declare ptr @pico_string_concat(ptr, ptr)
 declare i32 @pico_rt_version()
 declare i32 @pico_string_len(ptr)
+declare ptr @pico_int_to_string(i32)
+declare ptr @pico_float_to_string(double)
+declare ptr @pico_float_to_hex(double)
 declare i32 @pico_string_starts_with(ptr, ptr)
 declare i32 @pico_string_contains(ptr, ptr)
 declare ptr @pico_string_substr(ptr, i32, i32)
 declare ptr @pico_string_trim(ptr)
 declare ptr @pico_string_repeat(ptr, i32)
+declare ptr @pico_string_replace(ptr, ptr, ptr)
 declare ptr @picohp_object_alloc(i64, i32)
+
+; exception handling
+declare i32 @setjmp(ptr)
+declare void @picohp_eh_push(ptr)
+declare void @picohp_eh_pop()
+declare void @picohp_throw(ptr, i32)
+declare ptr @picohp_eh_get_exception()
+declare i32 @picohp_eh_get_type_id()
+declare i32 @picohp_eh_matches_type(i32)
+declare void @picohp_eh_clear()
 
 ; array runtime
 declare ptr @pico_array_new()
@@ -37,6 +51,38 @@ declare void @pico_array_set_str(ptr, i32, ptr)
 declare void @pico_array_push_ptr(ptr, ptr)
 declare ptr @pico_array_get_ptr(ptr, i32)
 declare void @pico_array_set_ptr(ptr, i32, ptr)
+
+; map runtime (string-keyed associative arrays)
+declare ptr @pico_map_new()
+declare i32 @pico_map_len(ptr)
+declare void @pico_map_set_int(ptr, ptr, i32)
+declare void @pico_map_set_float(ptr, ptr, double)
+declare void @pico_map_set_bool(ptr, ptr, i32)
+declare void @pico_map_set_str(ptr, ptr, ptr)
+declare void @pico_map_set_ptr(ptr, ptr, ptr)
+declare i32 @pico_map_get_int(ptr, ptr)
+declare double @pico_map_get_float(ptr, ptr)
+declare i32 @pico_map_get_bool(ptr, ptr)
+declare ptr @pico_map_get_str(ptr, ptr)
+declare ptr @pico_map_get_ptr(ptr, ptr)
+declare ptr @pico_map_get_key(ptr, i32)
+declare i32 @pico_map_get_value_int(ptr, i32)
+declare ptr @pico_map_get_value_str(ptr, i32)
+%struct.Exception = type { ptr }
+define dso_local void @Exception___construct(ptr %0, ptr %1) {
+entry:
+    %gep_field0_result1 = getelementptr inbounds %struct.Exception, ptr %0, i32 0, i32 0
+    store ptr %1, ptr %gep_field0_result1
+    ret void
+}
+
+define dso_local ptr @Exception_getMessage(ptr %0) {
+entry:
+    %gep_field0_result2 = getelementptr inbounds %struct.Exception, ptr %0, i32 0, i32 0
+    %gep_field0_load_result3 = load ptr, ptr %gep_field0_result2
+    ret ptr %gep_field0_load_result3
+}
+
 define dso_local i32 @main() {
 entry:
     call void @print_twice (i32 42)
@@ -45,21 +91,21 @@ entry:
 
 define dso_local void @print_value(i32 %0) {
 entry:
-    %x_localptr1 = alloca i32
-    store i32 %0, i32* %x_localptr1
-    %x_load_result2 = load i32, ptr %x_localptr1
-    call i32 (ptr, ...) @printf(ptr @.str.d, i32 %x_load_result2)
+    %x_localptr4 = alloca i32
+    store i32 %0, i32* %x_localptr4
+    %x_load_result5 = load i32, ptr %x_localptr4
+    call i32 (ptr, ...) @printf(ptr @.str.d, i32 %x_load_result5)
     ret void
 }
 
 define dso_local void @print_twice(i32 %0) {
 entry:
-    %x_localptr3 = alloca i32
-    store i32 %0, i32* %x_localptr3
-    %x_load_result4 = load i32, ptr %x_localptr3
-    call void @print_value (i32 %x_load_result4)
-    %x_load_result5 = load i32, ptr %x_localptr3
-    call void @print_value (i32 %x_load_result5)
+    %x_localptr6 = alloca i32
+    store i32 %0, i32* %x_localptr6
+    %x_load_result7 = load i32, ptr %x_localptr6
+    call void @print_value (i32 %x_load_result7)
+    %x_load_result8 = load i32, ptr %x_localptr6
+    call void @print_value (i32 %x_load_result8)
     ret void
 }
 

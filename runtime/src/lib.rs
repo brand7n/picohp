@@ -561,6 +561,26 @@ pub extern "C" fn pico_map_get_str(map: *const PicoMap, key: *const c_char) -> *
     }
 }
 
+#[no_mangle]
+pub extern "C" fn pico_map_get_ptr(map: *const PicoMap, key: *const c_char) -> *mut u8 {
+    let map = unsafe { &*map };
+    let i = map.find_index(key).expect("pico_map_get_ptr: key not found");
+    match &map.entries[i].value {
+        PicoValue::Ptr(v) => *v,
+        _ => panic!("pico_map_get_ptr: value is not a pointer"),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn pico_map_get_bool(map: *const PicoMap, key: *const c_char) -> i32 {
+    let map = unsafe { &*map };
+    let i = map.find_index(key).expect("pico_map_get_bool: key not found");
+    match &map.entries[i].value {
+        PicoValue::Bool(v) => *v as i32,
+        _ => panic!("pico_map_get_bool: value is not a bool"),
+    }
+}
+
 // -- foreach support --------------------------------------------------------
 
 /// Get the key at the given index (for ordered iteration).
