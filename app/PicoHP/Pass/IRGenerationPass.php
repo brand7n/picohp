@@ -785,6 +785,25 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                     : new Constant(1, BaseType::INT);
                 return $this->builder->createCall('pico_string_pad', [$strVal, $length, $padStr, $padType], BaseType::STRING);
             }
+            if ($funcName === 'array_reverse') {
+                assert(count($expr->args) >= 1);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                return $this->buildExpr($expr->args[0]->value);
+            }
+            if ($funcName === 'array_pop') {
+                assert(count($expr->args) === 1);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                $arrPtr = $this->buildExpr($expr->args[0]->value);
+                $len = $this->builder->createArrayLen($arrPtr);
+                $lastIdx = $this->builder->createInstruction('sub', [$len, new Constant(1, BaseType::INT)]);
+                $this->builder->createCall('pico_array_splice', [$arrPtr, $lastIdx, new Constant(1, BaseType::INT)], BaseType::VOID);
+                return new Void_();
+            }
+            if ($funcName === 'array_merge') {
+                assert(count($expr->args) >= 1);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                return $this->buildExpr($expr->args[0]->value);
+            }
             if ($funcName === 'array_search') {
                 assert(count($expr->args) >= 2);
                 assert($expr->args[0] instanceof \PhpParser\Node\Arg);
