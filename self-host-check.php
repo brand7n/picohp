@@ -117,6 +117,7 @@ function stubbedSingleFileCheck(string $picoHP, string $tmpDir, bool $verbose): 
         __DIR__ . '/tests/programs/self_compile/illuminate_str_stub.php',
         __DIR__ . '/tests/programs/self_compile/illuminate_arr_stub.php',
         __DIR__ . '/app/PicoHP/Tree/NodeInterface.php',
+        __DIR__ . '/app/PicoHP/Tree/NodeTrait.php',
         __DIR__ . '/app/PicoHP/PassInterface.php',
         __DIR__ . '/app/PicoHP/LLVM/ValueAbstract.php',
         __DIR__ . '/app/PicoHP/LLVM/Value/Instruction.php',
