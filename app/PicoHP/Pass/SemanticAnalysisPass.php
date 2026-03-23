@@ -24,6 +24,9 @@ class SemanticAnalysisPass implements PassInterface
     /** @var array<string, EnumMetadata> */
     protected array $enumRegistry = [];
 
+    /** @var array<string, array{properties: array<\PhpParser\Node\Stmt\Property>, methods: array<\PhpParser\Node\Stmt\ClassMethod>}> */
+    protected array $traitRegistry = [];
+
     /**
      * @param array<\PhpParser\Node> $ast
      */
@@ -101,6 +104,15 @@ class SemanticAnalysisPass implements PassInterface
      */
     protected function registerClasses(array $stmts): void
     {
+        // Pre-pass: register all traits before processing classes
+        foreach ($stmts as $stmt) {
+            if ($stmt instanceof \PhpParser\Node\Stmt\Namespace_) {
+                $this->registerTraits($stmt->stmts);
+            } elseif ($stmt instanceof \PhpParser\Node\Stmt\Trait_) {
+                $this->registerTrait($stmt);
+            }
+        }
+
         foreach ($stmts as $stmt) {
             if ($stmt instanceof \PhpParser\Node\Stmt\Namespace_) {
                 $this->registerClasses($stmt->stmts);
@@ -125,6 +137,26 @@ class SemanticAnalysisPass implements PassInterface
                 if ($this->isExceptionClass($className)) {
                     $this->typeIdMap[$className] = $this->nextTypeId++;
                 }
+                // Inline trait members into class AST
+                $inlinedStmts = [];
+                foreach ($stmt->stmts as $classStmt) {
+                    if ($classStmt instanceof \PhpParser\Node\Stmt\TraitUse) {
+                        foreach ($classStmt->traits as $traitName) {
+                            $name = $traitName->toString();
+                            assert(isset($this->traitRegistry[$name]), "trait {$name} not found");
+                            $trait = $this->traitRegistry[$name];
+                            foreach ($trait['properties'] as $prop) {
+                                $inlinedStmts[] = clone $prop;
+                            }
+                            foreach ($trait['methods'] as $method) {
+                                $inlinedStmts[] = clone $method;
+                            }
+                        }
+                    } else {
+                        $inlinedStmts[] = $classStmt;
+                    }
+                }
+                $stmt->stmts = $inlinedStmts;
                 foreach ($stmt->stmts as $classStmt) {
                     if ($classStmt instanceof \PhpParser\Node\Stmt\Property) {
                         assert($classStmt->type instanceof \PhpParser\Node\Identifier || $classStmt->type instanceof \PhpParser\Node\NullableType || $classStmt->type instanceof \PhpParser\Node\Name || $classStmt->type instanceof \PhpParser\Node\UnionType);
@@ -186,6 +218,36 @@ class SemanticAnalysisPass implements PassInterface
                 }
             }
         }
+    }
+
+    /**
+     * Pre-pass: register all traits from a list of statements.
+     *
+     * @param array<\PhpParser\Node\Stmt> $stmts
+     */
+    protected function registerTraits(array $stmts): void
+    {
+        foreach ($stmts as $stmt) {
+            if ($stmt instanceof \PhpParser\Node\Stmt\Trait_) {
+                $this->registerTrait($stmt);
+            }
+        }
+    }
+
+    protected function registerTrait(\PhpParser\Node\Stmt\Trait_ $stmt): void
+    {
+        assert($stmt->name instanceof \PhpParser\Node\Identifier);
+        $traitName = $stmt->name->toString();
+        $properties = [];
+        $methods = [];
+        foreach ($stmt->stmts as $traitStmt) {
+            if ($traitStmt instanceof \PhpParser\Node\Stmt\Property) {
+                $properties[] = $traitStmt;
+            } elseif ($traitStmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
+                $methods[] = $traitStmt;
+            }
+        }
+        $this->traitRegistry[$traitName] = ['properties' => $properties, 'methods' => $methods];
     }
 
     /**
@@ -474,6 +536,8 @@ class SemanticAnalysisPass implements PassInterface
             if ($stmt->finally !== null) {
                 $this->resolveStmts($stmt->finally->stmts);
             }
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Trait_) {
+            // Traits are inlined into classes during registration; skip
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Namespace_) {
             $this->resolveStmts($stmt->stmts);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\InlineHTML) {

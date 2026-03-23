@@ -34,6 +34,7 @@ class GlobalToMainVisitor extends NodeVisitorAbstract
             && !$node instanceof Node\Stmt\Function_
             && !$node instanceof Node\Stmt\Class_
             && !$node instanceof Node\Stmt\Interface_
+            && !$node instanceof Node\Stmt\Trait_
         ) {
             assert($node instanceof Node\Stmt);
             if ($node instanceof Node\Stmt\Namespace_) {
