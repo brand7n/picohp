@@ -19,6 +19,7 @@ $tmpDir = sys_get_temp_dir() . '/picohp-multi-test';
 
 if (!$multiOnly) {
     singleFileCheck($picoHP, $verbose);
+    stubbedSingleFileCheck($picoHP, $tmpDir, $verbose);
 }
 
 multiFileCheck($picoHP, $tmpDir, $verbose);
@@ -102,6 +103,106 @@ function singleFileCheck(string $picoHP, bool $verbose): void
     }
 }
 
+function stubbedSingleFileCheck(string $picoHP, string $tmpDir, bool $verbose): void
+{
+    echo "\n━━━ picoHP compiler (stubbed single-file) ━━━\n";
+
+    @mkdir($tmpDir, 0755, true);
+
+    // Core stubs that already compile — prepended to each file under test
+    // Order matters: dependencies must come before dependents
+    $stubs = [
+        __DIR__ . '/tests/programs/self_compile/basetype_stub.php',
+        __DIR__ . '/tests/programs/self_compile/runtime_exception_stub.php',
+        __DIR__ . '/app/PicoHP/Tree/NodeInterface.php',
+        __DIR__ . '/app/PicoHP/PassInterface.php',
+        __DIR__ . '/app/PicoHP/LLVM/ValueAbstract.php',
+        __DIR__ . '/app/PicoHP/LLVM/Value/Instruction.php',
+    ];
+
+    // Files already included in stubs — skip testing them individually
+    $stubSet = array_map('realpath', $stubs);
+
+    // Files to test with stubs — each is compiled as stubs + file
+    $files = glob(__DIR__ . '/app/PicoHP/{,*/,*/*/}*.php', GLOB_BRACE);
+    assert(is_array($files));
+    sort($files);
+
+    $pass = 0;
+    $fail = 0;
+    $results = [];
+
+    foreach ($files as $path) {
+        $relative = str_replace(__DIR__ . '/', '', $path);
+        $realPath = realpath($path);
+
+        // Skip files already in the stub set or that define BaseType (in stub)
+        if (in_array($realPath, $stubSet, true) || str_ends_with($path, '/PicoType.php')) {
+            continue;
+        }
+
+        $combined = combineFiles(array_merge($stubs, [$path]));
+        $combinedPath = "{$tmpDir}/stubbed_" . str_replace('/', '_', $relative);
+        file_put_contents($combinedPath, $combined);
+
+        $output = [];
+        $exitCode = 0;
+        exec("{$picoHP} build {$combinedPath} 2>&1", $output, $exitCode);
+
+        if ($exitCode === 0) {
+            $pass++;
+            $results[] = ['status' => 'pass', 'file' => $relative, 'error' => ''];
+        } else {
+            $fail++;
+            $errorMsg = extractError($output);
+            $results[] = ['status' => 'fail', 'file' => $relative, 'error' => $errorMsg];
+        }
+    }
+
+    usort($results, fn ($a, $b) => $a['status'] <=> $b['status']);
+
+    foreach ($results as $r) {
+        if ($r['status'] === 'pass') {
+            echo "  ✅ {$r['file']}\n";
+        } else {
+            if ($verbose) {
+                echo "  ❌ {$r['file']}\n     {$r['error']}\n";
+            } else {
+                echo "  ❌ {$r['file']}\n";
+            }
+        }
+    }
+
+    $total = $pass + $fail;
+    echo "\n━━━ Stubbed single-file summary ━━━\n";
+    echo "  Total: {$total}  Pass: {$pass}  Fail: {$fail}\n";
+    $pct = $total > 0 ? round($pass / $total * 100, 1) : 0;
+    echo "  Success rate: {$pct}%\n";
+}
+
+/**
+ * Combine multiple PHP files into one, stripping tags/namespaces/use/declare.
+ *
+ * @param array<string> $files
+ */
+function combineFiles(array $files): string
+{
+    $combined = "<?php\n\n";
+    foreach ($files as $file) {
+        $content = file_get_contents($file);
+        assert(is_string($content));
+        $content = preg_replace('/^<\?php\s*/', '', $content);
+        assert(is_string($content));
+        $content = preg_replace('/^namespace\s+[^;]+;\s*$/m', '', $content);
+        $content = preg_replace('/^use\s+[^;]+;\s*$/m', '', $content);
+        $content = preg_replace('/^declare\s*\([^)]+\)\s*;\s*$/m', '', $content);
+        assert(is_string($content));
+        $combined .= "// --- " . basename($file) . " ---\n";
+        $combined .= $content . "\n";
+    }
+    return $combined;
+}
+
 function multiFileCheck(string $picoHP, string $tmpDir, bool $verbose): void
 {
     echo "\n━━━ Multi-file groups ━━━\n";
@@ -115,12 +216,14 @@ function multiFileCheck(string $picoHP, string $tmpDir, bool $verbose): void
             __DIR__ . '/app/PicoHP/LLVM/Value/NullConstant.php',
             __DIR__ . '/app/PicoHP/LLVM/Value/Param.php',
         ],
-        'LLVM Value hierarchy - no Constant no Void' => [
+        'LLVM Value hierarchy - no Constant' => [
             __DIR__ . '/tests/programs/self_compile/basetype_stub.php',
+            __DIR__ . '/tests/programs/self_compile/runtime_exception_stub.php',
             __DIR__ . '/app/PicoHP/LLVM/ValueAbstract.php',
             __DIR__ . '/app/PicoHP/LLVM/Value/NullConstant.php',
             __DIR__ . '/app/PicoHP/LLVM/Value/Param.php',
             __DIR__ . '/app/PicoHP/LLVM/Value/Global_.php',
+            __DIR__ . '/app/PicoHP/LLVM/Value/Void_.php',
             __DIR__ . '/app/PicoHP/LLVM/Value/Instruction.php',
             __DIR__ . '/app/PicoHP/LLVM/Value/AllocaInst.php',
             __DIR__ . '/app/PicoHP/LLVM/Value/Label.php',
@@ -159,24 +262,7 @@ function multiFileCheck(string $picoHP, string $tmpDir, bool $verbose): void
             continue;
         }
 
-        // Concatenate files, stripping duplicate PHP tags and namespace/use statements
-        $combined = "<?php\n\n";
-        foreach ($files as $file) {
-            $content = file_get_contents($file);
-            assert(is_string($content));
-            // Strip PHP open tags
-            $content = preg_replace('/^<\?php\s*/', '', $content);
-            assert(is_string($content));
-            // Strip namespace declarations
-            $content = preg_replace('/^namespace\s+[^;]+;\s*$/m', '', $content);
-            // Strip use statements
-            $content = preg_replace('/^use\s+[^;]+;\s*$/m', '', $content);
-            // Strip declare statements
-            $content = preg_replace('/^declare\s*\([^)]+\)\s*;\s*$/m', '', $content);
-            assert(is_string($content));
-            $combined .= "// --- " . basename($file) . " ---\n";
-            $combined .= $content . "\n";
-        }
+        $combined = combineFiles($files);
 
         $combinedPath = "{$tmpDir}/" . str_replace(' ', '_', $name) . '.php';
         file_put_contents($combinedPath, $combined);
