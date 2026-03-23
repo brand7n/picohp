@@ -945,6 +945,10 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             assert($expr->name instanceof \PhpParser\Node\Identifier);
             $targetClass = $expr->class->toString();
             $methodName = $expr->name->toString();
+            if ($targetClass === 'self') {
+                assert($this->currentClassName !== null);
+                $targetClass = $this->currentClassName;
+            }
             if ($targetClass === 'parent') {
                 assert($this->currentClassName !== null);
                 $classMeta = $this->classRegistry[$this->currentClassName];

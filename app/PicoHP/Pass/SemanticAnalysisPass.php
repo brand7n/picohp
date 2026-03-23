@@ -856,6 +856,10 @@ class SemanticAnalysisPass implements PassInterface
             $className = $expr->class->toString();
             $methodName = $expr->name->toString();
             $this->resolveArgs($expr->args);
+            if ($className === 'self') {
+                assert($this->currentClass !== null);
+                $className = $this->currentClass->name;
+            }
             if ($className === 'parent') {
                 assert($this->currentClass !== null);
                 assert($this->currentClass->parentName !== null, "parent:: used but class has no parent");
