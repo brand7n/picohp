@@ -32,6 +32,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     /** @var array<string, int> class name => type_id */
     protected array $typeIdMap = [];
 
+    protected int $vdispatchCount = 0;
+
     /**
      * @param array<\PhpParser\Node> $stmts
      * @param array<string, ClassMetadata> $classRegistry
@@ -914,7 +916,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             assert($expr->class instanceof \PhpParser\Node\Name);
             $className = $expr->class->toString();
             $classMeta = $this->classRegistry[$className];
-            $objPtr = $this->builder->createObjectAlloc($className);
+            $typeId = $this->typeIdMap[$className] ?? 0;
+            $objPtr = $this->builder->createObjectAlloc($className, $typeId);
+            // Store type_id in field 0
+            $typeIdPtr = $this->builder->createStructGEP($className, $objPtr, 0, BaseType::INT);
+            $this->builder->createStore(new Constant($typeId, BaseType::INT), $typeIdPtr);
             // Call constructor if it exists
             if (isset($classMeta->methods['__construct'])) {
                 $ctorSymbol = $classMeta->methods['__construct'];
@@ -961,9 +967,16 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $args = $this->buildArgsWithDefaults($expr->args, $methodSymbol);
             /** @var array<ValueAbstract> $allArgs */
             $allArgs = array_merge([$objVal], $args);
+            $returnType = $methodSymbol->type->toBase();
+
+            // Check if this is a virtual dispatch (interface or abstract type without type_id)
+            if (!isset($this->typeIdMap[$className])) {
+                return $this->emitVirtualDispatch($objVal, $className, $methodName, $allArgs, $returnType);
+            }
+
             $ownerClass = $classMeta->methodOwner[$methodName] ?? $className;
             $qualifiedName = "{$ownerClass}_{$methodName}";
-            return $this->builder->createCall($qualifiedName, $allArgs, $methodSymbol->type->toBase());
+            return $this->builder->createCall($qualifiedName, $allArgs, $returnType);
         } elseif ($expr instanceof \PhpParser\Node\Expr\StaticCall) {
             assert($expr->class instanceof \PhpParser\Node\Name);
             assert($expr->name instanceof \PhpParser\Node\Identifier);
@@ -1163,7 +1176,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             assert($newExpr->class instanceof \PhpParser\Node\Name);
             $className = $newExpr->class->toString();
             $classMeta = $this->classRegistry[$className];
-            $objPtr = $this->builder->createObjectAlloc($className);
+            $typeId = $this->typeIdMap[$className] ?? 0;
+            $objPtr = $this->builder->createObjectAlloc($className, $typeId);
+            // Store type_id in field 0
+            $typeIdPtr = $this->builder->createStructGEP($className, $objPtr, 0, BaseType::INT);
+            $this->builder->createStore(new Constant($typeId, BaseType::INT), $typeIdPtr);
             // Call constructor if it exists
             if (isset($classMeta->methods['__construct'])) {
                 $ctorSymbol = $classMeta->methods['__construct'];
@@ -1332,6 +1349,77 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             return $classMeta->methods[$expr->name->toString()]->type;
         }
         throw new \RuntimeException('getExprResolvedType: unsupported expr type ' . get_class($expr));
+    }
+
+    /**
+     * Emit virtual dispatch for a method call on an interface-typed variable.
+     * Loads the type_id from field 0 of the object, then emits a switch to
+     * dispatch to the correct concrete class method.
+     *
+     * @param array<\App\PicoHP\LLVM\ValueAbstract> $allArgs
+     */
+    protected function emitVirtualDispatch(
+        ValueAbstract $objVal,
+        string $interfaceName,
+        string $methodName,
+        array $allArgs,
+        BaseType $returnType,
+    ): ValueAbstract {
+        assert($this->currentFunction !== null);
+
+        // Find all classes that implement this interface
+        $implementors = [];
+        foreach ($this->classRegistry as $name => $meta) {
+            if (in_array($interfaceName, $meta->interfaces, true)) {
+                $implementors[] = $name;
+            }
+        }
+        assert(count($implementors) > 0, "no implementors found for interface {$interfaceName}");
+
+        $vd = $this->vdispatchCount++;
+
+        // Load type_id from field 0 (all structs have i32 type_id as first field)
+        $typeIdPtr = $this->builder->createStructGEP($implementors[0], $objVal, 0, BaseType::INT);
+        $typeIdVal = $this->builder->createLoad($typeIdPtr);
+
+        // If only one implementor, skip the switch
+        if (count($implementors) === 1) {
+            $implClass = $implementors[0];
+            $implMeta = $this->classRegistry[$implClass];
+            $ownerClass = $implMeta->methodOwner[$methodName] ?? $implClass;
+            return $this->builder->createCall("{$ownerClass}_{$methodName}", $allArgs, $returnType);
+        }
+
+        // Multiple implementors: emit switch on type_id
+        $resultPtr = $this->builder->createAlloca("vd{$vd}_result", $returnType);
+        $endBB = $this->currentFunction->addBasicBlock("vd{$vd}_end");
+
+        $caseBBs = [];
+        foreach ($implementors as $i => $implClass) {
+            $caseBBs[$implClass] = $this->currentFunction->addBasicBlock("vd{$vd}_case{$i}");
+        }
+
+        $defaultBB = $caseBBs[$implementors[0]];
+
+        $switchCases = [];
+        foreach ($implementors as $implClass) {
+            $typeId = $this->typeIdMap[$implClass];
+            $switchCases[] = "i32 {$typeId}, label %{$caseBBs[$implClass]->getName()}";
+        }
+        $casesStr = implode(' ', $switchCases);
+        $this->builder->addLine("switch i32 {$typeIdVal->render()}, label %{$defaultBB->getName()} [{$casesStr}]", 1);
+
+        foreach ($implementors as $implClass) {
+            $this->builder->setInsertPoint($caseBBs[$implClass]);
+            $implMeta = $this->classRegistry[$implClass];
+            $ownerClass = $implMeta->methodOwner[$methodName] ?? $implClass;
+            $callResult = $this->builder->createCall("{$ownerClass}_{$methodName}", $allArgs, $returnType);
+            $this->builder->createStore($callResult, $resultPtr);
+            $this->builder->createBranch([new Label($endBB->getName())]);
+        }
+
+        $this->builder->setInsertPoint($endBB);
+        return $this->builder->createLoad($resultPtr);
     }
 
     /**
