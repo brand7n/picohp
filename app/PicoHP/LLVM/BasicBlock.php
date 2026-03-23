@@ -44,8 +44,8 @@ class BasicBlock implements NodeInterface
     public function verify(): void
     {
         $lastLine = end($this->lines);
-        if ($lastLine === false || !Str::startsWith(trim($lastLine->toString()), ['ret', 'br', 'unreachable'])) {
-            throw new \RuntimeException("Basic block {$this->name} must end with ret, br, or unreachable");
+        if ($lastLine === false || !Str::startsWith(trim($lastLine->toString()), ['ret', 'br', 'unreachable', 'switch'])) {
+            throw new \RuntimeException("Basic block {$this->name} must end with ret, br, unreachable, or switch");
         }
     }
 }

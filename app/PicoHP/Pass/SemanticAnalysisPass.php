@@ -133,9 +133,11 @@ class SemanticAnalysisPass implements PassInterface
                     assert(isset($this->classRegistry[$parentName]), "parent class {$parentName} not found");
                     $classMeta->inheritFrom($this->classRegistry[$parentName]);
                 }
-                // Assign type_id if this class is throwable (extends Exception hierarchy)
-                if ($this->isExceptionClass($className)) {
-                    $this->typeIdMap[$className] = $this->nextTypeId++;
+                // Assign type_id to all classes (used for virtual dispatch and exceptions)
+                $this->typeIdMap[$className] = $this->nextTypeId++;
+                // Track implemented interfaces
+                foreach ($stmt->implements as $iface) {
+                    $classMeta->interfaces[] = $iface->toString();
                 }
                 // Inline trait members into class AST
                 $inlinedStmts = [];

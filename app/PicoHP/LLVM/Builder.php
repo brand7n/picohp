@@ -447,7 +447,7 @@ class Builder
     //     return $resultVal;
     // }
 
-    protected function addLine(string $line = '', int $indent = 0): void
+    public function addLine(string $line = '', int $indent = 0): void
     {
         if ($this->currentBasicBlock !== null) {
             $this->currentBasicBlock->addLine(new IRLine($line, $indent));

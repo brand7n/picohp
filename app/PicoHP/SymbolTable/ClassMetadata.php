@@ -11,6 +11,9 @@ class ClassMetadata
     public string $name;
     public ?string $parentName = null;
 
+    /** @var array<string> interface names this class implements */
+    public array $interfaces = [];
+
     /** @var array<string, PicoType> property name => type */
     public array $properties = [];
 
@@ -37,7 +40,8 @@ class ClassMetadata
     public function inheritFrom(ClassMetadata $parent): void
     {
         $this->parentName = $parent->name;
-        // Copy parent properties first (preserving offsets)
+        $this->interfaces = array_merge($this->interfaces, $parent->interfaces);
+        // Copy parent properties first (preserving offsets — already includes type_id offset)
         foreach ($parent->properties as $propName => $propType) {
             $this->properties[$propName] = $propType;
             $this->propertyOffsets[$propName] = $parent->propertyOffsets[$propName];
@@ -51,7 +55,8 @@ class ClassMetadata
 
     public function addProperty(string $name, PicoType $type): int
     {
-        $index = count($this->properties);
+        // +1 because field 0 is always type_id for virtual dispatch
+        $index = count($this->properties) + 1;
         $this->properties[$name] = $type;
         $this->propertyOffsets[$name] = $index;
         return $index;
@@ -75,7 +80,8 @@ class ClassMetadata
      */
     public function toLLVMStructFields(): string
     {
-        $fields = [];
+        // First field is always type_id (i32) for virtual dispatch
+        $fields = ['i32'];
         foreach ($this->properties as $type) {
             $fields[] = $type->toBase()->toLLVM();
         }
