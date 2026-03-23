@@ -361,6 +361,42 @@ class SemanticAnalysisPass implements PassInterface
         return $this->isSubclassOf($meta->parentName, $parentName);
     }
 
+    /**
+     * Check if rtype can be assigned to a variable/return of ltype.
+     * Allows: interface to implementor, parent to child, nullable variants.
+     */
+    protected function isAssignmentCompatible(PicoType $ltype, PicoType $rtype): bool
+    {
+        // Both must be ptr-based (objects, nullable objects, arrays, strings)
+        if ($ltype->toBase() !== BaseType::PTR || $rtype->toBase() !== BaseType::PTR) {
+            return false;
+        }
+        // If either is an object type, check class hierarchy and interfaces
+        if ($ltype->isObject() && $rtype->isObject()) {
+            $lclass = $ltype->getClassName();
+            $rclass = $rtype->getClassName();
+            // Same class, or rtype is subclass of ltype
+            if ($this->isSubclassOf($rclass, $lclass)) {
+                return true;
+            }
+            // ltype is an interface that rtype implements
+            $rmeta = $this->classRegistry[$rclass] ?? null;
+            if ($rmeta !== null && in_array($lclass, $rmeta->interfaces, true)) {
+                return true;
+            }
+            // rtype is an interface that ltype implements
+            $lmeta = $this->classRegistry[$lclass] ?? null;
+            if ($lmeta !== null && in_array($rclass, $lmeta->interfaces, true)) {
+                return true;
+            }
+            // Both are in classRegistry (could be interface assigned from interface)
+            if (isset($this->classRegistry[$lclass]) && isset($this->classRegistry[$rclass])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private function typeFromNode(\PhpParser\Node\Identifier|\PhpParser\Node\NullableType|\PhpParser\Node\Name|\PhpParser\Node\UnionType $node): PicoType
     {
         if ($node instanceof \PhpParser\Node\UnionType) {
@@ -447,7 +483,7 @@ class SemanticAnalysisPass implements PassInterface
                 $exprType = $this->resolveExpr($stmt->expr);
                 $returnTypeOk = $this->currentFunctionReturnType === null
                     || $exprType->isEqualTo($this->currentFunctionReturnType)
-                    || ($this->currentFunctionReturnType->toBase() === BaseType::PTR && $exprType->toBase() === BaseType::PTR)
+                    || $this->isAssignmentCompatible($this->currentFunctionReturnType, $exprType)
                     || ($this->currentFunctionReturnType->isNullable() && $stmt->expr instanceof \PhpParser\Node\Expr\ConstFetch && $stmt->expr->name->toLowerString() === 'null');
                 if (!$returnTypeOk) {
                     $line = $this->getLine($stmt);
@@ -603,9 +639,8 @@ class SemanticAnalysisPass implements PassInterface
             $rtype = $this->resolveExpr($expr->expr);
             $ltype = $this->resolveExpr($expr->var, $doc, lVal: true, rType: $rtype);
             $line = $this->getLine($expr);
-            // Allow assignment when types are compatible (same base type, or both ptr-based)
             $compatible = $ltype->isEqualTo($rtype)
-                || ($ltype->toBase() === BaseType::PTR && $rtype->toBase() === BaseType::PTR);
+                || $this->isAssignmentCompatible($ltype, $rtype);
             assert($compatible, "line {$line}, type mismatch in assignment: {$ltype->toString()} = {$rtype->toString()}");
             return $rtype;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Variable) {
