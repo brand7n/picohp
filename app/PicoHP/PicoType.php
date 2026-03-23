@@ -88,6 +88,8 @@ class PicoType
             $pt->nullable = true;
             return $pt;
         }
+        /** @var array<int, string> $m */
+        $m = [];
         if (preg_match('/^array<(\w+),\s*(\w+)>$/', $type, $m) === 1) {
             $keyTypeName = $m[1];
             $valTypeName = $m[2];
