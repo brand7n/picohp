@@ -524,6 +524,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 return $this->builder->createStringConcat($lval, $rval);
             }
 
+            // Different types with === / !== — result is known at compile time
+            if ($lval->getType() !== $rval->getType() && ($sigil === '===' || $sigil === '!==')) {
+                return new Constant($sigil === '!==' ? 1 : 0, BaseType::BOOL);
+            }
+
             $isFloat = $lval->getType() === BaseType::FLOAT;
             $operandType = $lval->getType();
             switch ($sigil) {
