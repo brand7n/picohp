@@ -30,6 +30,20 @@ it('handles self:: in static method calls', function () {
     expect($compiled_output)->toBe($php_output);
 });
 
+it('handles type-compatible assignment (parent, interface, child)', function () {
+    $file = 'tests/programs/classes/type_compat_assign.php';
+
+    /** @phpstan-ignore-next-line */
+    $this->artisan("build --debug {$file}")->assertExitCode(0);
+
+    $buildPath = config('app.build_path');
+    assert(is_string($buildPath));
+    $compiled_output = shell_exec("{$buildPath}/a.out");
+    $php_output = shell_exec("php {$file}");
+
+    expect($compiled_output)->toBe($php_output);
+});
+
 it('handles class with no properties', function () {
     $file = 'tests/programs/classes/empty_class.php';
 
