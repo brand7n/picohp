@@ -99,3 +99,31 @@ it('handles new self() and self:: in static factory methods', function () {
 
     expect($compiled_output)->toBe($php_output);
 });
+
+it('handles class constants', function () {
+    $file = 'tests/programs/classes/class_constants.php';
+
+    /** @phpstan-ignore-next-line */
+    $this->artisan("build --debug {$file}")->assertExitCode(0);
+
+    $buildPath = config('app.build_path');
+    assert(is_string($buildPath));
+    $compiled_output = shell_exec("{$buildPath}/a.out");
+    $php_output = shell_exec("php {$file}");
+
+    expect($compiled_output)->toBe($php_output);
+});
+
+it('handles static property initialization with values', function () {
+    $file = 'tests/programs/classes/static_property_init.php';
+
+    /** @phpstan-ignore-next-line */
+    $this->artisan("build --debug {$file}")->assertExitCode(0);
+
+    $buildPath = config('app.build_path');
+    assert(is_string($buildPath));
+    $compiled_output = shell_exec("{$buildPath}/a.out");
+    $php_output = shell_exec("php {$file}");
+
+    expect($compiled_output)->toBe($php_output);
+});
