@@ -492,6 +492,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $init = implode(', ', $ptrs);
                 $this->module->addLine(new IRLine("@{$enumName}_values = global [{$count} x ptr] [{$init}]"));
             }
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\ClassConst) {
+            // Class constants — values resolved at compile time via ClassConstFetch
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\EnumCase) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Use_) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Namespace_) {
