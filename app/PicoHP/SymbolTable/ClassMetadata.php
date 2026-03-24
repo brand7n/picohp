@@ -55,6 +55,11 @@ class ClassMetadata
 
     public function addProperty(string $name, PicoType $type): int
     {
+        // If property already exists (inherited from parent), preserve its offset
+        if (isset($this->propertyOffsets[$name])) {
+            $this->properties[$name] = $type;
+            return $this->propertyOffsets[$name];
+        }
         // +1 because field 0 is always type_id for virtual dispatch
         $index = count($this->properties) + 1;
         $this->properties[$name] = $type;

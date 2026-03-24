@@ -182,7 +182,16 @@ class SemanticAnalysisPass implements PassInterface
                             }
                         } else {
                             foreach ($classStmt->props as $prop) {
-                                $classMeta->addProperty($prop->name->toString(), $propType);
+                                $propName = $prop->name->toString();
+                                // If parent has a richer type (e.g. array<int,int> vs bare array),
+                                // prefer parent's type so element type info isn't lost
+                                $effectiveType = $propType;
+                                if ($propType->isArray() && $propType->getElementType()->toBase() === BaseType::PTR
+                                    && isset($classMeta->properties[$propName]) && $classMeta->properties[$propName]->isArray()
+                                    && $classMeta->properties[$propName]->getElementType()->toBase() !== BaseType::PTR) {
+                                    $effectiveType = $classMeta->properties[$propName];
+                                }
+                                $classMeta->addProperty($propName, $effectiveType);
                             }
                         }
                     } elseif ($classStmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
