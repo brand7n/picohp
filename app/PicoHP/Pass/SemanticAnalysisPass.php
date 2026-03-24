@@ -238,7 +238,21 @@ class SemanticAnalysisPass implements PassInterface
                 }
                 $enumMeta = new EnumMetadata($enumName, $scalarTypeName);
                 $this->enumRegistry[$enumName] = $enumMeta;
+                // Also register enum in classRegistry for method call resolution
+                $enumClassMeta = new ClassMetadata($enumName);
+                $this->classRegistry[$enumName] = $enumClassMeta;
+                $this->typeIdMap[$enumName] = $this->nextTypeId++;
                 foreach ($stmt->stmts as $enumStmt) {
+                    if ($enumStmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
+                        $methodName = $enumStmt->name->toString();
+                        assert($enumStmt->returnType === null || $enumStmt->returnType instanceof \PhpParser\Node\Identifier || $enumStmt->returnType instanceof \PhpParser\Node\NullableType || $enumStmt->returnType instanceof \PhpParser\Node\Name || $enumStmt->returnType instanceof \PhpParser\Node\UnionType);
+                        $returnType = $enumStmt->returnType !== null
+                            ? $this->typeFromNode($enumStmt->returnType)
+                            : PicoType::fromString('void');
+                        $methodSymbol = new \App\PicoHP\SymbolTable\Symbol($methodName, $returnType, func: true);
+                        $enumClassMeta->methods[$methodName] = $methodSymbol;
+                        $enumClassMeta->methodOwner[$methodName] = $enumName;
+                    }
                     if ($enumStmt instanceof \PhpParser\Node\Stmt\EnumCase) {
                         $caseName = $enumStmt->name->toString();
                         $backingValue = null;
@@ -788,7 +802,7 @@ class SemanticAnalysisPass implements PassInterface
             if ($funcName === 'strval') {
                 return PicoType::fromString('string');
             }
-            if ($funcName === 'substr' || $funcName === 'trim' || $funcName === 'str_repeat' || $funcName === 'str_replace'
+            if ($funcName === 'implode' || $funcName === 'substr' || $funcName === 'trim' || $funcName === 'str_repeat' || $funcName === 'str_replace'
                 || $funcName === 'strtoupper' || $funcName === 'strtolower' || $funcName === 'dechex' || $funcName === 'str_pad') {
                 return PicoType::fromString('string');
             }

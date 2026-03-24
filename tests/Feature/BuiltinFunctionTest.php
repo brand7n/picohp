@@ -156,6 +156,20 @@ it('handles preg_match without captures argument', function () {
     expect($compiled_output)->toBe($php_output);
 });
 
+it('handles implode', function () {
+    $file = 'tests/programs/functions/implode.php';
+
+    /** @phpstan-ignore-next-line */
+    $this->artisan("build --debug {$file}")->assertExitCode(0);
+
+    $buildPath = config('app.build_path');
+    assert(is_string($buildPath));
+    $compiled_output = shell_exec("{$buildPath}/a.out");
+    $php_output = shell_exec("php {$file}");
+
+    expect($compiled_output)->toBe($php_output);
+});
+
 it('handles array_pop and array_reverse', function () {
     $file = 'tests/programs/functions/builtins_array_extended.php';
 
