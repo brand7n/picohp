@@ -431,6 +431,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
             $arrayPtr = $this->buildExpr($stmt->expr);
             $arrayType = $this->getExprResolvedType($stmt->expr);
+            $elemBaseType = $arrayType->isMixed() ? BaseType::PTR : $arrayType->getElementBaseType();
 
             \App\PicoHP\CompilerInvariant::check($stmt->valueVar instanceof \PhpParser\Node\Expr\Variable);
             $valueVarPData = PicoHPData::getPData($stmt->valueVar);
@@ -450,7 +451,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
             $this->builder->setInsertPoint($condBB);
             $idx = $this->builder->createLoad($counterPtr);
-            if ($arrayType->hasStringKeys()) {
+            if ($arrayType->isArray() && $arrayType->hasStringKeys()) {
                 $lenVal = $this->builder->createCall('pico_map_len', [$arrayPtr], BaseType::INT);
             } else {
                 $lenVal = $this->builder->createArrayLen($arrayPtr);
@@ -459,15 +460,15 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->builder->createBranch([$cond, $bodyLabel, $endLabel]);
 
             $this->builder->setInsertPoint($bodyBB);
-            if ($arrayType->hasStringKeys()) {
-                $getValueFunc = 'pico_map_get_value_' . match ($arrayType->getElementBaseType()) {
+            if ($arrayType->isArray() && $arrayType->hasStringKeys()) {
+                $getValueFunc = 'pico_map_get_value_' . match ($elemBaseType) {
                     BaseType::INT => 'int',
                     BaseType::STRING => 'str',
                     default => throw new \RuntimeException("unsupported map foreach value type"),
                 };
-                $elemVal = $this->builder->createCall($getValueFunc, [$arrayPtr, $idx], $arrayType->getElementBaseType());
+                $elemVal = $this->builder->createCall($getValueFunc, [$arrayPtr, $idx], $elemBaseType);
             } else {
-                $elemVal = $this->builder->createArrayGet($arrayPtr, $idx, $arrayType->getElementBaseType());
+                $elemVal = $this->builder->createArrayGet($arrayPtr, $idx, $elemBaseType);
             }
             $this->builder->createStore($elemVal, $valuePtr);
             if ($stmt->keyVar !== null) {
@@ -587,6 +588,10 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             $lval = $this->buildExpr($expr->var);
             $rval = $this->buildExpr($expr->expr);
+            // Void methods used as values (e.g. $mixed = $this->voidMethod()) → null ptr
+            if ($rval instanceof Void_) {
+                $rval = new NullConstant();
+            }
             $this->builder->createStore($rval, $lval);
             return $rval;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Variable) {
@@ -699,6 +704,13 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             if (isset($this->enumRegistry[$className])) {
                 $tag = $this->enumRegistry[$className]->getCaseTag($caseName);
                 return new Constant($tag, BaseType::INT);
+            }
+            if (isset($this->classRegistry[$className])) {
+                if (isset($this->classRegistry[$className]->constants[$caseName])) {
+                    return new Constant($this->classRegistry[$className]->constants[$caseName], BaseType::INT);
+                }
+                // Unknown constant on a known class — return 0 (stub behavior)
+                return new Constant(0, BaseType::INT);
             }
             throw new \RuntimeException("class constant {$className}::{$caseName} not supported");
         } elseif ($expr instanceof \PhpParser\Node\Expr\ConstFetch) {
@@ -1061,6 +1073,10 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Identifier);
             $objVal = $this->buildExpr($expr->var);
             $varType = $this->getExprResolvedType($expr->var);
+            // Mixed type: no static class name, emit null ptr (stub behavior)
+            if ($varType->isMixed()) {
+                return new NullConstant();
+            }
             // Enum ->value access
             if ($varType->isEnum() && $expr->name->toString() === 'value') {
                 $enumName = $varType->getClassName();
@@ -1085,6 +1101,15 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Identifier);
             $objVal = $this->buildExpr($expr->var);
             $varType = $this->getExprResolvedType($expr->var);
+            // Mixed type: no static class name, emit null ptr (stub behavior)
+            if ($varType->isMixed()) {
+                // Still need to build args for side effects
+                foreach ($expr->args as $arg) {
+                    \App\PicoHP\CompilerInvariant::check($arg instanceof \PhpParser\Node\Arg);
+                    $this->buildExpr($arg->value);
+                }
+                return new NullConstant();
+            }
             $className = $varType->getClassName();
             $classMeta = $this->classRegistry[$className];
             $methodName = $expr->name->toString();
@@ -1467,6 +1492,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         if ($expr instanceof \PhpParser\Node\Expr\PropertyFetch) {
             \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Identifier);
             $objType = $this->getExprResolvedType($expr->var);
+            if ($objType->isMixed()) {
+                return \App\PicoHP\PicoType::fromString('mixed');
+            }
             $classMeta = $this->classRegistry[$objType->getClassName()];
             return $classMeta->getPropertyType($expr->name->toString());
         }
@@ -1481,6 +1509,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         if ($expr instanceof \PhpParser\Node\Expr\MethodCall) {
             \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Identifier);
             $objType = $this->getExprResolvedType($expr->var);
+            if ($objType->isMixed()) {
+                return \App\PicoHP\PicoType::fromString('mixed');
+            }
             $classMeta = $this->classRegistry[$objType->getClassName()];
             return $classMeta->methods[$expr->name->toString()]->type;
         }

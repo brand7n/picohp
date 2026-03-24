@@ -210,6 +210,12 @@ class SemanticAnalysisPass implements PassInterface
                         }
                         $classMeta->methods[$methodName] = $methodSymbol;
                         $classMeta->methodOwner[$methodName] = $className;
+                    } elseif ($classStmt instanceof \PhpParser\Node\Stmt\ClassConst) {
+                        foreach ($classStmt->consts as $const) {
+                            if ($const->value instanceof \PhpParser\Node\Scalar\Int_) {
+                                $classMeta->constants[$const->name->toString()] = $const->value->value;
+                            }
+                        }
                     }
                 }
             }

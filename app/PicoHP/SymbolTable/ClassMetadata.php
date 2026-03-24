@@ -32,6 +32,9 @@ class ClassMetadata
     /** @var array<string, \PhpParser\Node\Expr|null> static property name => default value expression */
     public array $staticDefaults = [];
 
+    /** @var array<string, int> constant name => integer value */
+    public array $constants = [];
+
     public function __construct(string $name)
     {
         $this->name = $name;
