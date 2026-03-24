@@ -42,24 +42,32 @@ class Build extends Command
 
         $ast = [];
         \App\PicoHP\CompilerInvariant::check(is_string($filename));
-        if (is_dir($filename)) {
-            $ast = $this->walkClassMap($filename);
-        } else {
-            if (!file_exists($filename)) {
-                $this->error("Unable to open input file: {$filename}");
-                return 1;
-            }
-            $code = file_get_contents($filename);
-            if ($code === false) {
-                $this->error("Unable to read input file: {$filename}");
-                return 1;
-            }
+        try {
+            if (is_dir($filename)) {
+                $ast = $this->walkClassMap($filename);
+            } else {
+                if (!file_exists($filename)) {
+                    $this->error("Unable to open input file: {$filename}");
+                    return 1;
+                }
+                $code = file_get_contents($filename);
+                if ($code === false) {
+                    $this->error("Unable to read input file: {$filename}");
+                    return 1;
+                }
 
-            $ast = $parser->parse($code);
-            if (is_null($ast)) {
-                $this->error("Failed to parse input file: {$filename}");
-                return 1;
+                $ast = $parser->parse($code);
+                if (is_null($ast)) {
+                    $this->error("Failed to parse input file: {$filename}");
+                    return 1;
+                }
             }
+        } catch (\PhpParser\Error $e) {
+            $this->error($e->getMessage());
+            return 1;
+        } catch (\RuntimeException $e) {
+            $this->error($e->getMessage());
+            return 1;
         }
 
         $buildPath = config('app.build_path');

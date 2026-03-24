@@ -12,16 +12,10 @@ it('fails gracefully on unparseable PHP', function () {
     assert(is_string($tmp));
     file_put_contents($tmp, '<?php (');
 
-    $threw = false;
-    try {
-        /** @phpstan-ignore-next-line */
-        $this->artisan("build {$tmp}");
-    } catch (\PhpParser\Error) {
-        $threw = true;
-    } finally {
-        unlink($tmp);
-    }
-    expect($threw)->toBeTrue();
+    /** @phpstan-ignore-next-line */
+    $this->artisan("build {$tmp}")->assertExitCode(1);
+
+    unlink($tmp);
 });
 
 it('fails gracefully when directory has no entry point', function () {
@@ -30,15 +24,11 @@ it('fails gracefully when directory has no entry point', function () {
     @mkdir($tmp . '/vendor/composer', 0755, true);
     file_put_contents($tmp . '/vendor/composer/autoload_classmap.php', '<?php return [];');
 
-    try {
-        /** @phpstan-ignore-next-line */
-        $this->artisan("build {$tmp}");
-    } catch (\RuntimeException $e) {
-        expect($e->getMessage())->toContain('Entry point not found');
-    } finally {
-        unlink($tmp . '/vendor/composer/autoload_classmap.php');
-        rmdir($tmp . '/vendor/composer');
-        rmdir($tmp . '/vendor');
-        rmdir($tmp);
-    }
+    /** @phpstan-ignore-next-line */
+    $this->artisan("build {$tmp}")->assertExitCode(1);
+
+    unlink($tmp . '/vendor/composer/autoload_classmap.php');
+    rmdir($tmp . '/vendor/composer');
+    rmdir($tmp . '/vendor');
+    rmdir($tmp);
 });
