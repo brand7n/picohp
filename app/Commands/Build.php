@@ -51,16 +51,20 @@ class Build extends Command
                     return 1;
                 }
                 $code = file_get_contents($filename);
+                // @codeCoverageIgnoreStart
                 if ($code === false) {
                     $this->error("Unable to read input file: {$filename}");
                     return 1;
                 }
+                // @codeCoverageIgnoreEnd
 
                 $ast = $parser->parse($code);
+                // @codeCoverageIgnoreStart
                 if (is_null($ast)) {
                     $this->error("Failed to parse input file: {$filename}");
                     return 1;
                 }
+                // @codeCoverageIgnoreEnd
             }
         } catch (\PhpParser\Error $e) {
             $this->error($e->getMessage());
@@ -125,11 +129,13 @@ class Build extends Command
             $pass->exec();
 
             $f = fopen($llvmIRoutput, 'w');
+            // @codeCoverageIgnoreStart
             if ($f === false) {
                 $this->error("Unable to open output file: {$llvmIRoutput}");
 
                 return 1;
             }
+            // @codeCoverageIgnoreEnd
             $pass->module->print($f);
 
             $outfile = $this->option('out');
@@ -164,11 +170,13 @@ class Build extends Command
             \App\PicoHP\CompilerInvariant::check(is_string($runtimePath));
             $runtimeLink = "-L{$runtimePath} -lpico_rt -Wl,-rpath,{$runtimePath}";
             exec("{$llvmPath}/clang -Wno-override-module {$sharedLibOpts} {$runtimeLink} -o {$exe} {$optimizedIR}", result_code: $result);
+            // @codeCoverageIgnoreStart
             if ($result !== 0) {
                 $this->error("clang failed with exit code {$result}");
 
                 return 1;
             }
+            // @codeCoverageIgnoreEnd
         } catch (CompilerInvariantException $e) {
             $this->error($e->getMessage());
 
@@ -215,13 +223,17 @@ class Build extends Command
     {
         $parser = (new ParserFactory())->createForNewestSupportedVersion();
         $code = file_get_contents($filename);
+        // @codeCoverageIgnoreStart
         if ($code === false) {
             throw new \RuntimeException("Unable to open input file: {$filename}");
         }
+        // @codeCoverageIgnoreEnd
         $ast = $parser->parse($code);
+        // @codeCoverageIgnoreStart
         if (is_null($ast)) {
             throw new \RuntimeException("Failed to parse input file: {$filename}");
         }
+        // @codeCoverageIgnoreEnd
 
         // TODO: filter out everything except classes and functions
         return $ast;
