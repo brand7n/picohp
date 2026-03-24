@@ -213,11 +213,18 @@ abstract class ParserAbstract implements Parser {
     protected int $tokenToSymbolMapSize = 0;
     protected int $invalidSymbol = 0;
     protected int $numNonLeafStates = 0;
+    /** @var mixed */
+    protected $phpVersion;
+    protected int $errorState = 0;
+    /** @var mixed */
+    protected $createdArrays;
+    /** @var mixed */
+    protected $parenthesizedArrowFunctions;
 
     abstract protected function initReduceCallbacks(): void;
 
     /** @return array<int, string> */
-    public function getAttributes(int $s, int $e): array { return []; }
+    public function getAttributes(int $s, int $e): mixed { return null; }
     /** @param array<int, string> $stmts
      *  @return array<int, string> */
     public function handleNamespaces(array $stmts): array { return []; }
