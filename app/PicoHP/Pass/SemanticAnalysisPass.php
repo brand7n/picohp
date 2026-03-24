@@ -557,7 +557,8 @@ class SemanticAnalysisPass implements PassInterface
             \App\PicoHP\CompilerInvariant::check(is_string($stmt->valueVar->name));
             $valueVarPData = $this->getPicoData($stmt->valueVar);
             $elementType = $arrayType->isMixed() ? PicoType::fromString('mixed') : $arrayType->getElementType();
-            $valueVarPData->symbol = $this->symbolTable->addSymbol(
+            $existing = $this->symbolTable->lookupCurrentScope($stmt->valueVar->name);
+            $valueVarPData->symbol = $existing ?? $this->symbolTable->addSymbol(
                 $stmt->valueVar->name,
                 $elementType
             );
@@ -566,7 +567,8 @@ class SemanticAnalysisPass implements PassInterface
                 \App\PicoHP\CompilerInvariant::check(is_string($stmt->keyVar->name));
                 $keyVarPData = $this->getPicoData($stmt->keyVar);
                 $keyType = $arrayType->hasStringKeys() ? 'string' : 'int';
-                $keyVarPData->symbol = $this->symbolTable->addSymbol(
+                $existingKey = $this->symbolTable->lookupCurrentScope($stmt->keyVar->name);
+                $keyVarPData->symbol = $existingKey ?? $this->symbolTable->addSymbol(
                     $stmt->keyVar->name,
                     PicoType::fromString($keyType)
                 );
