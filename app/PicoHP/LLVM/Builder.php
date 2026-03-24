@@ -82,6 +82,7 @@ class Builder
         $this->addLine('declare ptr @pico_array_last_str(ptr)');
         $this->addLine();
         $this->addLine('; map runtime (string-keyed associative arrays)');
+        $this->addLine('declare i32 @pico_map_has_key(ptr, ptr)');
         $this->addLine('declare ptr @pico_map_new()');
         $this->addLine('declare i32 @pico_map_len(ptr)');
         $this->addLine('declare void @pico_map_set_int(ptr, ptr, i32)');
