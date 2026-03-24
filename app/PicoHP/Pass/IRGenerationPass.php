@@ -588,7 +588,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             $lval = $this->buildExpr($expr->var);
             $rval = $this->buildExpr($expr->expr);
-            // Void methods used as values (e.g. $mixed = $this->voidMethod()) → null ptr
+            // Void methods used as values (e.g. $mixed = $this->voidMethod()) → null ptr.
+            // Only safe when LHS is a ptr/mixed slot; would be incorrect for typed non-ptr locals.
             if ($rval instanceof Void_) {
                 $rval = new NullConstant();
             }
