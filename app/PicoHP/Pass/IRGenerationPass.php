@@ -561,11 +561,12 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $arrPtrPtr = $this->buildExpr($arrVarExpr);
                 $arrPtr = $this->builder->createLoad($arrPtrPtr);
                 $arrayType = $this->getExprResolvedType($arrVarExpr);
-                if ($arrayType->hasStringKeys()) {
+                $elemBaseType = $arrayType->isMixed() ? BaseType::PTR : $arrayType->getElementBaseType();
+                if ($arrayType->isArray() && $arrayType->hasStringKeys()) {
                     // Map set: $map['key'] = val
                     \App\PicoHP\CompilerInvariant::check($expr->var->dim !== null, "map push not supported");
                     $keyVal = $this->buildExpr($expr->var->dim);
-                    $setFunc = 'pico_map_set_' . match ($arrayType->getElementBaseType()) {
+                    $setFunc = 'pico_map_set_' . match ($elemBaseType) {
                         BaseType::INT => 'int',
                         BaseType::FLOAT => 'float',
                         BaseType::BOOL => 'bool',
@@ -576,11 +577,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                     $this->builder->createCall($setFunc, [$arrPtr, $keyVal, $rval], BaseType::VOID);
                 } elseif ($expr->var->dim === null) {
                     // $arr[] = val (push)
-                    $this->builder->createArrayPush($arrPtr, $rval, $arrayType->getElementBaseType());
+                    $this->builder->createArrayPush($arrPtr, $rval, $elemBaseType);
                 } else {
                     // $arr[idx] = val (set)
                     $idx = $this->buildExpr($expr->var->dim);
-                    $this->builder->createArraySet($arrPtr, $idx, $rval, $arrayType->getElementBaseType());
+                    $this->builder->createArraySet($arrPtr, $idx, $rval, $elemBaseType);
                 }
                 return $rval;
             }
@@ -974,12 +975,13 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             return $this->builder->createCall($expr->name->name, $args, $returnType);
         } elseif ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
             $varType = $this->getExprResolvedType($expr->var);
-            if ($varType->isArray()) {
+            if ($varType->isArray() || $varType->isMixed()) {
                 \App\PicoHP\CompilerInvariant::check($expr->dim !== null, "array read requires index");
                 $arrPtr = $this->buildExpr($expr->var);
                 $idx = $this->buildExpr($expr->dim);
-                if ($varType->hasStringKeys()) {
-                    $getFunc = 'pico_map_get_' . match ($varType->getElementBaseType()) {
+                $elemBaseType = $varType->isMixed() ? BaseType::PTR : $varType->getElementBaseType();
+                if ($varType->isArray() && $varType->hasStringKeys()) {
+                    $getFunc = 'pico_map_get_' . match ($elemBaseType) {
                         BaseType::INT => 'int',
                         BaseType::FLOAT => 'float',
                         BaseType::BOOL => 'bool',
@@ -987,9 +989,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                         BaseType::PTR => 'ptr',
                         default => throw new \RuntimeException("unsupported map get type"),
                     };
-                    return $this->builder->createCall($getFunc, [$arrPtr, $idx], $varType->getElementBaseType());
+                    return $this->builder->createCall($getFunc, [$arrPtr, $idx], $elemBaseType);
                 }
-                return $this->builder->createArrayGet($arrPtr, $idx, $varType->getElementBaseType());
+                return $this->builder->createArrayGet($arrPtr, $idx, $elemBaseType);
             }
             $varData = PicoHPData::getPData($expr->var);
             // String indexing (existing behavior)
@@ -1470,6 +1472,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         }
         if ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
             $arrType = $this->getExprResolvedType($expr->var);
+            if ($arrType->isMixed()) {
+                return \App\PicoHP\PicoType::fromString('mixed');
+            }
             \App\PicoHP\CompilerInvariant::check($arrType->isArray());
             return $arrType->getElementType();
         }
@@ -1635,11 +1640,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
     protected function buildArrayInit(\PhpParser\Node\Expr\Array_ $arrayExpr, \App\PicoHP\PicoType $arrayType): ValueAbstract
     {
-        if ($arrayType->hasStringKeys()) {
+        if ($arrayType->isArray() && $arrayType->hasStringKeys()) {
             return $this->buildMapInit($arrayExpr, $arrayType);
         }
         $arrPtr = $this->builder->createArrayNew();
-        $elementType = $arrayType->getElementBaseType();
+        $elementType = $arrayType->isMixed() ? BaseType::PTR : $arrayType->getElementBaseType();
         foreach ($arrayExpr->items as $item) {
             $elemVal = $this->buildExpr($item->value);
             $this->builder->createArrayPush($arrPtr, $elemVal, $elementType);
