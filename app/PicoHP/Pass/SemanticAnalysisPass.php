@@ -566,6 +566,9 @@ class SemanticAnalysisPass implements PassInterface
             \App\PicoHP\CompilerInvariant::check(is_string($stmt->valueVar->name));
             $valueVarPData = $this->getPicoData($stmt->valueVar);
             $elementType = $arrayType->isMixed() ? PicoType::fromString('mixed') : $arrayType->getElementType();
+            // Reuse existing symbol if already declared in this scope (e.g. multiple foreach
+            // loops using the same variable). Note: does not re-type — safe because PHPStan-max
+            // enforces compatible types at the source level for our compilation target.
             $existing = $this->symbolTable->lookupCurrentScope($stmt->valueVar->name);
             $valueVarPData->symbol = $existing ?? $this->symbolTable->addSymbol(
                 $stmt->valueVar->name,

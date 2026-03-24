@@ -128,7 +128,9 @@ assert(is_string($transformed));
 $transformed = preg_replace('/([A-Za-z_])\\\\([A-Za-z_])/', '$1_$2', $transformed);
 assert(is_string($transformed));
 
-// Collect static method calls on Node classes (Class::method pattern)
+// Collect static method calls on Node classes (Class::method( pattern).
+// Runs after namespace flattening, so all class names are simple identifiers (Foo_Bar).
+// May match false positives in strings/comments — acceptable for stub generation.
 /** @var array<int, string> $staticMatches */
 $staticMatches = [];
 preg_match_all('/([A-Za-z_]+)::([a-zA-Z_]+)\(/', $transformed, $staticMatches);
