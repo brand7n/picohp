@@ -113,7 +113,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     public function buildStmts(array $stmts): void
     {
         foreach ($stmts as $stmt) {
-            assert($stmt instanceof \PhpParser\Node\Stmt);
+            \App\PicoHP\CompilerInvariant::check($stmt instanceof \PhpParser\Node\Stmt);
             $this->buildStmt($stmt);
         }
     }
@@ -124,7 +124,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
             $funcSymbol = $pData->getSymbol();
-            assert($funcSymbol->func === true);
+            \App\PicoHP\CompilerInvariant::check($funcSymbol->func === true);
             $this->currentFunction = $this->module->addFunction($stmt->name->toString(), $funcSymbol->type, $funcSymbol->params);
             $bb = $this->currentFunction->addBasicBlock("entry");
             $this->builder->setInsertPoint($bb);
@@ -163,7 +163,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             foreach ($stmt->exprs as $expr) {
                 $val = $this->buildExpr($expr);
                 if ($val->getType() === BaseType::BOOL) {
-                    assert($this->currentFunction !== null);
+                    \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
                     $count = $pData->mycount;
                     $printBB = $this->currentFunction->addBasicBlock("echo_bool{$count}");
                     $endBB = $this->currentFunction->addBasicBlock("echo_end{$count}");
@@ -180,7 +180,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 }
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\If_) {
-            assert($this->currentFunction !== null);
+            \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
             $currentFunction = $this->currentFunction;
             $count = $pData->mycount;
             $endBB = $currentFunction->addBasicBlock("end{$count}");
@@ -243,7 +243,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
             $this->builder->setInsertPoint($endBB);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\While_) {
-            assert($this->currentFunction !== null);
+            \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
             $condBB = $this->currentFunction->addBasicBlock("cond{$pData->mycount}");
             $bodyBB = $this->currentFunction->addBasicBlock("body{$pData->mycount}");
             $endBB = $this->currentFunction->addBasicBlock("end{$pData->mycount}");
@@ -259,9 +259,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->builder->createBranch([$condLabel]);
             $this->builder->setInsertPoint($endBB);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Class_) {
-            assert($stmt->name instanceof \PhpParser\Node\Identifier);
+            \App\PicoHP\CompilerInvariant::check($stmt->name instanceof \PhpParser\Node\Identifier);
             $className = $stmt->name->toString();
-            assert(isset($this->classRegistry[$className]));
+            \App\PicoHP\CompilerInvariant::check(isset($this->classRegistry[$className]));
             $classMeta = $this->classRegistry[$className];
             $fields = $classMeta->toLLVMStructFields();
             if ($fields !== '') {
@@ -300,7 +300,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             if ($stmt->stmts === null) {
                 return;
             }
-            assert($this->currentClassName !== null);
+            \App\PicoHP\CompilerInvariant::check($this->currentClassName !== null);
             $methodName = $stmt->name->toString();
             $funcSymbol = $pData->getSymbol();
             $qualifiedName = "{$this->currentClassName}_{$methodName}";
@@ -319,8 +319,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             // Store $this param (param 0) into its alloca
             $thisSymbol = $scope->symbols['this'] ?? null;
-            assert($thisSymbol !== null);
-            assert($thisSymbol->value !== null);
+            \App\PicoHP\CompilerInvariant::check($thisSymbol !== null);
+            \App\PicoHP\CompilerInvariant::check($thisSymbol->value !== null);
             $this->builder->createStore(new Param(0, \App\PicoHP\BaseType::PTR), $thisSymbol->value);
             $this->currentThisPtr = $thisSymbol->value;
             // Store remaining params (offset by 1)
@@ -335,7 +335,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $this->builder->createRetVoid();
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Do_) {
-            assert($this->currentFunction !== null);
+            \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
             $condBB = $this->currentFunction->addBasicBlock("cond{$pData->mycount}");
             $bodyBB = $this->currentFunction->addBasicBlock("body{$pData->mycount}");
             $endBB = $this->currentFunction->addBasicBlock("end{$pData->mycount}");
@@ -351,7 +351,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->builder->createBranch([$cond, $bodyLabel, $endLabel]);
             $this->builder->setInsertPoint($endBB);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\For_) {
-            assert($this->currentFunction !== null);
+            \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
             $condBB = $this->currentFunction->addBasicBlock("cond{$pData->mycount}");
             $bodyBB = $this->currentFunction->addBasicBlock("body{$pData->mycount}");
             $endBB = $this->currentFunction->addBasicBlock("end{$pData->mycount}");
@@ -367,7 +367,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             foreach ($stmt->cond as $cond) {
                 $conds[] = $this->buildExpr($cond);
             }
-            assert(count($conds) > 0);
+            \App\PicoHP\CompilerInvariant::check(count($conds) > 0);
             $this->builder->createBranch([$conds[0], $bodyLabel, $endLabel]);
             $this->builder->setInsertPoint($bodyBB);
             $this->buildStmts($stmt->stmts);
@@ -377,7 +377,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->builder->createBranch([$condLabel]);
             $this->builder->setInsertPoint($endBB);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Switch_) {
-            assert($this->currentFunction !== null);
+            \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
             $count = $pData->mycount;
             $condVal = $this->buildExpr($stmt->cond);
 
@@ -422,17 +422,17 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             array_pop($this->breakTargets);
             $this->builder->setInsertPoint($endBB);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Break_) {
-            assert(count($this->breakTargets) > 0, 'break outside of switch/loop');
+            \App\PicoHP\CompilerInvariant::check(count($this->breakTargets) > 0, 'break outside of switch/loop');
             $target = end($this->breakTargets);
             $this->builder->createBranch([new Label($target)]);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Foreach_) {
-            assert($this->currentFunction !== null);
+            \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
             $count = $pData->mycount;
 
             $arrayPtr = $this->buildExpr($stmt->expr);
             $arrayType = $this->getExprResolvedType($stmt->expr);
 
-            assert($stmt->valueVar instanceof \PhpParser\Node\Expr\Variable);
+            \App\PicoHP\CompilerInvariant::check($stmt->valueVar instanceof \PhpParser\Node\Expr\Variable);
             $valueVarPData = PicoHPData::getPData($stmt->valueVar);
             $valuePtr = $valueVarPData->getValue();
 
@@ -471,7 +471,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             $this->builder->createStore($elemVal, $valuePtr);
             if ($stmt->keyVar !== null) {
-                assert($stmt->keyVar instanceof \PhpParser\Node\Expr\Variable);
+                \App\PicoHP\CompilerInvariant::check($stmt->keyVar instanceof \PhpParser\Node\Expr\Variable);
                 $keyVarPData = PicoHPData::getPData($stmt->keyVar);
                 $keyPtr = $keyVarPData->getValue();
                 if ($arrayType->hasStringKeys()) {
@@ -491,7 +491,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Trait_) {
             // Traits are inlined into classes at semantic analysis time; nothing to emit
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Enum_) {
-            assert($stmt->name instanceof \PhpParser\Node\Identifier);
+            \App\PicoHP\CompilerInvariant::check($stmt->name instanceof \PhpParser\Node\Identifier);
             $enumName = $stmt->name->toString();
             $enumMeta = $this->enumRegistry[$enumName];
             // Emit backing value lookup table as a global array of ptrs
@@ -499,7 +499,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $ptrs = [];
                 foreach ($enumMeta->cases as $caseName => $tag) {
                     $value = $enumMeta->backingValues[$caseName];
-                    assert(is_string($value));
+                    \App\PicoHP\CompilerInvariant::check(is_string($value));
                     $constVal = $this->builder->createStringConstant($value);
                     $ptrs[] = "ptr {$constVal->render()}";
                 }
@@ -563,7 +563,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $arrayType = $this->getExprResolvedType($arrVarExpr);
                 if ($arrayType->hasStringKeys()) {
                     // Map set: $map['key'] = val
-                    assert($expr->var->dim !== null, "map push not supported");
+                    \App\PicoHP\CompilerInvariant::check($expr->var->dim !== null, "map push not supported");
                     $keyVal = $this->buildExpr($expr->var->dim);
                     $setFunc = 'pico_map_set_' . match ($arrayType->getElementBaseType()) {
                         BaseType::INT => 'int',
@@ -691,8 +691,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             return new Void_();
         } elseif ($expr instanceof \PhpParser\Node\Expr\ClassConstFetch) {
-            assert($expr->class instanceof \PhpParser\Node\Name);
-            assert($expr->name instanceof \PhpParser\Node\Identifier);
+            \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
+            \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Identifier);
             $className = $expr->class->toString();
             $caseName = $expr->name->toString();
             if (isset($this->enumRegistry[$className])) {
@@ -759,7 +759,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                     throw new \Exception("casting to string from unsupported type");
             }
         } elseif ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
-            assert($expr->name instanceof \PhpParser\Node\Name);
+            \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Name);
             $funcName = $expr->name->toLowerString();
             // Built-in functions
             if ($funcName === 'assert') {
@@ -767,14 +767,14 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 return new Void_();
             }
             if ($funcName === 'count') {
-                assert(count($expr->args) === 1);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
                 $arrVal = $this->buildExpr($expr->args[0]->value);
                 return $this->builder->createArrayLen($arrVal);
             }
             if ($funcName === 'strval') {
-                assert(count($expr->args) === 1);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
                 $val = $this->buildExpr($expr->args[0]->value);
                 if ($val->getType() === BaseType::FLOAT) {
                     return $this->builder->createCall('pico_float_to_string', [$val], BaseType::STRING);
@@ -782,33 +782,33 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 return $this->builder->createCall('pico_int_to_string', [$val], BaseType::STRING);
             }
             if ($funcName === 'strlen') {
-                assert(count($expr->args) === 1);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
                 $strVal = $this->buildExpr($expr->args[0]->value);
                 return $this->builder->createStringLen($strVal);
             }
             if ($funcName === 'str_starts_with') {
-                assert(count($expr->args) === 2);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
-                assert($expr->args[1] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 2);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
                 $haystack = $this->buildExpr($expr->args[0]->value);
                 $prefix = $this->buildExpr($expr->args[1]->value);
                 $result = $this->builder->createCall('pico_string_starts_with', [$haystack, $prefix], BaseType::INT);
                 return $this->builder->createInstruction('icmp ne', [$result, new Constant(0, BaseType::INT)], resultType: BaseType::BOOL);
             }
             if ($funcName === 'str_contains') {
-                assert(count($expr->args) === 2);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
-                assert($expr->args[1] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 2);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
                 $haystack = $this->buildExpr($expr->args[0]->value);
                 $needle = $this->buildExpr($expr->args[1]->value);
                 $result = $this->builder->createCall('pico_string_contains', [$haystack, $needle], BaseType::INT);
                 return $this->builder->createInstruction('icmp ne', [$result, new Constant(0, BaseType::INT)], resultType: BaseType::BOOL);
             }
             if ($funcName === 'substr') {
-                assert(count($expr->args) >= 2 && count($expr->args) <= 3);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
-                assert($expr->args[1] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 2 && count($expr->args) <= 3);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
                 $strVal = $this->buildExpr($expr->args[0]->value);
                 $start = $this->buildExpr($expr->args[1]->value);
                 $len = count($expr->args) === 3 && $expr->args[2] instanceof \PhpParser\Node\Arg
@@ -817,51 +817,51 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 return $this->builder->createCall('pico_string_substr', [$strVal, $start, $len], BaseType::STRING);
             }
             if ($funcName === 'trim') {
-                assert(count($expr->args) === 1);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
                 $strVal = $this->buildExpr($expr->args[0]->value);
                 return $this->builder->createCall('pico_string_trim', [$strVal], BaseType::STRING);
             }
             if ($funcName === 'str_replace') {
-                assert(count($expr->args) === 3);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
-                assert($expr->args[1] instanceof \PhpParser\Node\Arg);
-                assert($expr->args[2] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 3);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check($expr->args[2] instanceof \PhpParser\Node\Arg);
                 $search = $this->buildExpr($expr->args[0]->value);
                 $replace = $this->buildExpr($expr->args[1]->value);
                 $subject = $this->buildExpr($expr->args[2]->value);
                 return $this->builder->createCall('pico_string_replace', [$search, $replace, $subject], BaseType::STRING);
             }
             if ($funcName === 'str_repeat') {
-                assert(count($expr->args) === 2);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
-                assert($expr->args[1] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 2);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
                 $strVal = $this->buildExpr($expr->args[0]->value);
                 $times = $this->buildExpr($expr->args[1]->value);
                 return $this->builder->createCall('pico_string_repeat', [$strVal, $times], BaseType::STRING);
             }
             if ($funcName === 'strtoupper') {
-                assert(count($expr->args) === 1);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
                 $strVal = $this->buildExpr($expr->args[0]->value);
                 return $this->builder->createCall('pico_string_upper', [$strVal], BaseType::STRING);
             }
             if ($funcName === 'strtolower') {
-                assert(count($expr->args) === 1);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
                 $strVal = $this->buildExpr($expr->args[0]->value);
                 return $this->builder->createCall('pico_string_lower', [$strVal], BaseType::STRING);
             }
             if ($funcName === 'dechex') {
-                assert(count($expr->args) === 1);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
                 $val = $this->buildExpr($expr->args[0]->value);
                 return $this->builder->createCall('pico_dechex', [$val], BaseType::STRING);
             }
             if ($funcName === 'str_pad') {
-                assert(count($expr->args) >= 2);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
-                assert($expr->args[1] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 2);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
                 $strVal = $this->buildExpr($expr->args[0]->value);
                 $length = $this->buildExpr($expr->args[1]->value);
                 $padStr = (count($expr->args) >= 3 && $expr->args[2] instanceof \PhpParser\Node\Arg)
@@ -874,29 +874,29 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 return $this->builder->createCall('pico_string_pad', [$strVal, $length, $padStr, $padType], BaseType::STRING);
             }
             if ($funcName === 'implode') {
-                assert(count($expr->args) === 2);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
-                assert($expr->args[1] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 2);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
                 $glue = $this->buildExpr($expr->args[0]->value);
                 $arr = $this->buildExpr($expr->args[1]->value);
                 return $this->builder->createCall('pico_implode', [$glue, $arr], BaseType::STRING);
             }
             if ($funcName === 'array_key_exists') {
-                assert(count($expr->args) === 2);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
-                assert($expr->args[1] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 2);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
                 $key = $this->buildExpr($expr->args[0]->value);
                 $map = $this->buildExpr($expr->args[1]->value);
                 return $this->builder->createCall('pico_map_has_key', [$map, $key], BaseType::BOOL);
             }
             if ($funcName === 'array_reverse') {
-                assert(count($expr->args) >= 1);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 1);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
                 return $this->buildExpr($expr->args[0]->value);
             }
             if ($funcName === 'array_pop') {
-                assert(count($expr->args) === 1);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
                 $arrPtr = $this->buildExpr($expr->args[0]->value);
                 $len = $this->builder->createArrayLen($arrPtr);
                 $lastIdx = $this->builder->createInstruction('sub', [$len, new Constant(1, BaseType::INT)]);
@@ -904,23 +904,23 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 return new Void_();
             }
             if ($funcName === 'array_merge') {
-                assert(count($expr->args) >= 1);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 1);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
                 return $this->buildExpr($expr->args[0]->value);
             }
             if ($funcName === 'array_search') {
-                assert(count($expr->args) >= 2);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
-                assert($expr->args[1] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 2);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
                 $needle = $this->buildExpr($expr->args[0]->value);
                 $haystack = $this->buildExpr($expr->args[1]->value);
                 return $this->builder->createCall('pico_array_search_int', [$haystack, $needle], BaseType::INT);
             }
             if ($funcName === 'array_splice') {
-                assert(count($expr->args) >= 3);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
-                assert($expr->args[1] instanceof \PhpParser\Node\Arg);
-                assert($expr->args[2] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 3);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check($expr->args[2] instanceof \PhpParser\Node\Arg);
                 $arrPtr = $this->buildExpr($expr->args[0]->value);
                 $offset = $this->buildExpr($expr->args[1]->value);
                 $length = $this->buildExpr($expr->args[2]->value);
@@ -928,8 +928,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 return new Void_();
             }
             if ($funcName === 'end') {
-                assert(count($expr->args) === 1);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
                 $arrPtr = $this->buildExpr($expr->args[0]->value);
                 $arrType = $this->getExprResolvedType($expr->args[0]->value);
                 if ($arrType->getElementBaseType() === BaseType::STRING) {
@@ -938,9 +938,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 return $this->builder->createCall('pico_array_last_int', [$arrPtr], BaseType::INT);
             }
             if ($funcName === 'preg_match') {
-                assert(count($expr->args) >= 2);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
-                assert($expr->args[1] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 2);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
                 $pattern = $this->buildExpr($expr->args[0]->value);
                 $subject = $this->buildExpr($expr->args[1]->value);
                 if (count($expr->args) >= 3 && $expr->args[2] instanceof \PhpParser\Node\Arg) {
@@ -954,14 +954,14 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             if ($funcName === 'is_int') {
                 // At compile time we know the type — always returns true for int vars
-                assert(count($expr->args) === 1);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
                 $val = $this->buildExpr($expr->args[0]->value);
                 return new Constant($val->getType() === BaseType::INT ? 1 : 0, BaseType::BOOL);
             }
             if ($funcName === 'intval') {
-                assert(count($expr->args) === 1);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
                 $val = $this->buildExpr($expr->args[0]->value);
                 if ($val->getType() === BaseType::FLOAT) {
                     return $this->builder->createFpToSi($val);
@@ -975,7 +975,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
             $varType = $this->getExprResolvedType($expr->var);
             if ($varType->isArray()) {
-                assert($expr->dim !== null, "array read requires index");
+                \App\PicoHP\CompilerInvariant::check($expr->dim !== null, "array read requires index");
                 $arrPtr = $this->buildExpr($expr->var);
                 $idx = $this->buildExpr($expr->dim);
                 if ($varType->hasStringKeys()) {
@@ -993,7 +993,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             $varData = PicoHPData::getPData($expr->var);
             // String indexing (existing behavior)
-            assert($expr->dim !== null);
+            \App\PicoHP\CompilerInvariant::check($expr->dim !== null);
             if ($pData->lVal === true) {
                 return $this->builder->createGetElementPtr(
                     $varData->getValue(),
@@ -1036,7 +1036,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->builder->createStore($newVal, $ptr);
             return $newVal;
         } elseif ($expr instanceof \PhpParser\Node\Expr\New_) {
-            assert($expr->class instanceof \PhpParser\Node\Name);
+            \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
             $className = $expr->class->toString();
             $classMeta = $this->classRegistry[$className];
             $typeId = $this->typeIdMap[$className] ?? 0;
@@ -1056,7 +1056,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             return $objPtr;
         } elseif ($expr instanceof \PhpParser\Node\Expr\PropertyFetch) {
-            assert($expr->name instanceof \PhpParser\Node\Identifier);
+            \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Identifier);
             $objVal = $this->buildExpr($expr->var);
             $varType = $this->getExprResolvedType($expr->var);
             // Enum ->value access
@@ -1080,7 +1080,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             return $this->builder->createLoad($fieldPtr);
         } elseif ($expr instanceof \PhpParser\Node\Expr\MethodCall) {
-            assert($expr->name instanceof \PhpParser\Node\Identifier);
+            \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Identifier);
             $objVal = $this->buildExpr($expr->var);
             $varType = $this->getExprResolvedType($expr->var);
             $className = $varType->getClassName();
@@ -1101,18 +1101,18 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $qualifiedName = "{$ownerClass}_{$methodName}";
             return $this->builder->createCall($qualifiedName, $allArgs, $returnType);
         } elseif ($expr instanceof \PhpParser\Node\Expr\StaticCall) {
-            assert($expr->class instanceof \PhpParser\Node\Name);
-            assert($expr->name instanceof \PhpParser\Node\Identifier);
+            \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
+            \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Identifier);
             $targetClass = $expr->class->toString();
             $methodName = $expr->name->toString();
             if ($targetClass === 'self') {
-                assert($this->currentClassName !== null);
+                \App\PicoHP\CompilerInvariant::check($this->currentClassName !== null);
                 $targetClass = $this->currentClassName;
             }
             if ($targetClass === 'parent') {
-                assert($this->currentClassName !== null);
+                \App\PicoHP\CompilerInvariant::check($this->currentClassName !== null);
                 $classMeta = $this->classRegistry[$this->currentClassName];
-                assert($classMeta->parentName !== null);
+                \App\PicoHP\CompilerInvariant::check($classMeta->parentName !== null);
                 $parentMeta = $this->classRegistry[$classMeta->parentName];
                 $methodSymbol = $parentMeta->methods[$methodName];
                 $ownerClass = $parentMeta->methodOwner[$methodName] ?? $classMeta->parentName;
@@ -1123,14 +1123,14 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             $args = (new Collection($expr->args))
                 ->map(function ($arg): ValueAbstract {
-                    assert($arg instanceof \PhpParser\Node\Arg);
+                    \App\PicoHP\CompilerInvariant::check($arg instanceof \PhpParser\Node\Arg);
                     return $this->buildExpr($arg->value);
                 })
                 ->toArray();
             // Pass $this as first argument for parent:: calls
             if ($expr->class->toString() === 'parent') {
                 // Load $this from param 0 alloca
-                assert($this->currentThisPtr !== null);
+                \App\PicoHP\CompilerInvariant::check($this->currentThisPtr !== null);
                 $thisVal = $this->builder->createLoad($this->currentThisPtr);
                 /** @var array<ValueAbstract> $allArgs */
                 $allArgs = array_merge([$thisVal], $args);
@@ -1141,11 +1141,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $qualifiedName = "{$targetClass}_{$methodName}";
             return $this->builder->createCall($qualifiedName, $allArgs, $methodSymbol->type->toBase());
         } elseif ($expr instanceof \PhpParser\Node\Expr\StaticPropertyFetch) {
-            assert($expr->class instanceof \PhpParser\Node\Name);
-            assert($expr->name instanceof \PhpParser\Node\VarLikeIdentifier);
+            \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
+            \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\VarLikeIdentifier);
             $className = $expr->class->toString();
             if ($className === 'self') {
-                assert($this->currentClassName !== null);
+                \App\PicoHP\CompilerInvariant::check($this->currentClassName !== null);
                 $className = $this->currentClassName;
             }
             $propName = $expr->name->toString();
@@ -1158,7 +1158,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             return $this->builder->createLoad($globalPtr);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Match_) {
-            assert($this->currentFunction !== null);
+            \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
             $count = $pData->mycount;
             $condVal = $this->buildExpr($expr->cond);
             $condType = $condVal->getType();
@@ -1199,7 +1199,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
             // Emit condition checks and arm bodies
             foreach ($conditionalArms as $i => $arm) {
-                assert($arm->conds !== null);
+                \App\PicoHP\CompilerInvariant::check($arm->conds !== null);
 
                 if (count($arm->conds) === 1) {
                     $armCondVal = $this->buildExpr($arm->conds[0]);
@@ -1227,7 +1227,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                         }
                     }
                     $cmpResult = $orResult;
-                    assert($cmpResult !== null);
+                    \App\PicoHP\CompilerInvariant::check($cmpResult !== null);
                 }
 
                 $armLabel = new Label($armBlocks[$i]->getName());
@@ -1262,7 +1262,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->builder->setInsertPoint($endBlock);
             return $this->builder->createLoad($resultPtr);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Ternary) {
-            assert($this->currentFunction !== null);
+            \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
             $count = $pData->mycount;
 
             $condVal = $this->buildExpr($expr->cond);
@@ -1290,7 +1290,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             return $this->builder->createLoad($resultPtr);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Isset_) {
             // isset($x) on nullable ptr: check if not null
-            assert(count($expr->vars) === 1);
+            \App\PicoHP\CompilerInvariant::check(count($expr->vars) === 1);
             $val = $this->buildExpr($expr->vars[0]);
             return $this->builder->createInstruction('icmp ne', [$val, new \App\PicoHP\LLVM\Value\NullConstant()], resultType: BaseType::BOOL);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Instanceof_) {
@@ -1299,9 +1299,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             return new Constant(1, BaseType::BOOL);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Throw_) {
             // throw new ClassName(args...)
-            assert($expr->expr instanceof \PhpParser\Node\Expr\New_);
+            \App\PicoHP\CompilerInvariant::check($expr->expr instanceof \PhpParser\Node\Expr\New_);
             $newExpr = $expr->expr;
-            assert($newExpr->class instanceof \PhpParser\Node\Name);
+            \App\PicoHP\CompilerInvariant::check($newExpr->class instanceof \PhpParser\Node\Name);
             $className = $newExpr->class->toString();
             $classMeta = $this->classRegistry[$className];
             $typeId = $this->typeIdMap[$className] ?? 0;
@@ -1334,11 +1334,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     protected function resolveVarPtr(\PhpParser\Node\Expr $var): ValueAbstract
     {
         if ($var instanceof \PhpParser\Node\Expr\StaticPropertyFetch) {
-            assert($var->class instanceof \PhpParser\Node\Name);
-            assert($var->name instanceof \PhpParser\Node\VarLikeIdentifier);
+            \App\PicoHP\CompilerInvariant::check($var->class instanceof \PhpParser\Node\Name);
+            \App\PicoHP\CompilerInvariant::check($var->name instanceof \PhpParser\Node\VarLikeIdentifier);
             $className = $var->class->toString();
             if ($className === 'self' || $className === 'static') {
-                assert($this->currentClassName !== null);
+                \App\PicoHP\CompilerInvariant::check($this->currentClassName !== null);
                 $className = $this->currentClassName;
             }
             $classMeta = $this->classRegistry[$className];
@@ -1362,7 +1362,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         if ($paramCount === 0 && count($args) > 0) {
             $result = [];
             foreach ($args as $arg) {
-                assert($arg instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check($arg instanceof \PhpParser\Node\Arg);
                 $result[] = $this->buildExpr($arg->value);
             }
             return $result;
@@ -1376,11 +1376,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         $argsByPos = [];
         $positionalIndex = 0;
         foreach ($args as $arg) {
-            assert($arg instanceof \PhpParser\Node\Arg);
+            \App\PicoHP\CompilerInvariant::check($arg instanceof \PhpParser\Node\Arg);
             if ($arg->name !== null) {
                 // Named argument
                 $name = $arg->name->toString();
-                assert(isset($nameToPos[$name]), "unknown named argument: {$name}");
+                \App\PicoHP\CompilerInvariant::check(isset($nameToPos[$name]), "unknown named argument: {$name}");
                 $argsByPos[$nameToPos[$name]] = $arg->value;
             } else {
                 // Positional argument
@@ -1435,8 +1435,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         }
         if ($expr instanceof \PhpParser\Node\Expr\ClassConstFetch) {
             // Enum case as default value — resolve directly
-            assert($expr->class instanceof \PhpParser\Node\Name);
-            assert($expr->name instanceof \PhpParser\Node\Identifier);
+            \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
+            \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Identifier);
             $className = $expr->class->toString();
             $caseName = $expr->name->toString();
             if (isset($this->enumRegistry[$className])) {
@@ -1460,24 +1460,24 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             return PicoHPData::getPData($expr)->getSymbol()->type;
         }
         if ($expr instanceof \PhpParser\Node\Expr\PropertyFetch) {
-            assert($expr->name instanceof \PhpParser\Node\Identifier);
+            \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Identifier);
             $objType = $this->getExprResolvedType($expr->var);
             $classMeta = $this->classRegistry[$objType->getClassName()];
             return $classMeta->getPropertyType($expr->name->toString());
         }
         if ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
             $arrType = $this->getExprResolvedType($expr->var);
-            assert($arrType->isArray());
+            \App\PicoHP\CompilerInvariant::check($arrType->isArray());
             return $arrType->getElementType();
         }
         if ($expr instanceof \PhpParser\Node\Expr\MethodCall) {
-            assert($expr->name instanceof \PhpParser\Node\Identifier);
+            \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Identifier);
             $objType = $this->getExprResolvedType($expr->var);
             $classMeta = $this->classRegistry[$objType->getClassName()];
             return $classMeta->methods[$expr->name->toString()]->type;
         }
         if ($expr instanceof \PhpParser\Node\Expr\ClassConstFetch) {
-            assert($expr->class instanceof \PhpParser\Node\Name);
+            \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
             $className = $expr->class->toString();
             if (isset($this->enumRegistry[$className])) {
                 return \App\PicoHP\PicoType::enum($className);
@@ -1485,11 +1485,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             return \App\PicoHP\PicoType::object($className);
         }
         if ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
-            assert($expr->name instanceof \PhpParser\Node\Name);
+            \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Name);
             $fn = $expr->name->toLowerString();
             // Built-in functions that return the same type as their first array arg
             if ($fn === 'array_reverse' || $fn === 'array_merge') {
-                assert(count($expr->args) >= 1 && $expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 1 && $expr->args[0] instanceof \PhpParser\Node\Arg);
                 return $this->getExprResolvedType($expr->args[0]->value);
             }
             return PicoHPData::getPData($expr)->getSymbol()->type;
@@ -1511,7 +1511,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         array $allArgs,
         BaseType $returnType,
     ): ValueAbstract {
-        assert($this->currentFunction !== null);
+        \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
 
         // Find all classes that implement this interface
         $implementors = [];
@@ -1520,7 +1520,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $implementors[] = $name;
             }
         }
-        assert(count($implementors) > 0, "no implementors found for interface {$interfaceName}");
+        \App\PicoHP\CompilerInvariant::check(count($implementors) > 0, "no implementors found for interface {$interfaceName}");
 
         $vd = $this->vdispatchCount++;
 
@@ -1596,7 +1596,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
     protected function buildShortCircuit(\PhpParser\Node\Expr\BinaryOp $expr, PicoHPData $pData): ValueAbstract
     {
-        assert($this->currentFunction !== null);
+        \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
         $isAnd = $expr->getOperatorSigil() === '&&';
         $count = $pData->mycount;
 
@@ -1649,7 +1649,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         $mapPtr = $this->builder->createCall('pico_map_new', [], BaseType::PTR);
         $elementType = $arrayType->getElementBaseType();
         foreach ($arrayExpr->items as $item) {
-            assert($item->key !== null);
+            \App\PicoHP\CompilerInvariant::check($item->key !== null);
             $keyVal = $this->buildExpr($item->key);
             $elemVal = $this->buildExpr($item->value);
             $setFunc = 'pico_map_set_' . match ($elementType) {
@@ -1709,7 +1709,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
     protected function buildTryCatch(\PhpParser\Node\Stmt\TryCatch $stmt, PicoHPData $pData): void
     {
-        assert($this->currentFunction !== null);
+        \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
         $currentFunction = $this->currentFunction;
         $count = $pData->mycount;
 
@@ -1756,7 +1756,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             // Emit type-check chain
             for ($i = 0; $i < $catchCount; $i++) {
                 $catch = $stmt->catches[$i];
-                assert(count($catch->types) > 0);
+                \App\PicoHP\CompilerInvariant::check(count($catch->types) > 0);
                 $catchTypeName = $catch->types[0]->toString();
                 $catchBodyLabel = new Label($catchBodyBBs[$i]->getName());
 

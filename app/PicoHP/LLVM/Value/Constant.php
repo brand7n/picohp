@@ -40,7 +40,7 @@ class Constant extends ValueAbstract
 
         // Unpack to 64-bit unsigned integer
         $unpacked = unpack('Q', $packed);
-        assert(isset($unpacked[1]) && is_int($unpacked[1]));
+        \App\PicoHP\CompilerInvariant::check(isset($unpacked[1]) && is_int($unpacked[1]));
 
         // Return full 64-bit hexadecimal representation
         return '0x' . strtoupper(str_pad(dechex($unpacked[1]), 16, '0', STR_PAD_LEFT));

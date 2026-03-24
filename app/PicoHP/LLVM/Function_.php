@@ -56,7 +56,7 @@ class Function_ implements NodeInterface
         $paramString = implode(', ', $params);
         $code[] = new IRLine("define dso_local {$this->returnType->toBase()->toLLVM()} @{$this->name}({$paramString}) {");
         foreach ($this->getChildren() as $bb) {
-            assert($bb instanceof BasicBlock);
+            \App\PicoHP\CompilerInvariant::check($bb instanceof BasicBlock);
             $code = array_merge($code, $bb->getLines());
         }
         $code[] = new IRLine("}");

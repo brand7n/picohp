@@ -6,6 +6,7 @@ parameters:
     - bootstrap
     excludePaths:
         - tests/programs/functions/return_type_mismatch.php
+        - tests/programs/semantic/assignment_type_mismatch.php
         - tests/programs/classes/
         - tests/programs/self_compile/
         - tests/programs/functions/default_params.php

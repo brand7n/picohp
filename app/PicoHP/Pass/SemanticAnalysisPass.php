@@ -39,7 +39,7 @@ class SemanticAnalysisPass implements PassInterface
 
     public function getClassMetadata(string $name): ClassMetadata
     {
-        assert(isset($this->classRegistry[$name]), "class {$name} not found");
+        \App\PicoHP\CompilerInvariant::check(isset($this->classRegistry[$name]), "class {$name} not found");
         return $this->classRegistry[$name];
     }
 
@@ -123,14 +123,14 @@ class SemanticAnalysisPass implements PassInterface
                 continue;
             }
             if ($stmt instanceof \PhpParser\Node\Stmt\Class_) {
-                assert($stmt->name instanceof \PhpParser\Node\Identifier);
+                \App\PicoHP\CompilerInvariant::check($stmt->name instanceof \PhpParser\Node\Identifier);
                 $className = $stmt->name->toString();
                 $classMeta = new ClassMetadata($className);
                 $this->classRegistry[$className] = $classMeta;
                 // Inherit from parent class
                 if ($stmt->extends !== null) {
                     $parentName = $stmt->extends->toString();
-                    assert(isset($this->classRegistry[$parentName]), "parent class {$parentName} not found");
+                    \App\PicoHP\CompilerInvariant::check(isset($this->classRegistry[$parentName]), "parent class {$parentName} not found");
                     $classMeta->inheritFrom($this->classRegistry[$parentName]);
                 }
                 // Assign type_id to all classes (used for virtual dispatch and exceptions)
@@ -145,7 +145,7 @@ class SemanticAnalysisPass implements PassInterface
                     if ($classStmt instanceof \PhpParser\Node\Stmt\TraitUse) {
                         foreach ($classStmt->traits as $traitName) {
                             $name = $traitName->toString();
-                            assert(isset($this->traitRegistry[$name]), "trait {$name} not found");
+                            \App\PicoHP\CompilerInvariant::check(isset($this->traitRegistry[$name]), "trait {$name} not found");
                             $trait = $this->traitRegistry[$name];
                             foreach ($trait['properties'] as $prop) {
                                 $inlinedStmts[] = clone $prop;
@@ -164,10 +164,10 @@ class SemanticAnalysisPass implements PassInterface
                         if ($classStmt->type === null) {
                             // No native type hint — require PHPDoc
                             $doc = $classStmt->getDocComment();
-                            assert($doc !== null, 'untyped property requires PHPDoc type annotation');
+                            \App\PicoHP\CompilerInvariant::check($doc !== null, 'untyped property requires PHPDoc type annotation');
                             $propType = $this->docTypeParser->parseType($doc->getText());
                         } else {
-                            assert($classStmt->type instanceof \PhpParser\Node\Identifier || $classStmt->type instanceof \PhpParser\Node\NullableType || $classStmt->type instanceof \PhpParser\Node\Name || $classStmt->type instanceof \PhpParser\Node\UnionType);
+                            \App\PicoHP\CompilerInvariant::check($classStmt->type instanceof \PhpParser\Node\Identifier || $classStmt->type instanceof \PhpParser\Node\NullableType || $classStmt->type instanceof \PhpParser\Node\Name || $classStmt->type instanceof \PhpParser\Node\UnionType);
                             $doc = $classStmt->getDocComment();
                             if ($doc !== null) {
                                 $propType = $this->docTypeParser->parseType($doc->getText());
@@ -187,7 +187,7 @@ class SemanticAnalysisPass implements PassInterface
                         }
                     } elseif ($classStmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
                         $methodName = $classStmt->name->toString();
-                        assert($classStmt->returnType === null || $classStmt->returnType instanceof \PhpParser\Node\Identifier || $classStmt->returnType instanceof \PhpParser\Node\NullableType || $classStmt->returnType instanceof \PhpParser\Node\Name || $classStmt->returnType instanceof \PhpParser\Node\UnionType);
+                        \App\PicoHP\CompilerInvariant::check($classStmt->returnType === null || $classStmt->returnType instanceof \PhpParser\Node\Identifier || $classStmt->returnType instanceof \PhpParser\Node\NullableType || $classStmt->returnType instanceof \PhpParser\Node\Name || $classStmt->returnType instanceof \PhpParser\Node\UnionType);
                         $returnType = $classStmt->returnType !== null
                             ? $this->typeFromNode($classStmt->returnType)
                             : PicoType::fromString('void');
@@ -195,7 +195,7 @@ class SemanticAnalysisPass implements PassInterface
                         $pi = 0;
                         foreach ($classStmt->params as $param) {
                             $methodSymbol->defaults[$pi] = $param->default;
-                            assert($param->var instanceof \PhpParser\Node\Expr\Variable && is_string($param->var->name));
+                            \App\PicoHP\CompilerInvariant::check($param->var instanceof \PhpParser\Node\Expr\Variable && is_string($param->var->name));
                             $methodSymbol->paramNames[$pi] = $param->var->name;
                             $pi++;
                         }
@@ -205,14 +205,14 @@ class SemanticAnalysisPass implements PassInterface
                 }
             }
             if ($stmt instanceof \PhpParser\Node\Stmt\Interface_) {
-                assert($stmt->name instanceof \PhpParser\Node\Identifier);
+                \App\PicoHP\CompilerInvariant::check($stmt->name instanceof \PhpParser\Node\Identifier);
                 $ifaceName = $stmt->name->toString();
                 $ifaceMeta = new ClassMetadata($ifaceName);
                 $this->classRegistry[$ifaceName] = $ifaceMeta;
                 foreach ($stmt->stmts as $ifaceStmt) {
                     if ($ifaceStmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
                         $methodName = $ifaceStmt->name->toString();
-                        assert($ifaceStmt->returnType === null || $ifaceStmt->returnType instanceof \PhpParser\Node\Identifier || $ifaceStmt->returnType instanceof \PhpParser\Node\NullableType || $ifaceStmt->returnType instanceof \PhpParser\Node\Name || $ifaceStmt->returnType instanceof \PhpParser\Node\UnionType);
+                        \App\PicoHP\CompilerInvariant::check($ifaceStmt->returnType === null || $ifaceStmt->returnType instanceof \PhpParser\Node\Identifier || $ifaceStmt->returnType instanceof \PhpParser\Node\NullableType || $ifaceStmt->returnType instanceof \PhpParser\Node\Name || $ifaceStmt->returnType instanceof \PhpParser\Node\UnionType);
                         $returnType = $ifaceStmt->returnType !== null
                             ? $this->typeFromNode($ifaceStmt->returnType)
                             : PicoType::fromString('void');
@@ -220,7 +220,7 @@ class SemanticAnalysisPass implements PassInterface
                         $pi = 0;
                         foreach ($ifaceStmt->params as $param) {
                             $methodSymbol->defaults[$pi] = $param->default;
-                            assert($param->var instanceof \PhpParser\Node\Expr\Variable && is_string($param->var->name));
+                            \App\PicoHP\CompilerInvariant::check($param->var instanceof \PhpParser\Node\Expr\Variable && is_string($param->var->name));
                             $methodSymbol->paramNames[$pi] = $param->var->name;
                             $pi++;
                         }
@@ -230,7 +230,7 @@ class SemanticAnalysisPass implements PassInterface
                 }
             }
             if ($stmt instanceof \PhpParser\Node\Stmt\Enum_) {
-                assert($stmt->name instanceof \PhpParser\Node\Identifier);
+                \App\PicoHP\CompilerInvariant::check($stmt->name instanceof \PhpParser\Node\Identifier);
                 $enumName = $stmt->name->toString();
                 $scalarTypeName = null;
                 if ($stmt->scalarType !== null) {
@@ -245,7 +245,7 @@ class SemanticAnalysisPass implements PassInterface
                 foreach ($stmt->stmts as $enumStmt) {
                     if ($enumStmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
                         $methodName = $enumStmt->name->toString();
-                        assert($enumStmt->returnType === null || $enumStmt->returnType instanceof \PhpParser\Node\Identifier || $enumStmt->returnType instanceof \PhpParser\Node\NullableType || $enumStmt->returnType instanceof \PhpParser\Node\Name || $enumStmt->returnType instanceof \PhpParser\Node\UnionType);
+                        \App\PicoHP\CompilerInvariant::check($enumStmt->returnType === null || $enumStmt->returnType instanceof \PhpParser\Node\Identifier || $enumStmt->returnType instanceof \PhpParser\Node\NullableType || $enumStmt->returnType instanceof \PhpParser\Node\Name || $enumStmt->returnType instanceof \PhpParser\Node\UnionType);
                         $returnType = $enumStmt->returnType !== null
                             ? $this->typeFromNode($enumStmt->returnType)
                             : PicoType::fromString('void');
@@ -284,7 +284,7 @@ class SemanticAnalysisPass implements PassInterface
 
     protected function registerTrait(\PhpParser\Node\Stmt\Trait_ $stmt): void
     {
-        assert($stmt->name instanceof \PhpParser\Node\Identifier);
+        \App\PicoHP\CompilerInvariant::check($stmt->name instanceof \PhpParser\Node\Identifier);
         $traitName = $stmt->name->toString();
         $properties = [];
         $methods = [];
@@ -308,7 +308,7 @@ class SemanticAnalysisPass implements PassInterface
     {
         foreach ($stmts as $stmt) {
             if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
-                assert($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType || $stmt->returnType instanceof \PhpParser\Node\Name || $stmt->returnType instanceof \PhpParser\Node\UnionType);
+                \App\PicoHP\CompilerInvariant::check($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType || $stmt->returnType instanceof \PhpParser\Node\Name || $stmt->returnType instanceof \PhpParser\Node\UnionType);
                 $existing = $this->symbolTable->lookupCurrentScope($stmt->name->name);
                 if ($existing === null) {
                     $sym = $this->symbolTable->addSymbol(
@@ -319,7 +319,7 @@ class SemanticAnalysisPass implements PassInterface
                     $pi = 0;
                     foreach ($stmt->params as $param) {
                         $sym->defaults[$pi] = $param->default;
-                        assert($param->var instanceof \PhpParser\Node\Expr\Variable && is_string($param->var->name));
+                        \App\PicoHP\CompilerInvariant::check($param->var instanceof \PhpParser\Node\Expr\Variable && is_string($param->var->name));
                         $sym->paramNames[$pi] = $param->var->name;
                         $pi++;
                     }
@@ -434,7 +434,7 @@ class SemanticAnalysisPass implements PassInterface
     {
         $types = [];
         foreach ($node->types as $type) {
-            assert($type instanceof \PhpParser\Node\Identifier || $type instanceof \PhpParser\Node\Name);
+            \App\PicoHP\CompilerInvariant::check($type instanceof \PhpParser\Node\Identifier || $type instanceof \PhpParser\Node\Name);
             $types[] = $this->typeFromNode($type);
         }
 
@@ -454,7 +454,7 @@ class SemanticAnalysisPass implements PassInterface
     public function resolveStmts(array $stmts): void
     {
         foreach ($stmts as $stmt) {
-            assert($stmt instanceof \PhpParser\Node\Stmt);
+            \App\PicoHP\CompilerInvariant::check($stmt instanceof \PhpParser\Node\Stmt);
             $this->resolveStmt($stmt);
         }
     }
@@ -464,8 +464,8 @@ class SemanticAnalysisPass implements PassInterface
         $pData = $this->getPicoData($stmt);
 
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
-            assert(!is_null($stmt->returnType));
-            assert($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType || $stmt->returnType instanceof \PhpParser\Node\Name || $stmt->returnType instanceof \PhpParser\Node\UnionType);
+            \App\PicoHP\CompilerInvariant::check(!is_null($stmt->returnType));
+            \App\PicoHP\CompilerInvariant::check($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType || $stmt->returnType instanceof \PhpParser\Node\Name || $stmt->returnType instanceof \PhpParser\Node\UnionType);
             $returnType = $this->typeFromNode($stmt->returnType);
             $existing = $this->symbolTable->lookupCurrentScope($stmt->name->name);
             $pData->symbol = $existing ?? $this->symbolTable->addSymbol($stmt->name->name, $returnType, func: true);
@@ -532,7 +532,7 @@ class SemanticAnalysisPass implements PassInterface
             }
             foreach ($stmt->cond as $cond) {
                 $condType = $this->resolveExpr($cond);
-                assert($condType->toBase() === BaseType::BOOL);
+                \App\PicoHP\CompilerInvariant::check($condType->toBase() === BaseType::BOOL);
             }
             foreach ($stmt->loop as $loop) {
                 $this->resolveExpr($loop);
@@ -552,9 +552,9 @@ class SemanticAnalysisPass implements PassInterface
             // Class constants handled during class registration
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Foreach_) {
             $arrayType = $this->resolveExpr($stmt->expr);
-            assert($arrayType->isArray() || $arrayType->isMixed(), "foreach expression must be an array, got {$arrayType->toString()}");
-            assert($stmt->valueVar instanceof \PhpParser\Node\Expr\Variable);
-            assert(is_string($stmt->valueVar->name));
+            \App\PicoHP\CompilerInvariant::check($arrayType->isArray() || $arrayType->isMixed(), "foreach expression must be an array, got {$arrayType->toString()}");
+            \App\PicoHP\CompilerInvariant::check($stmt->valueVar instanceof \PhpParser\Node\Expr\Variable);
+            \App\PicoHP\CompilerInvariant::check(is_string($stmt->valueVar->name));
             $valueVarPData = $this->getPicoData($stmt->valueVar);
             $elementType = $arrayType->isMixed() ? PicoType::fromString('mixed') : $arrayType->getElementType();
             $valueVarPData->symbol = $this->symbolTable->addSymbol(
@@ -562,8 +562,8 @@ class SemanticAnalysisPass implements PassInterface
                 $elementType
             );
             if ($stmt->keyVar !== null) {
-                assert($stmt->keyVar instanceof \PhpParser\Node\Expr\Variable);
-                assert(is_string($stmt->keyVar->name));
+                \App\PicoHP\CompilerInvariant::check($stmt->keyVar instanceof \PhpParser\Node\Expr\Variable);
+                \App\PicoHP\CompilerInvariant::check(is_string($stmt->keyVar->name));
                 $keyVarPData = $this->getPicoData($stmt->keyVar);
                 $keyType = $arrayType->hasStringKeys() ? 'string' : 'int';
                 $keyVarPData->symbol = $this->symbolTable->addSymbol(
@@ -573,7 +573,7 @@ class SemanticAnalysisPass implements PassInterface
             }
             $this->resolveStmts($stmt->stmts);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Class_) {
-            assert($stmt->name instanceof \PhpParser\Node\Identifier);
+            \App\PicoHP\CompilerInvariant::check($stmt->name instanceof \PhpParser\Node\Identifier);
             $className = $stmt->name->toString();
             $classMeta = $this->classRegistry[$className] ?? null;
             if ($classMeta === null) {
@@ -593,13 +593,13 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Property) {
             // Properties already registered in Class_ handler
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
-            assert($this->currentClass !== null);
+            \App\PicoHP\CompilerInvariant::check($this->currentClass !== null);
             $methodName = $stmt->name->toString();
             // Abstract methods have no body — already registered in registerClasses
             if ($stmt->stmts === null) {
                 return;
             }
-            assert($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType || $stmt->returnType instanceof \PhpParser\Node\Name || $stmt->returnType instanceof \PhpParser\Node\UnionType || $stmt->returnType === null);
+            \App\PicoHP\CompilerInvariant::check($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType || $stmt->returnType instanceof \PhpParser\Node\Name || $stmt->returnType instanceof \PhpParser\Node\UnionType || $stmt->returnType === null);
             $returnType = $stmt->returnType !== null ? $this->typeFromNode($stmt->returnType) : PicoType::fromString('void');
             $methodSymbol = $this->symbolTable->addSymbol($methodName, $returnType, func: true);
             $pData->symbol = $methodSymbol;
@@ -625,11 +625,11 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\TryCatch) {
             $this->resolveStmts($stmt->stmts);
             foreach ($stmt->catches as $catch) {
-                assert(count($catch->types) > 0);
+                \App\PicoHP\CompilerInvariant::check(count($catch->types) > 0);
                 $catchTypeName = $catch->types[0]->toString();
-                assert(isset($this->classRegistry[$catchTypeName]), "catch class {$catchTypeName} not found");
+                \App\PicoHP\CompilerInvariant::check(isset($this->classRegistry[$catchTypeName]), "catch class {$catchTypeName} not found");
                 if ($catch->var !== null) {
-                    assert(is_string($catch->var->name));
+                    \App\PicoHP\CompilerInvariant::check(is_string($catch->var->name));
                     $catchPData = $this->getPicoData($catch->var);
                     $existing = $this->symbolTable->lookupCurrentScope($catch->var->name);
                     if ($existing !== null) {
@@ -684,11 +684,11 @@ class SemanticAnalysisPass implements PassInterface
             $line = $this->getLine($expr);
             $compatible = $ltype->isEqualTo($rtype)
                 || $this->isAssignmentCompatible($ltype, $rtype);
-            assert($compatible, "line {$line}, type mismatch in assignment: {$ltype->toString()} = {$rtype->toString()}");
+            \App\PicoHP\CompilerInvariant::check($compatible, "line {$line}, type mismatch in assignment: {$ltype->toString()} = {$rtype->toString()}");
             return $rtype;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Variable) {
             $pData->lVal = $lVal;
-            assert(is_string($expr->name));
+            \App\PicoHP\CompilerInvariant::check(is_string($expr->name));
             $s = $this->symbolTable->lookupCurrentScope($expr->name);
 
             if (!is_null($doc) && is_null($s)) {
@@ -702,7 +702,7 @@ class SemanticAnalysisPass implements PassInterface
 
             $pData->symbol = $this->symbolTable->lookup($expr->name);
             $line = $this->getLine($expr);
-            assert(!is_null($pData->symbol), "line {$line}, symbol not found: {$expr->name}");
+            \App\PicoHP\CompilerInvariant::check(!is_null($pData->symbol), "line {$line}, symbol not found: {$expr->name}");
             return $pData->symbol->type;
         } elseif ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
             $pData->lVal = $lVal;
@@ -711,7 +711,7 @@ class SemanticAnalysisPass implements PassInterface
                 if ($expr->dim !== null) {
                     $dimType = $this->resolveExpr($expr->dim);
                     if (!$type->isMixed() && $type->hasStringKeys()) {
-                        assert($dimType->isEqualTo(PicoType::fromString('string')), "{$dimType->toString()} is not a string for string-keyed array");
+                        \App\PicoHP\CompilerInvariant::check($dimType->isEqualTo(PicoType::fromString('string')), "{$dimType->toString()} is not a string for string-keyed array");
                     }
                 }
                 // dim === null means $arr[] = ... (push), resolved at Assign
@@ -721,10 +721,10 @@ class SemanticAnalysisPass implements PassInterface
                 return $type->getElementType();
             }
             // string indexing
-            assert($type->isEqualTo(PicoType::fromString('string')), "{$type->toString()} is not a string or array");
-            assert($expr->dim !== null);
+            \App\PicoHP\CompilerInvariant::check($type->isEqualTo(PicoType::fromString('string')), "{$type->toString()} is not a string or array");
+            \App\PicoHP\CompilerInvariant::check($expr->dim !== null);
             $dimType = $this->resolveExpr($expr->dim);
-            assert($dimType->isEqualTo(PicoType::fromString('int')), "{$dimType->toString()} is not an int");
+            \App\PicoHP\CompilerInvariant::check($dimType->isEqualTo(PicoType::fromString('int')), "{$dimType->toString()} is not an int");
             return PicoType::fromString('int');
         } elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp\Coalesce) {
             $this->resolveExpr($expr->left);
@@ -736,7 +736,7 @@ class SemanticAnalysisPass implements PassInterface
             // === and !== can compare different types (that's the point of strict comparison)
             $sigil = $expr->getOperatorSigil();
             if ($sigil !== '===' && $sigil !== '!==') {
-                assert($ltype->isEqualTo($rtype), "line {$line}, type mismatch in binary op: {$ltype->toString()} {$sigil} {$rtype->toString()}");
+                \App\PicoHP\CompilerInvariant::check($ltype->isEqualTo($rtype), "line {$line}, type mismatch in binary op: {$ltype->toString()} {$sigil} {$rtype->toString()}");
             }
             switch ($expr->getOperatorSigil()) {
                 case '.':
@@ -774,7 +774,7 @@ class SemanticAnalysisPass implements PassInterface
             return $type;
         } elseif ($expr instanceof \PhpParser\Node\Expr\UnaryMinus) {
             $type = $this->resolveExpr($expr->expr);
-            assert($type->isEqualTo(PicoType::fromString('int')));
+            \App\PicoHP\CompilerInvariant::check($type->isEqualTo(PicoType::fromString('int')));
             return PicoType::fromString('int');
         } elseif ($expr instanceof \PhpParser\Node\Scalar\Int_) {
             return PicoType::fromString('int');
@@ -805,8 +805,8 @@ class SemanticAnalysisPass implements PassInterface
             $this->resolveExpr($expr->expr);
             return PicoType::fromString('string');
         } elseif ($expr instanceof \PhpParser\Node\Expr\ClassConstFetch) {
-            assert($expr->class instanceof \PhpParser\Node\Name);
-            assert($expr->name instanceof \PhpParser\Node\Identifier);
+            \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
+            \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Identifier);
             $className = $expr->class->toString();
             if (isset($this->enumRegistry[$className])) {
                 return PicoType::enum($className);
@@ -819,7 +819,7 @@ class SemanticAnalysisPass implements PassInterface
             }
             return PicoType::fromString('bool');
         } elseif ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
-            assert($expr->name instanceof \PhpParser\Node\Name);
+            \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Name);
             $funcName = $expr->name->toLowerString();
             $this->resolveArgs($expr->args);
             // Built-in functions
@@ -847,8 +847,8 @@ class SemanticAnalysisPass implements PassInterface
                 return PicoType::fromString('int');
             }
             if ($funcName === 'array_reverse') {
-                assert(count($expr->args) >= 1);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 1);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
                 return $this->resolveExpr($expr->args[0]->value);
             }
             if ($funcName === 'array_pop' || $funcName === 'array_shift') {
@@ -867,10 +867,10 @@ class SemanticAnalysisPass implements PassInterface
                 return PicoType::fromString('int');
             }
             if ($funcName === 'end') {
-                assert(count($expr->args) === 1);
-                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
                 $arrType = $this->resolveExpr($expr->args[0]->value);
-                assert($arrType->isArray());
+                \App\PicoHP\CompilerInvariant::check($arrType->isArray());
                 return $arrType->getElementType();
             }
             if ($funcName === 'array_splice') {
@@ -878,7 +878,7 @@ class SemanticAnalysisPass implements PassInterface
             }
             $s = $this->symbolTable->lookup($expr->name->name);
             $line = $this->getLine($expr);
-            assert($s !== null, "line {$line}, function {$expr->name->name} not found");
+            \App\PicoHP\CompilerInvariant::check($s !== null, "line {$line}, function {$expr->name->name} not found");
             $pData->symbol = $s;
             return $s->type;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Include_) {
@@ -918,19 +918,19 @@ class SemanticAnalysisPass implements PassInterface
             }
             return $arrType;
         } elseif ($expr instanceof \PhpParser\Node\Expr\New_) {
-            assert($expr->class instanceof \PhpParser\Node\Name);
+            \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
             $className = $expr->class->toString();
             if ($className === 'self') {
-                assert($this->currentClass !== null);
+                \App\PicoHP\CompilerInvariant::check($this->currentClass !== null);
                 $className = $this->currentClass->name;
             }
-            assert(isset($this->classRegistry[$className]), "class {$className} not found");
+            \App\PicoHP\CompilerInvariant::check(isset($this->classRegistry[$className]), "class {$className} not found");
             $this->resolveArgs($expr->args);
             return PicoType::object($className);
         } elseif ($expr instanceof \PhpParser\Node\Expr\PropertyFetch) {
             $pData->lVal = $lVal;
             $objType = $this->resolveExpr($expr->var);
-            assert($expr->name instanceof \PhpParser\Node\Identifier);
+            \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Identifier);
             // Enum ->value access
             if ($objType->isEnum() && $expr->name->toString() === 'value') {
                 $enumMeta = $this->enumRegistry[$objType->getClassName()];
@@ -942,7 +942,7 @@ class SemanticAnalysisPass implements PassInterface
             if ($objType->isMixed()) {
                 return PicoType::fromString('mixed');
             }
-            assert($objType->isObject(), "property fetch on non-object type: {$objType->toString()}");
+            \App\PicoHP\CompilerInvariant::check($objType->isObject(), "property fetch on non-object type: {$objType->toString()}");
             $classMeta = $this->classRegistry[$objType->getClassName()];
             return $classMeta->getPropertyType($expr->name->toString());
         } elseif ($expr instanceof \PhpParser\Node\Expr\MethodCall) {
@@ -952,49 +952,49 @@ class SemanticAnalysisPass implements PassInterface
                 $this->resolveArgs($expr->args);
                 return PicoType::fromString('mixed');
             }
-            assert($objType->isObject(), "method call on non-object type: {$objType->toString()}");
-            assert($expr->name instanceof \PhpParser\Node\Identifier);
+            \App\PicoHP\CompilerInvariant::check($objType->isObject(), "method call on non-object type: {$objType->toString()}");
+            \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Identifier);
             $className = $objType->getClassName();
             $methodName = $expr->name->toString();
-            assert(isset($this->classRegistry[$className]), "class {$className} not found in registry for method call {$methodName}");
+            \App\PicoHP\CompilerInvariant::check(isset($this->classRegistry[$className]), "class {$className} not found in registry for method call {$methodName}");
             $classMeta = $this->classRegistry[$className];
-            assert(isset($classMeta->methods[$methodName]), "method {$methodName} not found on class {$className}");
+            \App\PicoHP\CompilerInvariant::check(isset($classMeta->methods[$methodName]), "method {$methodName} not found on class {$className}");
             $this->resolveArgs($expr->args);
             return $classMeta->methods[$methodName]->type;
         } elseif ($expr instanceof \PhpParser\Node\Expr\StaticPropertyFetch) {
             $pData->lVal = $lVal;
-            assert($expr->class instanceof \PhpParser\Node\Name);
-            assert($expr->name instanceof \PhpParser\Node\VarLikeIdentifier);
+            \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
+            \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\VarLikeIdentifier);
             $className = $expr->class->toString();
             if ($className === 'self') {
-                assert($this->currentClass !== null);
+                \App\PicoHP\CompilerInvariant::check($this->currentClass !== null);
                 $className = $this->currentClass->name;
             }
             $classMeta = $this->classRegistry[$className];
             $propName = $expr->name->toString();
-            assert(isset($classMeta->staticProperties[$propName]), "static property {$propName} not found on {$className}");
+            \App\PicoHP\CompilerInvariant::check(isset($classMeta->staticProperties[$propName]), "static property {$propName} not found on {$className}");
             return $classMeta->staticProperties[$propName];
         } elseif ($expr instanceof \PhpParser\Node\Expr\StaticCall) {
-            assert($expr->class instanceof \PhpParser\Node\Name);
-            assert($expr->name instanceof \PhpParser\Node\Identifier);
+            \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
+            \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Identifier);
             $className = $expr->class->toString();
             $methodName = $expr->name->toString();
             $this->resolveArgs($expr->args);
             if ($className === 'self') {
-                assert($this->currentClass !== null);
+                \App\PicoHP\CompilerInvariant::check($this->currentClass !== null);
                 $className = $this->currentClass->name;
             }
             if ($className === 'parent') {
-                assert($this->currentClass !== null);
-                assert($this->currentClass->parentName !== null, "parent:: used but class has no parent");
+                \App\PicoHP\CompilerInvariant::check($this->currentClass !== null);
+                \App\PicoHP\CompilerInvariant::check($this->currentClass->parentName !== null, "parent:: used but class has no parent");
                 $parentMeta = $this->classRegistry[$this->currentClass->parentName];
-                assert(isset($parentMeta->methods[$methodName]), "method {$methodName} not found on parent {$this->currentClass->parentName}");
+                \App\PicoHP\CompilerInvariant::check(isset($parentMeta->methods[$methodName]), "method {$methodName} not found on parent {$this->currentClass->parentName}");
                 return $parentMeta->methods[$methodName]->type;
             }
             // Regular static call — resolve class
-            assert(isset($this->classRegistry[$className]), "class {$className} not found");
+            \App\PicoHP\CompilerInvariant::check(isset($this->classRegistry[$className]), "class {$className} not found");
             $classMeta = $this->classRegistry[$className];
-            assert(isset($classMeta->methods[$methodName]), "method {$methodName} not found on {$className}");
+            \App\PicoHP\CompilerInvariant::check(isset($classMeta->methods[$methodName]), "method {$methodName} not found on {$className}");
             return $classMeta->methods[$methodName]->type;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Match_) {
             $this->resolveExpr($expr->cond);
@@ -1010,7 +1010,7 @@ class SemanticAnalysisPass implements PassInterface
                     $resultType = $bodyType;
                 }
             }
-            assert($resultType !== null);
+            \App\PicoHP\CompilerInvariant::check($resultType !== null);
             return $resultType;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Ternary) {
             $this->resolveExpr($expr->cond);
@@ -1043,7 +1043,7 @@ class SemanticAnalysisPass implements PassInterface
     {
         $argTypes = [];
         foreach ($args as $arg) {
-            assert($arg instanceof \PhpParser\Node\Arg);
+            \App\PicoHP\CompilerInvariant::check($arg instanceof \PhpParser\Node\Arg);
             $argTypes[] = $this->resolveExpr($arg->value);
         }
         return $argTypes;
@@ -1061,9 +1061,9 @@ class SemanticAnalysisPass implements PassInterface
         $index = 0;
         foreach ($params as $param) {
             $pData = $this->getPicoData($param);
-            assert($param->var instanceof \PhpParser\Node\Expr\Variable);
-            assert(is_string($param->var->name));
-            assert($param->type instanceof \PhpParser\Node\Identifier || $param->type instanceof \PhpParser\Node\NullableType || $param->type instanceof \PhpParser\Node\Name || $param->type instanceof \PhpParser\Node\UnionType);
+            \App\PicoHP\CompilerInvariant::check($param->var instanceof \PhpParser\Node\Expr\Variable);
+            \App\PicoHP\CompilerInvariant::check(is_string($param->var->name));
+            \App\PicoHP\CompilerInvariant::check($param->type instanceof \PhpParser\Node\Identifier || $param->type instanceof \PhpParser\Node\NullableType || $param->type instanceof \PhpParser\Node\Name || $param->type instanceof \PhpParser\Node\UnionType);
             $paramType = $this->typeFromNode($param->type);
             $pData->symbol = $this->symbolTable->addSymbol($param->var->name, $paramType);
             $paramTypes[] = $paramType;
@@ -1077,7 +1077,7 @@ class SemanticAnalysisPass implements PassInterface
     public function resolveProperty(\PhpParser\Node\Stmt\PropertyProperty $prop, PicoHPData $pData, PicoType $type): void
     {
         if ($prop->default !== null) {
-            assert($this->resolveExpr($prop->default) === $type);
+            \App\PicoHP\CompilerInvariant::check($this->resolveExpr($prop->default) === $type);
         }
         $pData->symbol = $this->symbolTable->addSymbol($prop->name, $type);
     }
@@ -1087,7 +1087,7 @@ class SemanticAnalysisPass implements PassInterface
         $line = 0;
         if ($node->hasAttribute("startLine")) {
             $line = $node->getAttribute("startLine");
-            assert(is_int($line));
+            \App\PicoHP\CompilerInvariant::check(is_int($line));
         }
         return $line;
     }

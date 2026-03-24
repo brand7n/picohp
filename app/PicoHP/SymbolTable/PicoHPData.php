@@ -30,20 +30,20 @@ class PicoHPData
 
     public function getValue(): ValueAbstract
     {
-        assert($this->symbol !== null && $this->symbol->value !== null);
+        \App\PicoHP\CompilerInvariant::check($this->symbol !== null && $this->symbol->value !== null);
         return $this->symbol->value;
     }
 
     public function getSymbol(): Symbol
     {
-        assert($this->symbol !== null);
+        \App\PicoHP\CompilerInvariant::check($this->symbol !== null);
         return $this->symbol;
     }
 
     public static function getPData(\PhpParser\Node $node): PicoHPData
     {
         $pData = $node->getAttribute("picoHP");
-        assert($pData instanceof PicoHPData);
+        \App\PicoHP\CompilerInvariant::check($pData instanceof PicoHPData);
         return $pData;
     }
 }

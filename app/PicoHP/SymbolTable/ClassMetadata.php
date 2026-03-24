@@ -64,13 +64,13 @@ class ClassMetadata
 
     public function getPropertyIndex(string $name): int
     {
-        assert(isset($this->propertyOffsets[$name]), "property {$name} not found on class {$this->name}");
+        \App\PicoHP\CompilerInvariant::check(isset($this->propertyOffsets[$name]), "property {$name} not found on class {$this->name}");
         return $this->propertyOffsets[$name];
     }
 
     public function getPropertyType(string $name): PicoType
     {
-        assert(isset($this->properties[$name]), "property {$name} not found on class {$this->name}");
+        \App\PicoHP\CompilerInvariant::check(isset($this->properties[$name]), "property {$name} not found on class {$this->name}");
         return $this->properties[$name];
     }
 

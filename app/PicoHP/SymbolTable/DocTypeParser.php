@@ -61,9 +61,9 @@ class DocTypeParser
         }
 
         $genericTag = $phpDocNode->getTagsByName('@picobuf');
-        assert(count($genericTag) === 1);
-        assert($genericTag[0]->name === '@picobuf');
-        assert($genericTag[0]->value instanceof GenericTagValueNode);
+        \App\PicoHP\CompilerInvariant::check(count($genericTag) === 1);
+        \App\PicoHP\CompilerInvariant::check($genericTag[0]->name === '@picobuf');
+        \App\PicoHP\CompilerInvariant::check($genericTag[0]->value instanceof GenericTagValueNode);
         // TODO: return something like a type buffer of size 256
         return PicoType::fromString('string');
         //dump($genericTag[0]->value);

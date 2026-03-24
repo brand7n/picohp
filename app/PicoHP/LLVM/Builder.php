@@ -111,7 +111,7 @@ class Builder
      */
     public function createInstruction(string $opcode, array $operands, bool $emitResult = true, BaseType $resultType = BaseType::INT): ValueAbstract
     {
-        assert(count($operands) > 0);
+        \App\PicoHP\CompilerInvariant::check(count($operands) > 0);
         $type = $operands[0]->getType();
         $operandString = (new Collection($operands))
             ->map(fn ($operand): string => $operand->render())
@@ -131,10 +131,10 @@ class Builder
     public function createBranch(array $operands): ValueAbstract
     {
         if (count($operands) === 1) {
-            assert($operands[0] instanceof Label);
+            \App\PicoHP\CompilerInvariant::check($operands[0] instanceof Label);
             $this->addLine("br label {$operands[0]->render()}", 1);
         } elseif (count($operands) === 3) {
-            assert($operands[1] instanceof Label && $operands[2] instanceof Label);
+            \App\PicoHP\CompilerInvariant::check($operands[1] instanceof Label && $operands[2] instanceof Label);
             $this->addLine("br i1 {$operands[0]->render()}, label {$operands[1]->render()}, label {$operands[2]->render()}", 1);
         } else {
             throw new \RuntimeException('Invalid branch operands');
@@ -161,7 +161,7 @@ class Builder
     {
         // TODO: in case of i8* lval should we cast $rval from i32
         //       use u8 instead?
-        //assert($lval instanceof AllocaInst || ($lval instanceof Instruction && $lval->getType() === 'i8*'));
+        // assert($lval instanceof AllocaInst || ($lval instanceof Instruction && $lval->getType() === 'i8*'));
         $type = $rval->getType();
         $typeStr = $type->toLLVM();
         $ptrType = $typeStr === 'ptr' ? 'ptr' : "{$typeStr}*";
