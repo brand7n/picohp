@@ -44,3 +44,4 @@ build/
 
 # Generated files
 tests/programs/self_compile/php8_transformed.php
+tests/programs/self_compile/php8_tables_ffi.php
