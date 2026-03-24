@@ -182,7 +182,16 @@ class SemanticAnalysisPass implements PassInterface
                             }
                         } else {
                             foreach ($classStmt->props as $prop) {
-                                $classMeta->addProperty($prop->name->toString(), $propType);
+                                $propName = $prop->name->toString();
+                                // If parent has a richer type (e.g. array<int,int> vs bare array),
+                                // prefer parent's type so element type info isn't lost
+                                $effectiveType = $propType;
+                                if ($propType->isArray() && $propType->getElementType()->toBase() === BaseType::PTR
+                                    && isset($classMeta->properties[$propName]) && $classMeta->properties[$propName]->isArray()
+                                    && $classMeta->properties[$propName]->getElementType()->toBase() !== BaseType::PTR) {
+                                    $effectiveType = $classMeta->properties[$propName];
+                                }
+                                $classMeta->addProperty($propName, $effectiveType);
                             }
                         }
                     } elseif ($classStmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
@@ -201,6 +210,12 @@ class SemanticAnalysisPass implements PassInterface
                         }
                         $classMeta->methods[$methodName] = $methodSymbol;
                         $classMeta->methodOwner[$methodName] = $className;
+                    } elseif ($classStmt instanceof \PhpParser\Node\Stmt\ClassConst) {
+                        foreach ($classStmt->consts as $const) {
+                            if ($const->value instanceof \PhpParser\Node\Scalar\Int_) {
+                                $classMeta->constants[$const->name->toString()] = $const->value->value;
+                            }
+                        }
                     }
                 }
             }
@@ -557,7 +572,11 @@ class SemanticAnalysisPass implements PassInterface
             \App\PicoHP\CompilerInvariant::check(is_string($stmt->valueVar->name));
             $valueVarPData = $this->getPicoData($stmt->valueVar);
             $elementType = $arrayType->isMixed() ? PicoType::fromString('mixed') : $arrayType->getElementType();
-            $valueVarPData->symbol = $this->symbolTable->addSymbol(
+            // Reuse existing symbol if already declared in this scope (e.g. multiple foreach
+            // loops using the same variable). Note: does not re-type — safe because PHPStan-max
+            // enforces compatible types at the source level for our compilation target.
+            $existing = $this->symbolTable->lookupCurrentScope($stmt->valueVar->name);
+            $valueVarPData->symbol = $existing ?? $this->symbolTable->addSymbol(
                 $stmt->valueVar->name,
                 $elementType
             );
@@ -566,7 +585,8 @@ class SemanticAnalysisPass implements PassInterface
                 \App\PicoHP\CompilerInvariant::check(is_string($stmt->keyVar->name));
                 $keyVarPData = $this->getPicoData($stmt->keyVar);
                 $keyType = $arrayType->hasStringKeys() ? 'string' : 'int';
-                $keyVarPData->symbol = $this->symbolTable->addSymbol(
+                $existingKey = $this->symbolTable->lookupCurrentScope($stmt->keyVar->name);
+                $keyVarPData->symbol = $existingKey ?? $this->symbolTable->addSymbol(
                     $stmt->keyVar->name,
                     PicoType::fromString($keyType)
                 );

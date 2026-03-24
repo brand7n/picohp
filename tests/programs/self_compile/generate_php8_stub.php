@@ -128,6 +128,30 @@ assert(is_string($transformed));
 $transformed = preg_replace('/([A-Za-z_])\\\\([A-Za-z_])/', '$1_$2', $transformed);
 assert(is_string($transformed));
 
+// Collect static method calls on Node classes (Class::method( pattern).
+// Runs after namespace flattening, so all class names are simple identifiers (Foo_Bar).
+// May match false positives in strings/comments — acceptable for stub generation.
+/** @var array<int, string> $staticMatches */
+$staticMatches = [];
+preg_match_all('/([A-Za-z_]+)::([a-zA-Z_]+)\(/', $transformed, $staticMatches);
+/** @var array<string, array<string>> class => [methods] */
+$staticMethods = [];
+/** @var array<string, bool> */
+$extraClasses = [];
+foreach ($staticMatches[1] as $i => $className) {
+    $method = $staticMatches[2][$i];
+    if ($className === 'self' || $className === 'parent' || $className === 'Modifiers') {
+        continue;
+    }
+    $staticMethods[$className][] = $method;
+    if (str_contains($className, '_')) {
+        $extraClasses[$className] = true;
+    }
+}
+foreach ($staticMethods as $cls => $methods) {
+    $staticMethods[$cls] = array_unique($methods);
+}
+
 // Build output file
 $stubFile = "<?php\n\ndeclare(strict_types=1);\n\n";
 
@@ -166,10 +190,35 @@ class Modifiers {
 
 STUBS;
 
-// Add Node class stubs
+// Add Node class stubs with static methods where needed
 foreach ($nodeClasses as $cls) {
     $flat = str_replace('\\', '_', $cls);
-    $stubFile .= "class {$flat} { public function __construct(mixed ...\$args) {} }\n";
+    $methods = "public function __construct(mixed ...\$args) {}";
+    if (isset($staticMethods[$flat])) {
+        foreach ($staticMethods[$flat] as $method) {
+            $methods .= " public static function {$method}(mixed ...\$args): mixed { return null; }";
+        }
+    }
+    $stubFile .= "class {$flat} { {$methods} }\n";
+}
+// Add extra classes found in static calls that aren't in nodeClasses
+foreach ($extraClasses as $cls => $_) {
+    $alreadyExists = false;
+    foreach ($nodeClasses as $nc) {
+        if (str_replace('\\', '_', $nc) === $cls) {
+            $alreadyExists = true;
+            break;
+        }
+    }
+    if (! $alreadyExists) {
+        $methods = "public function __construct(mixed ...\$args) {}";
+        if (isset($staticMethods[$cls])) {
+            foreach ($staticMethods[$cls] as $method) {
+                $methods .= " public static function {$method}(mixed ...\$args): mixed { return null; }";
+            }
+        }
+        $stubFile .= "class {$cls} { {$methods} }\n";
+    }
 }
 
 $stubFile .= "\n";
