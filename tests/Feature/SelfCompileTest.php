@@ -35,6 +35,7 @@ it('compiles real Php8 parser tables and calls lookups via FFI', function () {
     shell_exec('php tests/programs/self_compile/generate_parser_ffi.php');
 
     $file = 'tests/programs/self_compile/php8_tables_ffi.php';
+    assert(file_exists($file), 'Generator failed to produce php8_tables_ffi.php');
 
     // Oracle test: compiled output matches PHP
     /** @phpstan-ignore-next-line */

@@ -4,6 +4,9 @@
 /**
  * Extracts real table data from nikic/php-parser's Php8 and generates
  * a compilable file that exercises the actual LR parser table lookups.
+ *
+ * Tied to php-parser 5.x internal property names on ParserAbstract/Php8.
+ * If upstream renames properties, this generator will need updating.
  */
 
 declare(strict_types=1);
@@ -11,6 +14,7 @@ declare(strict_types=1);
 require __DIR__ . '/../../../vendor/autoload.php';
 
 $obj = (new PhpParser\ParserFactory())->createForNewestSupportedVersion();
+assert($obj instanceof PhpParser\Parser\Php8, 'Expected Php8 parser instance from factory');
 $parserClass = new ReflectionClass(PhpParser\Parser\Php8::class);
 $abstractClass = new ReflectionClass(PhpParser\ParserAbstract::class);
 
