@@ -1322,6 +1322,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $typeId = $this->typeIdMap[$className] ?? 0;
             $this->builder->createThrow($objPtr, $typeId);
             return new Void_();
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Array_) {
+            // Array literal as standalone expression (e.g. return [])
+            return $this->builder->createArrayNew();
         } else {
             throw new \Exception("unknown node type in expr: " . get_class($expr));
         }
