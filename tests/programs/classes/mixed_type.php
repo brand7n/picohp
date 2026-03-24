@@ -12,24 +12,31 @@ class ValueHolder
         $this->data = $s;
     }
 
+    public function getString(): string
+    {
+        /** @var string $result */
+        $result = $this->data;
+        return $result;
+    }
+
     public function setInt(int $n): void
     {
         $this->data = $n;
     }
 
-    /** @var array<int, int> $arr */
-    public function setArray(array $arr): void
+    public function getInt(): int
     {
-        $this->data = $arr;
+        /** @var int $result */
+        $result = $this->data;
+        return $result;
     }
 }
 
 $h = new ValueHolder();
+
 $h->setString("hello");
+echo $h->getString() . "\n";
+
 $h->setInt(42);
-
-/** @var array<int, int> $nums */
-$nums = [1, 2, 3];
-$h->setArray($nums);
-
-echo "ok\n";
+echo $h->getInt();
+echo "\n";

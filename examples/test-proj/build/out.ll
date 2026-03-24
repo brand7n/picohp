@@ -21,6 +21,11 @@ declare ptr @pico_string_substr(ptr, i32, i32)
 declare ptr @pico_string_trim(ptr)
 declare ptr @pico_string_repeat(ptr, i32)
 declare ptr @pico_string_replace(ptr, ptr, ptr)
+declare i32 @pico_preg_match(ptr, ptr, ptr)
+declare ptr @pico_string_upper(ptr)
+declare ptr @pico_string_lower(ptr)
+declare ptr @pico_dechex(i32)
+declare ptr @pico_string_pad(ptr, i32, ptr, i32)
 declare ptr @picohp_object_alloc(i64, i32)
 
 ; exception handling
@@ -51,8 +56,14 @@ declare void @pico_array_set_str(ptr, i32, ptr)
 declare void @pico_array_push_ptr(ptr, ptr)
 declare ptr @pico_array_get_ptr(ptr, i32)
 declare void @pico_array_set_ptr(ptr, i32, ptr)
+declare i32 @pico_array_search_int(ptr, i32)
+declare void @pico_array_splice(ptr, i32, i32)
+declare i32 @pico_array_last_int(ptr)
+declare ptr @pico_array_last_str(ptr)
 
 ; map runtime (string-keyed associative arrays)
+declare ptr @pico_implode(ptr, ptr)
+declare i32 @pico_map_has_key(ptr, ptr)
 declare ptr @pico_map_new()
 declare i32 @pico_map_len(ptr)
 declare void @pico_map_set_int(ptr, ptr, i32)
@@ -69,7 +80,7 @@ declare ptr @pico_map_get_key(ptr, i32)
 declare i32 @pico_map_get_value_int(ptr, i32)
 declare ptr @pico_map_get_value_str(ptr, i32)
 %struct.Exception = type { ptr }
-%struct.Test = type {}
+%struct.Test = type { i32 }
 define dso_local void @Exception___construct(ptr %0, ptr %1) {
 entry:
     %gep_field0_result1 = getelementptr inbounds %struct.Exception, ptr %0, i32 0, i32 0

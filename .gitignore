@@ -40,3 +40,4 @@ build/
 
 # Claude Code worktrees
 .claude/worktrees/
+tests/programs/self_compile/php8_transformed.php

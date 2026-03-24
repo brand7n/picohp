@@ -794,8 +794,8 @@ class SemanticAnalysisPass implements PassInterface
             if (isset($this->enumRegistry[$className])) {
                 return PicoType::enum($className);
             }
-            // Non-enum class constants not yet supported
-            throw new \Exception("class constant {$className}::{$expr->name->toString()} not supported");
+            // Class constants — assume int for now
+            return PicoType::fromString('int');
         } elseif ($expr instanceof \PhpParser\Node\Expr\ConstFetch) {
             if ($expr->name->toLowerString() === 'null') {
                 return PicoType::fromString('string'); // null represented as ptr
@@ -922,11 +922,19 @@ class SemanticAnalysisPass implements PassInterface
                 }
                 return PicoType::fromString('int');
             }
+            if ($objType->isMixed()) {
+                return PicoType::fromString('mixed');
+            }
             assert($objType->isObject(), "property fetch on non-object type: {$objType->toString()}");
             $classMeta = $this->classRegistry[$objType->getClassName()];
             return $classMeta->getPropertyType($expr->name->toString());
         } elseif ($expr instanceof \PhpParser\Node\Expr\MethodCall) {
             $objType = $this->resolveExpr($expr->var);
+            // Mixed type: method calls resolve to mixed
+            if ($objType->isMixed()) {
+                $this->resolveArgs($expr->args);
+                return PicoType::fromString('mixed');
+            }
             assert($objType->isObject(), "method call on non-object type: {$objType->toString()}");
             assert($expr->name instanceof \PhpParser\Node\Identifier);
             $className = $objType->getClassName();
