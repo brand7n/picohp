@@ -538,6 +538,18 @@ class SemanticAnalysisPass implements PassInterface
                 $this->resolveExpr($loop);
             }
             $this->resolveStmts($stmt->stmts);
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Switch_) {
+            $this->resolveExpr($stmt->cond);
+            foreach ($stmt->cases as $case) {
+                if ($case->cond !== null) {
+                    $this->resolveExpr($case->cond);
+                }
+                $this->resolveStmts($case->stmts);
+            }
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Break_) {
+            // Break handled by IR gen
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\ClassConst) {
+            // Class constants handled during class registration
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Foreach_) {
             $arrayType = $this->resolveExpr($stmt->expr);
             assert($arrayType->isArray(), "foreach expression must be an array, got {$arrayType->toString()}");

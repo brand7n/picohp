@@ -34,6 +34,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
     protected int $vdispatchCount = 0;
 
+    /** @var array<string> stack of break target block names */
+    protected array $breakTargets = [];
+
     /**
      * @param array<\PhpParser\Node> $stmts
      * @param array<string, ClassMetadata> $classRegistry
@@ -358,6 +361,55 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             $this->builder->createBranch([$condLabel]);
             $this->builder->setInsertPoint($endBB);
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Switch_) {
+            assert($this->currentFunction !== null);
+            $count = $pData->mycount;
+            $condVal = $this->buildExpr($stmt->cond);
+
+            $endBB = $this->currentFunction->addBasicBlock("switch_end{$count}");
+            $this->breakTargets[] = $endBB->getName();
+
+            // Build case blocks and collect switch cases
+            $caseBBs = [];
+            $defaultBB = null;
+            foreach ($stmt->cases as $i => $case) {
+                $bb = $this->currentFunction->addBasicBlock("switch_case{$count}_{$i}");
+                $caseBBs[] = $bb;
+                if ($case->cond === null) {
+                    $defaultBB = $bb;
+                }
+            }
+
+            // Build LLVM switch instruction
+            $switchCases = [];
+            foreach ($stmt->cases as $i => $case) {
+                if ($case->cond !== null) {
+                    $caseVal = $this->buildExpr($case->cond);
+                    $switchCases[] = "{$condVal->getType()->toLLVM()} {$caseVal->render()}, label %{$caseBBs[$i]->getName()}";
+                }
+            }
+            $defaultLabel = $defaultBB !== null ? $defaultBB->getName() : $endBB->getName();
+            $casesStr = implode(' ', $switchCases);
+            $this->builder->addLine("switch {$condVal->getType()->toLLVM()} {$condVal->render()}, label %{$defaultLabel} [{$casesStr}]", 1);
+
+            // Emit case bodies with fallthrough
+            foreach ($stmt->cases as $i => $case) {
+                $this->builder->setInsertPoint($caseBBs[$i]);
+                if (count($case->stmts) === 0) {
+                    // Empty case = fallthrough to next
+                    $nextBB = isset($caseBBs[$i + 1]) ? $caseBBs[$i + 1] : $endBB;
+                    $this->builder->createBranch([new Label($nextBB->getName())]);
+                } else {
+                    $this->buildStmts($case->stmts);
+                }
+            }
+
+            array_pop($this->breakTargets);
+            $this->builder->setInsertPoint($endBB);
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Break_) {
+            assert(count($this->breakTargets) > 0, 'break outside of switch/loop');
+            $target = end($this->breakTargets);
+            $this->builder->createBranch([new Label($target)]);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Foreach_) {
             assert($this->currentFunction !== null);
             $count = $pData->mycount;
