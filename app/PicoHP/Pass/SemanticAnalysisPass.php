@@ -552,13 +552,14 @@ class SemanticAnalysisPass implements PassInterface
             // Class constants handled during class registration
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Foreach_) {
             $arrayType = $this->resolveExpr($stmt->expr);
-            assert($arrayType->isArray(), "foreach expression must be an array, got {$arrayType->toString()}");
+            assert($arrayType->isArray() || $arrayType->isMixed(), "foreach expression must be an array, got {$arrayType->toString()}");
             assert($stmt->valueVar instanceof \PhpParser\Node\Expr\Variable);
             assert(is_string($stmt->valueVar->name));
             $valueVarPData = $this->getPicoData($stmt->valueVar);
+            $elementType = $arrayType->isMixed() ? PicoType::fromString('mixed') : $arrayType->getElementType();
             $valueVarPData->symbol = $this->symbolTable->addSymbol(
                 $stmt->valueVar->name,
-                $arrayType->getElementType()
+                $elementType
             );
             if ($stmt->keyVar !== null) {
                 assert($stmt->keyVar instanceof \PhpParser\Node\Expr\Variable);
@@ -663,6 +664,22 @@ class SemanticAnalysisPass implements PassInterface
 
         if ($expr instanceof \PhpParser\Node\Expr\Assign) {
             $rtype = $this->resolveExpr($expr->expr);
+            // List/array destructuring: [$a, $b] = $arr
+            if ($expr->var instanceof \PhpParser\Node\Expr\List_
+                || ($expr->var instanceof \PhpParser\Node\Expr\Array_)) {
+                $items = $expr->var instanceof \PhpParser\Node\Expr\List_
+                    ? $expr->var->items
+                    : $expr->var->items;
+                $elementType = $rtype->isArray() ? $rtype->getElementType()
+                    : ($rtype->isMixed() ? PicoType::fromString('mixed') : $rtype);
+                foreach ($items as $item) {
+                    /** @phpstan-ignore-next-line — items can be null for skipped positions */
+                    if ($item !== null && $item->value !== null) {
+                        $this->resolveExpr($item->value, $item->value->getDocComment(), lVal: true, rType: $elementType);
+                    }
+                }
+                return $rtype;
+            }
             $ltype = $this->resolveExpr($expr->var, $doc, lVal: true, rType: $rtype);
             $line = $this->getLine($expr);
             $compatible = $ltype->isEqualTo($rtype)

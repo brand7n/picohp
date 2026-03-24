@@ -34,6 +34,21 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
     protected int $vdispatchCount = 0;
 
+    protected function isDestructuringAssign(\PhpParser\Node\Expr\Assign $expr): bool
+    {
+        if (!($expr->var instanceof \PhpParser\Node\Expr\Array_)) {
+            return false;
+        }
+        // If the LHS array items are variables, it's destructuring
+        foreach ($expr->var->items as $item) {
+            /** @phpstan-ignore-next-line — items can be null for skipped positions */
+            if ($item !== null && $item->value instanceof \PhpParser\Node\Expr\Variable) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** @var array<string> stack of break target block names */
     protected array $breakTargets = [];
 
@@ -512,6 +527,25 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         $pData = PicoHPData::getPData($expr);
 
         if ($expr instanceof \PhpParser\Node\Expr\Assign) {
+            // List/array destructuring: [$a, $b] = $arr
+            if ($expr->var instanceof \PhpParser\Node\Expr\List_
+                || ($expr->var instanceof \PhpParser\Node\Expr\Array_ && $this->isDestructuringAssign($expr))) {
+                $arrVal = $this->buildExpr($expr->expr);
+                $arrType = $this->getExprResolvedType($expr->expr);
+                $items = $expr->var instanceof \PhpParser\Node\Expr\List_
+                    ? $expr->var->items
+                    : $expr->var->items;
+                foreach ($items as $i => $item) {
+                    /** @phpstan-ignore-next-line — items can be null for skipped positions */
+                    if ($item !== null && $item->value !== null) {
+                        $lval = $this->buildExpr($item->value);
+                        $elemType = $arrType->isArray() ? $arrType->getElementBaseType() : BaseType::PTR;
+                        $elemVal = $this->builder->createArrayGet($arrVal, new Constant($i, BaseType::INT), $elemType);
+                        $this->builder->createStore($elemVal, $lval);
+                    }
+                }
+                return $arrVal;
+            }
             // Array literal: $arr = [1, 2, 3]
             if ($expr->expr instanceof \PhpParser\Node\Expr\Array_) {
                 $lval = $this->buildExpr($expr->var);
