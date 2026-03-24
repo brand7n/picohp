@@ -785,6 +785,14 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                     : new Constant(1, BaseType::INT);
                 return $this->builder->createCall('pico_string_pad', [$strVal, $length, $padStr, $padType], BaseType::STRING);
             }
+            if ($funcName === 'implode') {
+                assert(count($expr->args) === 2);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                assert($expr->args[1] instanceof \PhpParser\Node\Arg);
+                $glue = $this->buildExpr($expr->args[0]->value);
+                $arr = $this->buildExpr($expr->args[1]->value);
+                return $this->builder->createCall('pico_implode', [$glue, $arr], BaseType::STRING);
+            }
             if ($funcName === 'array_key_exists') {
                 assert(count($expr->args) === 2);
                 assert($expr->args[0] instanceof \PhpParser\Node\Arg);
@@ -1379,6 +1387,14 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $objType = $this->getExprResolvedType($expr->var);
             $classMeta = $this->classRegistry[$objType->getClassName()];
             return $classMeta->methods[$expr->name->toString()]->type;
+        }
+        if ($expr instanceof \PhpParser\Node\Expr\ClassConstFetch) {
+            assert($expr->class instanceof \PhpParser\Node\Name);
+            $className = $expr->class->toString();
+            if (isset($this->enumRegistry[$className])) {
+                return \App\PicoHP\PicoType::enum($className);
+            }
+            return \App\PicoHP\PicoType::object($className);
         }
         if ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
             assert($expr->name instanceof \PhpParser\Node\Name);

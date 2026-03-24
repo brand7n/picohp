@@ -351,6 +351,21 @@ pub extern "C" fn pico_preg_match(
 // String utility functions
 // ---------------------------------------------------------------------------
 
+/// Join array of strings with a separator.
+#[no_mangle]
+pub extern "C" fn pico_implode(glue: *const c_char, arr: *const PicoArray) -> *mut c_char {
+    let glue = unsafe { CStr::from_ptr(glue) }.to_str().unwrap();
+    let arr = unsafe { &*arr };
+    let parts: Vec<&str> = arr.data.iter().map(|v| {
+        match v {
+            PicoValue::Str(s) => unsafe { CStr::from_ptr(*s) }.to_str().unwrap(),
+            _ => "",
+        }
+    }).collect();
+    let result = parts.join(glue);
+    CString::new(result).unwrap().into_raw()
+}
+
 /// Convert string to uppercase.
 #[no_mangle]
 pub extern "C" fn pico_string_upper(s: *const c_char) -> *mut c_char {

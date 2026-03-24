@@ -125,6 +125,7 @@ function stubbedSingleFileCheck(string $picoHP, string $tmpDir, bool $verbose): 
         __DIR__ . '/app/PicoHP/LLVM/IRLine.php',
         __DIR__ . '/app/PicoHP/SymbolTable/Symbol.php',
         __DIR__ . '/app/PicoHP/SymbolTable/Scope.php',
+        __DIR__ . '/app/PicoHP/LLVM/BasicBlock.php',
     ];
 
     // Files already included in stubs — skip testing them individually
