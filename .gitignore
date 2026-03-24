@@ -42,6 +42,9 @@ build/
 # Claude Code worktrees
 .claude/worktrees/
 
+# Test project vendor (changes on every composer install)
+examples/test-proj/vendor/
+
 # Generated files
 tests/programs/self_compile/php8_transformed.php
 tests/programs/self_compile/php8_tables_ffi.php
