@@ -785,6 +785,14 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                     : new Constant(1, BaseType::INT);
                 return $this->builder->createCall('pico_string_pad', [$strVal, $length, $padStr, $padType], BaseType::STRING);
             }
+            if ($funcName === 'array_key_exists') {
+                assert(count($expr->args) === 2);
+                assert($expr->args[0] instanceof \PhpParser\Node\Arg);
+                assert($expr->args[1] instanceof \PhpParser\Node\Arg);
+                $key = $this->buildExpr($expr->args[0]->value);
+                $map = $this->buildExpr($expr->args[1]->value);
+                return $this->builder->createCall('pico_map_has_key', [$map, $key], BaseType::BOOL);
+            }
             if ($funcName === 'array_reverse') {
                 assert(count($expr->args) >= 1);
                 assert($expr->args[0] instanceof \PhpParser\Node\Arg);
@@ -1184,6 +1192,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
             $this->builder->setInsertPoint($endBB);
             return $this->builder->createLoad($resultPtr);
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Isset_) {
+            // isset($x) on nullable ptr: check if not null
+            assert(count($expr->vars) === 1);
+            $val = $this->buildExpr($expr->vars[0]);
+            return $this->builder->createInstruction('icmp ne', [$val, new \App\PicoHP\LLVM\Value\NullConstant()], resultType: BaseType::BOOL);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Instanceof_) {
             $this->buildExpr($expr->expr);
             // Compile-time: assume instanceof checks pass (used in assertions)
@@ -1366,6 +1379,16 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $objType = $this->getExprResolvedType($expr->var);
             $classMeta = $this->classRegistry[$objType->getClassName()];
             return $classMeta->methods[$expr->name->toString()]->type;
+        }
+        if ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
+            assert($expr->name instanceof \PhpParser\Node\Name);
+            $fn = $expr->name->toLowerString();
+            // Built-in functions that return the same type as their first array arg
+            if ($fn === 'array_reverse' || $fn === 'array_merge') {
+                assert(count($expr->args) >= 1 && $expr->args[0] instanceof \PhpParser\Node\Arg);
+                return $this->getExprResolvedType($expr->args[0]->value);
+            }
+            return PicoHPData::getPData($expr)->getSymbol()->type;
         }
         throw new \RuntimeException('getExprResolvedType: unsupported expr type ' . get_class($expr));
     }

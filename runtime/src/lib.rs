@@ -613,6 +613,14 @@ pub extern "C" fn pico_map_new() -> *mut PicoMap {
 }
 
 #[no_mangle]
+/// Check if a key exists in the map. Returns 1 if found, 0 otherwise.
+#[no_mangle]
+pub extern "C" fn pico_map_has_key(map: *const PicoMap, key: *const c_char) -> i32 {
+    let map = unsafe { &*map };
+    if map.find_index(key).is_some() { 1 } else { 0 }
+}
+
+#[no_mangle]
 pub extern "C" fn pico_map_len(map: *const PicoMap) -> i32 {
     let map = unsafe { &*map };
     map.entries.len() as i32

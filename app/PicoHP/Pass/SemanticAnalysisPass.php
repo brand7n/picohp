@@ -966,6 +966,11 @@ class SemanticAnalysisPass implements PassInterface
                 $this->resolveExpr($expr->if);
             }
             return $this->resolveExpr($expr->else);
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Isset_) {
+            foreach ($expr->vars as $var) {
+                $this->resolveExpr($var);
+            }
+            return PicoType::fromString('bool');
         } elseif ($expr instanceof \PhpParser\Node\Expr\Instanceof_) {
             $this->resolveExpr($expr->expr);
             return PicoType::fromString('bool');

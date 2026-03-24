@@ -2,8 +2,6 @@
 
 namespace App\PicoHP\SymbolTable;
 
-use Illuminate\Support\Arr;
-
 class Scope
 {
     /**
@@ -20,7 +18,7 @@ class Scope
 
     public function add(Symbol $s): Symbol
     {
-        if (Arr::exists($this->symbols, $s->name)) {
+        if (array_key_exists($s->name, $this->symbols)) {
             throw new \Exception("symbol already exists in this scope");
         }
         $this->symbols[$s->name] = $s;
@@ -30,7 +28,7 @@ class Scope
 
     public function lookup(string $name): ?Symbol
     {
-        if (!Arr::exists($this->symbols, $name)) {
+        if (!array_key_exists($name, $this->symbols)) {
             return null;
         }
         return $this->symbols[$name];

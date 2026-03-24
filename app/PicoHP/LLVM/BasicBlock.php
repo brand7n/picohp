@@ -2,7 +2,6 @@
 
 namespace App\PicoHP\LLVM;
 
-use Illuminate\Support\Str;
 use App\PicoHP\Tree\{NodeInterface, NodeTrait};
 
 class BasicBlock implements NodeInterface
@@ -44,7 +43,12 @@ class BasicBlock implements NodeInterface
     public function verify(): void
     {
         $lastLine = end($this->lines);
-        if ($lastLine === false || !Str::startsWith(trim($lastLine->toString()), ['ret', 'br', 'unreachable', 'switch'])) {
+        $trimmed = $lastLine !== false ? trim($lastLine->toString()) : '';
+        $valid = str_starts_with($trimmed, 'ret')
+            || str_starts_with($trimmed, 'br')
+            || str_starts_with($trimmed, 'unreachable')
+            || str_starts_with($trimmed, 'switch');
+        if (!$valid) {
             throw new \RuntimeException("Basic block {$this->name} must end with ret, br, unreachable, or switch");
         }
     }
