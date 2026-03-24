@@ -2,5 +2,8 @@
     "preset": "psr12",
     "exclude": [
         "files (4)"
+    ],
+    "notPath": [
+        "tests/programs/self_compile/php8_transformed.php"
     ]
 }

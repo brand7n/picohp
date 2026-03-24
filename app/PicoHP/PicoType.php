@@ -55,6 +55,9 @@ class PicoType
     // Enum support
     protected bool $isEnum = false;
 
+    // Mixed type (any ptr, no type checking)
+    protected bool $isMixed = false;
+
     /**
      * @param array<BaseType> $params
      */
@@ -68,6 +71,10 @@ class PicoType
 
     public function isEqualTo(PicoType $type): bool
     {
+        // Mixed is compatible with any type
+        if ($this->isMixed || $type->isMixed) {
+            return true;
+        }
         // Enum/object types with matching class names are equal
         if ($this->className !== null && $type->className !== null) {
             return $this->className === $type->className;
@@ -98,6 +105,11 @@ class PicoType
                 $arr->keyType = BaseType::STRING;
             }
             return $arr;
+        }
+        if ($type === 'mixed') {
+            $pt = new PicoType(BaseType::PTR);
+            $pt->isMixed = true;
+            return $pt;
         }
         if ($type === 'array') {
             // Bare array type without generics — untyped, element type unknown
@@ -174,6 +186,11 @@ class PicoType
     public function hasStringKeys(): bool
     {
         return $this->keyType === BaseType::STRING;
+    }
+
+    public function isMixed(): bool
+    {
+        return $this->isMixed;
     }
 
     public function setStringKeys(): void

@@ -37,6 +37,10 @@ runtime/target/
 
 # Build artifacts
 build/
+*.ll
 
 # Claude Code worktrees
 .claude/worktrees/
+
+# Generated files
+tests/programs/self_compile/php8_transformed.php
