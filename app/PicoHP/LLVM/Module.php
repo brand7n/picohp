@@ -62,7 +62,7 @@ class Module implements NodeInterface
 
         // render out functions and blocks within
         foreach ($this->getChildren() as $function) {
-            assert($function instanceof Function_);
+            \App\PicoHP\CompilerInvariant::check($function instanceof Function_);
             $code = array_merge($code, $function->getLines());
         }
 

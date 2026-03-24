@@ -63,7 +63,7 @@ class PicoType
      */
     public function __construct(BaseType|PicoType $type, PicoTypeType $typeType = PicoTypeType::VAR, array $params = [])
     {
-        assert($type instanceof BaseType);
+        \App\PicoHP\CompilerInvariant::check($type instanceof BaseType);
         $this->type = $type;
         $this->typeType = $typeType;
         $this->params = $params;
@@ -145,7 +145,7 @@ class PicoType
 
     public function getClassName(): string
     {
-        assert($this->className !== null, 'getClassName() called on non-object PicoType');
+        \App\PicoHP\CompilerInvariant::check($this->className !== null, 'getClassName() called on non-object PicoType');
         return $this->className;
     }
 
@@ -174,7 +174,7 @@ class PicoType
 
     public function getElementType(): PicoType
     {
-        assert($this->elementPicoType !== null, 'getElementType() called on non-array PicoType');
+        \App\PicoHP\CompilerInvariant::check($this->elementPicoType !== null, 'getElementType() called on non-array PicoType');
         return $this->elementPicoType;
     }
 

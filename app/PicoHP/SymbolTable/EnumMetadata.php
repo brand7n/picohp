@@ -33,7 +33,7 @@ class EnumMetadata
 
     public function getCaseTag(string $name): int
     {
-        assert(isset($this->cases[$name]), "enum case {$name} not found on {$this->name}");
+        \App\PicoHP\CompilerInvariant::check(isset($this->cases[$name]), "enum case {$name} not found on {$this->name}");
         return $this->cases[$name];
     }
 }

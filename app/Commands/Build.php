@@ -11,6 +11,7 @@ use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\PrettyPrinter\Standard;
 use App\PicoHP\ClassToFunctionVisitor;
+use App\PicoHP\CompilerInvariantException;
 use App\PicoHP\GlobalToMainVisitor;
 use App\PicoHP\Pass\{IRGenerationPass, SemanticAnalysisPass};
 
@@ -40,7 +41,7 @@ class Build extends Command
         $filename = $this->argument('filename');
 
         $ast = [];
-        assert(is_string($filename));
+        \App\PicoHP\CompilerInvariant::check(is_string($filename));
         if (is_dir($filename)) {
             $ast = $this->walkClassMap($filename);
         } else {
@@ -62,7 +63,7 @@ class Build extends Command
         }
 
         $buildPath = config('app.build_path');
-        assert(is_string($buildPath));
+        \App\PicoHP\CompilerInvariant::check(is_string($buildPath));
         if (!is_dir($buildPath)) {
             // @codeCoverageIgnoreStart
             mkdir($buildPath, 0700, true);
@@ -103,57 +104,66 @@ class Build extends Command
             // TODO: rerun static analysis on transformed output?
         }
 
-        $semanticPass = new SemanticAnalysisPass($transformedAst);
-        $semanticPass->exec();
+        try {
+            $semanticPass = new SemanticAnalysisPass($transformedAst);
+            $semanticPass->exec();
 
-        if ($debug) {
-            $astWithSymbolOutput = "{$buildPath}/ast_sym.json";
-            file_put_contents($astWithSymbolOutput, json_encode($transformedAst, JSON_PRETTY_PRINT));
-        }
+            if ($debug) {
+                $astWithSymbolOutput = "{$buildPath}/ast_sym.json";
+                file_put_contents($astWithSymbolOutput, json_encode($transformedAst, JSON_PRETTY_PRINT));
+            }
 
-        $pass = new IRGenerationPass($transformedAst, $semanticPass->getClassRegistry(), $semanticPass->getEnumRegistry(), $semanticPass->getTypeIdMap());
-        $pass->exec();
+            $pass = new IRGenerationPass($transformedAst, $semanticPass->getClassRegistry(), $semanticPass->getEnumRegistry(), $semanticPass->getTypeIdMap());
+            $pass->exec();
 
-        $f = fopen($llvmIRoutput, 'w');
-        if ($f === false) {
-            $this->error("Unable to open output file: {$llvmIRoutput}");
-            return 1;
-        }
-        $pass->module->print($f);
+            $f = fopen($llvmIRoutput, 'w');
+            if ($f === false) {
+                $this->error("Unable to open output file: {$llvmIRoutput}");
 
-        $outfile = $this->option('out');
-        assert(is_string($outfile));
-        $exe = "{$buildPath}/{$outfile}";
-
-        $llvmPath = config('app.llvm_path');
-        assert(is_string($llvmPath));
-        $llvmPath .= "/";
-        $result = 0;
-
-        if ($this->option('with-opt-ll') === 'off') {
-            $optimizedIR = $llvmIRoutput;
-        } else {
-            // @codeCoverageIgnoreStart
-            $optParam = is_string($this->option('with-opt-ll')) ? $this->option('with-opt-ll') : 's';
-            $optimizedIR = "{$buildPath}/optimized.ll";
-            exec("{$llvmPath}/opt -O{$optParam} -S -o {$optimizedIR} {$llvmIRoutput}", result_code: $result);
-            if ($result !== 0) {
-                $this->error("opt failed with exit code {$result}");
                 return 1;
             }
-            // @codeCoverageIgnoreEnd
-        }
+            $pass->module->print($f);
 
-        $sharedLibOpts = '';
-        if ($this->option('shared-lib') === true || !$globalToMain->hasMain) {
-            $sharedLibOpts = '-shared -undefined dynamic_lookup';
-        }
-        $runtimePath = config('app.runtime_path');
-        assert(is_string($runtimePath));
-        $runtimeLink = "-L{$runtimePath} -lpico_rt -Wl,-rpath,{$runtimePath}";
-        exec("{$llvmPath}/clang -Wno-override-module {$sharedLibOpts} {$runtimeLink} -o {$exe} {$optimizedIR}", result_code: $result);
-        if ($result !== 0) {
-            $this->error("clang failed with exit code {$result}");
+            $outfile = $this->option('out');
+            \App\PicoHP\CompilerInvariant::check(is_string($outfile));
+            $exe = "{$buildPath}/{$outfile}";
+
+            $llvmPath = config('app.llvm_path');
+            \App\PicoHP\CompilerInvariant::check(is_string($llvmPath));
+            $llvmPath .= '/';
+            $result = 0;
+
+            if ($this->option('with-opt-ll') === 'off') {
+                $optimizedIR = $llvmIRoutput;
+            } else {
+                // @codeCoverageIgnoreStart
+                $optParam = is_string($this->option('with-opt-ll')) ? $this->option('with-opt-ll') : 's';
+                $optimizedIR = "{$buildPath}/optimized.ll";
+                exec("{$llvmPath}/opt -O{$optParam} -S -o {$optimizedIR} {$llvmIRoutput}", result_code: $result);
+                if ($result !== 0) {
+                    $this->error("opt failed with exit code {$result}");
+
+                    return 1;
+                }
+                // @codeCoverageIgnoreEnd
+            }
+
+            $sharedLibOpts = '';
+            if ($this->option('shared-lib') === true || !$globalToMain->hasMain) {
+                $sharedLibOpts = '-shared -undefined dynamic_lookup';
+            }
+            $runtimePath = config('app.runtime_path');
+            \App\PicoHP\CompilerInvariant::check(is_string($runtimePath));
+            $runtimeLink = "-L{$runtimePath} -lpico_rt -Wl,-rpath,{$runtimePath}";
+            exec("{$llvmPath}/clang -Wno-override-module {$sharedLibOpts} {$runtimeLink} -o {$exe} {$optimizedIR}", result_code: $result);
+            if ($result !== 0) {
+                $this->error("clang failed with exit code {$result}");
+
+                return 1;
+            }
+        } catch (CompilerInvariantException $e) {
+            $this->error($e->getMessage());
+
             return 1;
         }
 

@@ -26,7 +26,7 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
         }
         // Capture the class name for use in transformations
         if ($node instanceof Node\Stmt\Class_ || $node instanceof Node\Stmt\Enum_) {
-            assert($node->name !== null);
+            \App\PicoHP\CompilerInvariant::check($node->name !== null);
             $this->className = $node->name->name;
         }
         return null;
@@ -73,7 +73,7 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
         // Resolve self:: in static property access to the actual class name
         if ($node instanceof Node\Expr\StaticPropertyFetch) {
             if ($node->class instanceof Node\Name && ($node->class->toString() === 'self' || $node->class->toString() === 'static')) {
-                assert($this->className !== null);
+                \App\PicoHP\CompilerInvariant::check($this->className !== null);
                 $node->class = new Node\Name($this->className);
             }
             return $node;
@@ -81,14 +81,14 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
 
         // Resolve self:: in class constant fetch (e.g., self::CASE_NAME)
         if ($node instanceof Node\Expr\ClassConstFetch && $node->class instanceof Node\Name && $node->class->toString() === 'self') {
-            assert($this->className !== null);
+            \App\PicoHP\CompilerInvariant::check($this->className !== null);
             $node->class = new Node\Name($this->className);
             return $node;
         }
 
         // Resolve self in new expressions (e.g., new self())
         if ($node instanceof Node\Expr\New_ && $node->class instanceof Node\Name && $node->class->toString() === 'self') {
-            assert($this->className !== null);
+            \App\PicoHP\CompilerInvariant::check($this->className !== null);
             $node->class = new Node\Name($this->className);
             return $node;
         }
@@ -98,14 +98,14 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
             if ($node->class instanceof Node\Name) {
                 $className = $node->class->toString();
                 if ($className === 'self') {
-                    assert($this->className !== null);
+                    \App\PicoHP\CompilerInvariant::check($this->className !== null);
                     $className = $this->className;
                     $node->class = new Node\Name($className);
                 }
                 if ($className === 'parent') {
                     return null; // leave as StaticCall
                 }
-                assert($node->name instanceof Node\Identifier);
+                \App\PicoHP\CompilerInvariant::check($node->name instanceof Node\Identifier);
                 $name = new Node\Name("{$node->class->name}_{$node->name}");
                 return new Node\Expr\FuncCall($name, $node->args);
             }

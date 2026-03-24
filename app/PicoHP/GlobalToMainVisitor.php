@@ -36,7 +36,7 @@ class GlobalToMainVisitor extends NodeVisitorAbstract
             && !$node instanceof Node\Stmt\Interface_
             && !$node instanceof Node\Stmt\Trait_
         ) {
-            assert($node instanceof Node\Stmt);
+            \App\PicoHP\CompilerInvariant::check($node instanceof Node\Stmt);
             if ($node instanceof Node\Stmt\Namespace_) {
                 // Split namespace: declarations stay top-level, executable code goes to main
                 $keepInNamespace = [];

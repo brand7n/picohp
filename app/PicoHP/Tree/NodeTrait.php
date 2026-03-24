@@ -36,7 +36,7 @@ trait NodeTrait
     {
         $index = array_search($child, $this->children, true);
         if ($index !== false) {
-            assert(is_int($index));
+            \App\PicoHP\CompilerInvariant::check(is_int($index));
             array_splice($this->children, $index, 1);
             $child->setParent(null);
         }

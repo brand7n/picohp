@@ -31,7 +31,7 @@ class SymbolTable
      */
     public function exitScope(): void
     {
-        assert(count($this->scopes) > 1);
+        \App\PicoHP\CompilerInvariant::check(count($this->scopes) > 1);
         array_pop($this->scopes);
     }
 
@@ -68,7 +68,7 @@ class SymbolTable
     public function getCurrentScope(): Scope
     {
         $scope = end($this->scopes);
-        assert($scope instanceof Scope);
+        \App\PicoHP\CompilerInvariant::check($scope instanceof Scope);
         return $scope;
     }
 }
