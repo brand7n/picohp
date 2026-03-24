@@ -2,7 +2,6 @@
 
 namespace App\PicoHP;
 
-use Illuminate\Support\Arr;
 use App\PicoHP\SymbolTable\{Scope, Symbol};
 
 class SymbolTable
@@ -68,8 +67,8 @@ class SymbolTable
 
     public function getCurrentScope(): Scope
     {
-        $scope = Arr::last($this->scopes);
-        assert($scope !== null);
+        $scope = end($this->scopes);
+        assert($scope instanceof Scope);
         return $scope;
     }
 }
