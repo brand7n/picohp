@@ -1184,6 +1184,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
             $this->builder->setInsertPoint($endBB);
             return $this->builder->createLoad($resultPtr);
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Isset_) {
+            // isset($x) on nullable ptr: check if not null
+            assert(count($expr->vars) === 1);
+            $val = $this->buildExpr($expr->vars[0]);
+            return $this->builder->createInstruction('icmp ne', [$val, new \App\PicoHP\LLVM\Value\NullConstant()], resultType: BaseType::BOOL);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Instanceof_) {
             $this->buildExpr($expr->expr);
             // Compile-time: assume instanceof checks pass (used in assertions)
