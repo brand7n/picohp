@@ -690,16 +690,17 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
             $pData->lVal = $lVal;
             $type = $this->resolveExpr($expr->var, $doc, lVal: $lVal);
-            if ($type->isArray()) {
+            if ($type->isArray() || $type->isMixed()) {
                 if ($expr->dim !== null) {
                     $dimType = $this->resolveExpr($expr->dim);
-                    if ($type->hasStringKeys()) {
+                    if (!$type->isMixed() && $type->hasStringKeys()) {
                         assert($dimType->isEqualTo(PicoType::fromString('string')), "{$dimType->toString()} is not a string for string-keyed array");
-                    } else {
-                        assert($dimType->isEqualTo(PicoType::fromString('int')), "{$dimType->toString()} is not an int");
                     }
                 }
                 // dim === null means $arr[] = ... (push), resolved at Assign
+                if ($type->isMixed()) {
+                    return PicoType::fromString('mixed');
+                }
                 return $type->getElementType();
             }
             // string indexing
