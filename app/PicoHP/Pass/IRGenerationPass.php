@@ -1689,7 +1689,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $fieldIndex = $implMeta->getPropertyIndex($propName);
             $fieldPtr = $this->builder->createStructGEP($implClass, $objVal, $fieldIndex, $fieldType);
             if ($lVal) {
-                $this->builder->createStore($fieldPtr, $resultPtr);
+                // GEP returns a ptr regardless of field type; store as ptr
+                $this->builder->addLine("store ptr {$fieldPtr->render()}, ptr {$resultPtr->render()}", 1);
             } else {
                 $loadedVal = $this->builder->createLoad($fieldPtr);
                 $this->builder->createStore($loadedVal, $resultPtr);
