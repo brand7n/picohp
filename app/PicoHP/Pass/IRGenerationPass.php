@@ -1326,9 +1326,49 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $val = $this->buildExpr($expr->vars[0]);
             return $this->builder->createInstruction('icmp ne', [$val, new \App\PicoHP\LLVM\Value\NullConstant()], resultType: BaseType::BOOL);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Instanceof_) {
-            $this->buildExpr($expr->expr);
-            // Compile-time: assume instanceof checks pass (used in assertions)
-            return new Constant(1, BaseType::BOOL);
+            $objVal = $this->buildExpr($expr->expr);
+            \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
+            $targetClass = $expr->class->toString();
+
+            // Load runtime type_id from field 0 using the static type for GEP
+            // All class structs share i32 type_id at index 0 by convention
+            $staticType = $this->getExprResolvedType($expr->expr);
+            // For non-object types (e.g. mixed), fall back to the RHS class name for GEP
+            $gepClass = $staticType->isObject() ? $staticType->getClassName() : $targetClass;
+            // For interface/abstract types without a concrete struct, use first descendant
+            if (!isset($this->typeIdMap[$gepClass])) {
+                $descendants = $this->findDescendants($gepClass);
+                \App\PicoHP\CompilerInvariant::check(count($descendants) > 0, "no concrete types for instanceof {$targetClass}");
+                $gepClass = $descendants[0];
+            }
+            $typeIdPtr = $this->builder->createStructGEP($gepClass, $objVal, 0, BaseType::INT);
+            $typeIdVal = $this->builder->createLoad($typeIdPtr);
+
+            // Collect all type_ids that match: the target class + all concrete descendants
+            $matchIds = [];
+            if (isset($this->typeIdMap[$targetClass])) {
+                $matchIds[] = $this->typeIdMap[$targetClass];
+            }
+            foreach ($this->findDescendants($targetClass) as $desc) {
+                if (isset($this->typeIdMap[$desc])) {
+                    $matchIds[] = $this->typeIdMap[$desc];
+                }
+            }
+
+            $matchIds = array_values(array_unique($matchIds));
+            if (count($matchIds) === 0) {
+                return new Constant(0, BaseType::BOOL);
+            }
+            if (count($matchIds) === 1) {
+                return $this->builder->createInstruction('icmp eq', [$typeIdVal, new Constant($matchIds[0], BaseType::INT)], resultType: BaseType::BOOL);
+            }
+            // Multiple targets: OR chain
+            $result = $this->builder->createInstruction('icmp eq', [$typeIdVal, new Constant($matchIds[0], BaseType::INT)], resultType: BaseType::BOOL);
+            for ($i = 1; $i < count($matchIds); $i++) {
+                $cmp = $this->builder->createInstruction('icmp eq', [$typeIdVal, new Constant($matchIds[$i], BaseType::INT)], resultType: BaseType::BOOL);
+                $result = $this->builder->createInstruction('or', [$result, $cmp], resultType: BaseType::BOOL);
+            }
+            return $result;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Throw_) {
             // throw new ClassName(args...)
             \App\PicoHP\CompilerInvariant::check($expr->expr instanceof \PhpParser\Node\Expr\New_);
