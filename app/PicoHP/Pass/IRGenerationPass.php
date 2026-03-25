@@ -1553,8 +1553,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     }
 
     /**
-     * Find all descendants of $className (interface implementors + subclass tree).
-     * May include abstract intermediates — callers should handle missing methods/properties.
+     * Find all concrete descendants of $className (interface implementors + subclass tree).
+     * Filters out abstract intermediates so dispatch targets only have real implementations.
      *
      * @return array<string>
      */
@@ -1562,6 +1562,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     {
         $descendants = [];
         foreach ($this->classRegistry as $name => $meta) {
+            if ($meta->isAbstract) {
+                continue;
+            }
             if (in_array($className, $meta->interfaces, true) || $this->isDescendantOf($name, $className)) {
                 $descendants[] = $name;
             }

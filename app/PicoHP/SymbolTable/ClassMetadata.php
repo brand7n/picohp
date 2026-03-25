@@ -10,6 +10,7 @@ class ClassMetadata
 {
     public string $name;
     public ?string $parentName = null;
+    public bool $isAbstract = false;
 
     /** @var array<string> interface names this class implements */
     public array $interfaces = [];

@@ -126,6 +126,7 @@ class SemanticAnalysisPass implements PassInterface
                 \App\PicoHP\CompilerInvariant::check($stmt->name instanceof \PhpParser\Node\Identifier);
                 $className = $stmt->name->toString();
                 $classMeta = new ClassMetadata($className);
+                $classMeta->isAbstract = $stmt->isAbstract();
                 $this->classRegistry[$className] = $classMeta;
                 // Inherit from parent class
                 if ($stmt->extends !== null) {
