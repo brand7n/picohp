@@ -1333,8 +1333,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             // Load runtime type_id from field 0 using the static type for GEP
             // All class structs share i32 type_id at index 0 by convention
             $staticType = $this->getExprResolvedType($expr->expr);
+            // For non-object types (e.g. mixed), fall back to the RHS class name for GEP
             $gepClass = $staticType->isObject() ? $staticType->getClassName() : $targetClass;
-            // For interface types, use the target class or first descendant for GEP
+            // For interface/abstract types without a concrete struct, use first descendant
             if (!isset($this->typeIdMap[$gepClass])) {
                 $descendants = $this->findDescendants($gepClass);
                 \App\PicoHP\CompilerInvariant::check(count($descendants) > 0, "no concrete types for instanceof {$targetClass}");
