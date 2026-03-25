@@ -966,12 +966,18 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $tmpArr = $this->builder->createArrayNew();
                 return $this->builder->createCall('pico_preg_match', [$pattern, $subject, $tmpArr], BaseType::INT);
             }
-            if ($funcName === 'is_int') {
-                // At compile time we know the type — always returns true for int vars
+            if ($funcName === 'is_int' || $funcName === 'is_string' || $funcName === 'is_float' || $funcName === 'is_bool') {
+                // At compile time we know the type
                 \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
                 \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
                 $val = $this->buildExpr($expr->args[0]->value);
-                return new Constant($val->getType() === BaseType::INT ? 1 : 0, BaseType::BOOL);
+                $expected = match ($funcName) {
+                    'is_int' => BaseType::INT,
+                    'is_string' => BaseType::STRING,
+                    'is_float' => BaseType::FLOAT,
+                    'is_bool' => BaseType::BOOL,
+                };
+                return new Constant($val->getType() === $expected ? 1 : 0, BaseType::BOOL);
             }
             if ($funcName === 'intval') {
                 \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
