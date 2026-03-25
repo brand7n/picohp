@@ -1091,6 +1091,10 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $className = $varType->getClassName();
             $classMeta = $this->classRegistry[$className];
             $propName = $expr->name->toString();
+            // Interface/abstract property access: virtual dispatch
+            if (!isset($this->typeIdMap[$className]) && !isset($classMeta->properties[$propName])) {
+                return $this->emitVirtualPropertyDispatch($objVal, $className, $propName, $pData->lVal);
+            }
             $fieldIndex = $classMeta->getPropertyIndex($propName);
             $fieldType = $classMeta->getPropertyType($propName)->toBase();
             $fieldPtr = $this->builder->createStructGEP($className, $objVal, $fieldIndex, $fieldType);
@@ -1496,8 +1500,18 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             if ($objType->isMixed()) {
                 return \App\PicoHP\PicoType::fromString('mixed');
             }
-            $classMeta = $this->classRegistry[$objType->getClassName()];
-            return $classMeta->getPropertyType($expr->name->toString());
+            $className = $objType->getClassName();
+            $classMeta = $this->classRegistry[$className];
+            $propName = $expr->name->toString();
+            // Interface: resolve property type through implementors
+            if (!isset($classMeta->properties[$propName])) {
+                foreach ($this->classRegistry as $implMeta) {
+                    if (in_array($className, $implMeta->interfaces, true) && isset($implMeta->properties[$propName])) {
+                        return $implMeta->getPropertyType($propName);
+                    }
+                }
+            }
+            return $classMeta->getPropertyType($propName);
         }
         if ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
             $arrType = $this->getExprResolvedType($expr->var);
@@ -1601,6 +1615,84 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $ownerClass = $implMeta->methodOwner[$methodName] ?? $implClass;
             $callResult = $this->builder->createCall("{$ownerClass}_{$methodName}", $allArgs, $returnType);
             $this->builder->createStore($callResult, $resultPtr);
+            $this->builder->createBranch([new Label($endBB->getName())]);
+        }
+
+        $this->builder->setInsertPoint($endBB);
+        return $this->builder->createLoad($resultPtr);
+    }
+
+    /**
+     * Emit virtual dispatch for property access on interface-typed values.
+     * Switches on type_id, GEPs into each implementor's struct.
+     *
+     * @param bool $lVal Whether to return the pointer (lval) or load the value
+     */
+    protected function emitVirtualPropertyDispatch(
+        ValueAbstract $objVal,
+        string $interfaceName,
+        string $propName,
+        bool $lVal,
+    ): ValueAbstract {
+        \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
+
+        $implementors = [];
+        foreach ($this->classRegistry as $name => $meta) {
+            if (in_array($interfaceName, $meta->interfaces, true) && isset($meta->properties[$propName])) {
+                $implementors[] = $name;
+            }
+        }
+        \App\PicoHP\CompilerInvariant::check(count($implementors) > 0, "no implementors with property {$propName} for interface {$interfaceName}");
+
+        $vd = $this->vdispatchCount++;
+
+        // Load type_id from field 0
+        $typeIdPtr = $this->builder->createStructGEP($implementors[0], $objVal, 0, BaseType::INT);
+        $typeIdVal = $this->builder->createLoad($typeIdPtr);
+
+        // Resolve property type from first implementor
+        $fieldType = $this->classRegistry[$implementors[0]]->getPropertyType($propName)->toBase();
+
+        if (count($implementors) === 1) {
+            $implClass = $implementors[0];
+            $implMeta = $this->classRegistry[$implClass];
+            $fieldIndex = $implMeta->getPropertyIndex($propName);
+            $fieldPtr = $this->builder->createStructGEP($implClass, $objVal, $fieldIndex, $fieldType);
+            if ($lVal) {
+                return $fieldPtr;
+            }
+            return $this->builder->createLoad($fieldPtr);
+        }
+
+        // Multiple implementors: switch on type_id
+        $resultPtr = $this->builder->createAlloca("vdp{$vd}_result", $fieldType);
+        $endBB = $this->currentFunction->addBasicBlock("vdp{$vd}_end");
+
+        $caseBBs = [];
+        foreach ($implementors as $i => $implClass) {
+            $caseBBs[$implClass] = $this->currentFunction->addBasicBlock("vdp{$vd}_case{$i}");
+        }
+
+        $defaultBB = $caseBBs[$implementors[0]];
+        $switchCases = [];
+        foreach ($implementors as $implClass) {
+            $typeId = $this->typeIdMap[$implClass];
+            $switchCases[] = "i32 {$typeId}, label %{$caseBBs[$implClass]->getName()}";
+        }
+        $casesStr = implode(' ', $switchCases);
+        $this->builder->addLine("switch i32 {$typeIdVal->render()}, label %{$defaultBB->getName()} [{$casesStr}]", 1);
+
+        foreach ($implementors as $implClass) {
+            $this->builder->setInsertPoint($caseBBs[$implClass]);
+            $implMeta = $this->classRegistry[$implClass];
+            $fieldIndex = $implMeta->getPropertyIndex($propName);
+            $fieldPtr = $this->builder->createStructGEP($implClass, $objVal, $fieldIndex, $fieldType);
+            if ($lVal) {
+                $this->builder->createStore($fieldPtr, $resultPtr);
+            } else {
+                $loadedVal = $this->builder->createLoad($fieldPtr);
+                $this->builder->createStore($loadedVal, $resultPtr);
+            }
             $this->builder->createBranch([new Label($endBB->getName())]);
         }
 
