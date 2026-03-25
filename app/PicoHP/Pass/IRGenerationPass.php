@@ -1091,8 +1091,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $className = $varType->getClassName();
             $classMeta = $this->classRegistry[$className];
             $propName = $expr->name->toString();
-            // Interface/abstract property access: virtual dispatch
-            if (!isset($this->typeIdMap[$className]) && !isset($classMeta->properties[$propName])) {
+            // Virtual dispatch when the property isn't on this class (interface or abstract base)
+            if (!isset($classMeta->properties[$propName])) {
                 return $this->emitVirtualPropertyDispatch($objVal, $className, $propName, $pData->lVal);
             }
             $fieldIndex = $classMeta->getPropertyIndex($propName);
@@ -1124,8 +1124,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $allArgs = array_merge([$objVal], $args);
             $returnType = $methodSymbol->type->toBase();
 
-            // Virtual dispatch: interface (no type_id), or method not owned by this class
-            // (abstract method, or method only defined on subclasses)
+            // Virtual dispatch: interface (no type_id) or abstract method
             if (!isset($this->typeIdMap[$className]) || $this->needsVirtualDispatch($className, $methodName)) {
                 return $this->emitVirtualDispatch($objVal, $className, $methodName, $allArgs, $returnType);
             }
@@ -1504,11 +1503,12 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $className = $objType->getClassName();
             $classMeta = $this->classRegistry[$className];
             $propName = $expr->name->toString();
-            // Interface: resolve property type through implementors
+            // Resolve property type through descendants (interface/abstract)
             if (!isset($classMeta->properties[$propName])) {
-                foreach ($this->classRegistry as $implMeta) {
-                    if (in_array($className, $implMeta->interfaces, true) && isset($implMeta->properties[$propName])) {
-                        return $implMeta->getPropertyType($propName);
+                foreach ($this->findDescendants($className) as $descName) {
+                    $descMeta = $this->classRegistry[$descName];
+                    if (isset($descMeta->properties[$propName])) {
+                        return $descMeta->getPropertyType($propName);
                     }
                 }
             }
@@ -1553,11 +1553,37 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     }
 
     /**
-     * Emit virtual dispatch for a method call on an interface-typed variable.
-     * Loads the type_id from field 0 of the object, then emits a switch to
-     * Check if a method call on $className needs virtual dispatch.
-     * True when subclasses override the method (abstract or polymorphic).
+     * Find all concrete descendants of $className (interface implementors + subclass tree).
+     *
+     * @return array<string>
      */
+    protected function findDescendants(string $className): array
+    {
+        $descendants = [];
+        foreach ($this->classRegistry as $name => $meta) {
+            if (in_array($className, $meta->interfaces, true) || $this->isDescendantOf($name, $className)) {
+                $descendants[] = $name;
+            }
+        }
+        return $descendants;
+    }
+
+    protected function isDescendantOf(string $className, string $ancestor): bool
+    {
+        $current = $className;
+        while (isset($this->classRegistry[$current])) {
+            $parent = $this->classRegistry[$current]->parentName;
+            if ($parent === null) {
+                return false;
+            }
+            if ($parent === $ancestor) {
+                return true;
+            }
+            $current = $parent;
+        }
+        return false;
+    }
+
     /**
      * Check if a method on $className needs virtual dispatch.
      * True when the method is abstract on the owning class.
@@ -1569,6 +1595,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     }
 
     /**
+     * Emit virtual dispatch for a method call on an interface/abstract-typed variable.
+     * Loads the type_id from field 0 of the object, then emits a switch to
      * dispatch to the correct concrete class method.
      *
      * @param array<\App\PicoHP\LLVM\ValueAbstract> $allArgs
@@ -1582,13 +1610,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     ): ValueAbstract {
         \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
 
-        // Find all concrete classes: interface implementors or subclasses
-        $implementors = [];
-        foreach ($this->classRegistry as $name => $meta) {
-            if (in_array($interfaceName, $meta->interfaces, true) || $meta->parentName === $interfaceName) {
-                $implementors[] = $name;
-            }
-        }
+        $implementors = $this->findDescendants($interfaceName);
         \App\PicoHP\CompilerInvariant::check(count($implementors) > 0, "no implementors found for {$interfaceName}");
 
         $vd = $this->vdispatchCount++;
@@ -1652,9 +1674,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
 
         $implementors = [];
-        foreach ($this->classRegistry as $name => $meta) {
-            if ((in_array($interfaceName, $meta->interfaces, true) || $meta->parentName === $interfaceName)
-                && isset($meta->properties[$propName])) {
+        foreach ($this->findDescendants($interfaceName) as $name) {
+            if (isset($this->classRegistry[$name]->properties[$propName])) {
                 $implementors[] = $name;
             }
         }

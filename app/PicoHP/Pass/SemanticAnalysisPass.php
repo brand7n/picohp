@@ -427,6 +427,21 @@ class SemanticAnalysisPass implements PassInterface
         return false;
     }
 
+    private function isDescendantOf(ClassMetadata $meta, string $ancestor): bool
+    {
+        if (in_array($ancestor, $meta->interfaces, true)) {
+            return true;
+        }
+        $current = $meta->parentName;
+        while ($current !== null) {
+            if ($current === $ancestor) {
+                return true;
+            }
+            $current = isset($this->classRegistry[$current]) ? $this->classRegistry[$current]->parentName : null;
+        }
+        return false;
+    }
+
     private function typeFromNode(\PhpParser\Node\Identifier|\PhpParser\Node\NullableType|\PhpParser\Node\Name|\PhpParser\Node\UnionType $node): PicoType
     {
         if ($node instanceof \PhpParser\Node\UnionType) {
@@ -967,10 +982,10 @@ class SemanticAnalysisPass implements PassInterface
             $className = $objType->getClassName();
             $classMeta = $this->classRegistry[$className];
             $propName = $expr->name->toString();
-            // Interface/abstract property access: resolve through first implementor
+            // Interface/abstract property access: resolve through descendants
             if (!isset($classMeta->properties[$propName])) {
                 foreach ($this->classRegistry as $implMeta) {
-                    if (in_array($className, $implMeta->interfaces, true) && isset($implMeta->properties[$propName])) {
+                    if ($this->isDescendantOf($implMeta, $className) && isset($implMeta->properties[$propName])) {
                         return $implMeta->getPropertyType($propName);
                     }
                 }
