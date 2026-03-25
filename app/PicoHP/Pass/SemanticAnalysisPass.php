@@ -126,6 +126,7 @@ class SemanticAnalysisPass implements PassInterface
                 \App\PicoHP\CompilerInvariant::check($stmt->name instanceof \PhpParser\Node\Identifier);
                 $className = $stmt->name->toString();
                 $classMeta = new ClassMetadata($className);
+                $classMeta->isAbstract = $stmt->isAbstract();
                 $this->classRegistry[$className] = $classMeta;
                 // Inherit from parent class
                 if ($stmt->extends !== null) {
@@ -208,6 +209,7 @@ class SemanticAnalysisPass implements PassInterface
                             $methodSymbol->paramNames[$pi] = $param->var->name;
                             $pi++;
                         }
+                        $methodSymbol->isAbstract = $classStmt->isAbstract();
                         $classMeta->methods[$methodName] = $methodSymbol;
                         $classMeta->methodOwner[$methodName] = $className;
                     } elseif ($classStmt instanceof \PhpParser\Node\Stmt\ClassConst) {
@@ -422,6 +424,21 @@ class SemanticAnalysisPass implements PassInterface
             if (isset($this->classRegistry[$lclass]) && isset($this->classRegistry[$rclass])) {
                 return true;
             }
+        }
+        return false;
+    }
+
+    private function isDescendantOf(ClassMetadata $meta, string $ancestor): bool
+    {
+        if (in_array($ancestor, $meta->interfaces, true)) {
+            return true;
+        }
+        $current = $meta->parentName;
+        while ($current !== null) {
+            if ($current === $ancestor) {
+                return true;
+            }
+            $current = isset($this->classRegistry[$current]) ? $this->classRegistry[$current]->parentName : null;
         }
         return false;
     }
@@ -963,8 +980,18 @@ class SemanticAnalysisPass implements PassInterface
                 return PicoType::fromString('mixed');
             }
             \App\PicoHP\CompilerInvariant::check($objType->isObject(), "property fetch on non-object type: {$objType->toString()}");
-            $classMeta = $this->classRegistry[$objType->getClassName()];
-            return $classMeta->getPropertyType($expr->name->toString());
+            $className = $objType->getClassName();
+            $classMeta = $this->classRegistry[$className];
+            $propName = $expr->name->toString();
+            // Interface/abstract property access: resolve through descendants
+            if (!isset($classMeta->properties[$propName])) {
+                foreach ($this->classRegistry as $implMeta) {
+                    if ($this->isDescendantOf($implMeta, $className) && isset($implMeta->properties[$propName])) {
+                        return $implMeta->getPropertyType($propName);
+                    }
+                }
+            }
+            return $classMeta->getPropertyType($propName);
         } elseif ($expr instanceof \PhpParser\Node\Expr\MethodCall) {
             $objType = $this->resolveExpr($expr->var);
             // Mixed type: method calls resolve to mixed

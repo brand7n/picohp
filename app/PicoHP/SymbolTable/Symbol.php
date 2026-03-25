@@ -19,6 +19,7 @@ class Symbol
     public array $paramNames = [];
     public ?ValueAbstract $value;
     public bool $func;
+    public bool $isAbstract = false;
 
     /** @param array<PicoType> $params */
     public function __construct(string $name, PicoType $type, array $params = [], ?ValueAbstract $value = null, bool $func = false)
