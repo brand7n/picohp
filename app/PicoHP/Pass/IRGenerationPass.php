@@ -1726,6 +1726,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         return $this->builder->createLoad($resultPtr);
     }
 
+    /**
+     * Emit stores for instance property default values.
+     * Supports: int, float, string, bool, null, array literals (int/string/negative-int elements).
+     * Unsupported default expressions (new, ClassConstFetch, binary exprs) are rejected.
+     */
     protected function emitPropertyDefaults(string $className, \App\PicoHP\SymbolTable\ClassMetadata $classMeta, ValueAbstract $objPtr): void
     {
         foreach ($classMeta->propertyDefaults as $propName => $default) {
@@ -1743,6 +1748,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                     } elseif ($item->value instanceof \PhpParser\Node\Expr\UnaryMinus
                         && $item->value->expr instanceof \PhpParser\Node\Scalar\Int_) {
                         $this->builder->createArrayPush($arrPtr, new Constant(-$item->value->expr->value, BaseType::INT), BaseType::INT);
+                    } else {
+                        /** @phpstan-ignore-next-line */
+                        \App\PicoHP\CompilerInvariant::check(false, "unsupported array element type in property default: " . get_class($item->value));
                     }
                 }
                 $this->builder->createStore($arrPtr, $fieldPtr);
@@ -1753,6 +1761,12 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             } elseif ($default instanceof \PhpParser\Node\Scalar\String_) {
                 $strVal = $this->builder->createStringConstant($default->value);
                 $this->builder->createStore($strVal, $fieldPtr);
+            } elseif ($default instanceof \PhpParser\Node\Expr\UnaryMinus
+                && $default->expr instanceof \PhpParser\Node\Scalar\Int_) {
+                $this->builder->createStore(new Constant(-$default->expr->value, BaseType::INT), $fieldPtr);
+            } elseif ($default instanceof \PhpParser\Node\Expr\UnaryMinus
+                && $default->expr instanceof \PhpParser\Node\Scalar\Float_) {
+                $this->builder->createStore(new Constant(-$default->expr->value, BaseType::FLOAT), $fieldPtr);
             } elseif ($default instanceof \PhpParser\Node\Expr\ConstFetch) {
                 $name = $default->name->toLowerString();
                 if ($name === 'null') {
@@ -1762,6 +1776,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 } elseif ($name === 'false') {
                     $this->builder->createStore(new Constant(0, BaseType::BOOL), $fieldPtr);
                 }
+            } else {
+                /** @phpstan-ignore-next-line */
+                \App\PicoHP\CompilerInvariant::check(false, "unsupported property default type: " . get_class($default));
             }
         }
     }
