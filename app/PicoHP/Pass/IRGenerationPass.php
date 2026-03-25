@@ -1665,7 +1665,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         }
 
         // Multiple implementors: switch on type_id
-        $resultPtr = $this->builder->createAlloca("vdp{$vd}_result", $fieldType);
+        // lVal stores a pointer (GEP result), so alloca must be ptr-sized
+        $resultPtr = $this->builder->createAlloca("vdp{$vd}_result", $lVal ? BaseType::PTR : $fieldType);
         $endBB = $this->currentFunction->addBasicBlock("vdp{$vd}_end");
 
         $caseBBs = [];

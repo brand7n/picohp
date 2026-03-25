@@ -966,8 +966,8 @@ class SemanticAnalysisPass implements PassInterface
             $className = $objType->getClassName();
             $classMeta = $this->classRegistry[$className];
             $propName = $expr->name->toString();
-            // Interface property access: resolve through first implementor
-            if (!isset($classMeta->properties[$propName]) && count($classMeta->properties) === 0) {
+            // Interface/abstract property access: resolve through first implementor
+            if (!isset($classMeta->properties[$propName])) {
                 foreach ($this->classRegistry as $implMeta) {
                     if (in_array($className, $implMeta->interfaces, true) && isset($implMeta->properties[$propName])) {
                         return $implMeta->getPropertyType($propName);
