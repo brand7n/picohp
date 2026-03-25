@@ -621,6 +621,15 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 return $this->builder->createStringConcat($lval, $rval);
             }
 
+            // Coerce ptr operands to i32 for integer ops (e.g. mixed-backed bitmask values).
+            // STRING is also ptr in LLVM (NullConstant renders as ptr null).
+            if (($lval->getType() === BaseType::PTR || $lval->getType() === BaseType::STRING) && $sigil !== '===' && $sigil !== '!==' && $sigil !== '.') {
+                $lval = $this->builder->createPtrToInt($lval);
+            }
+            if (($rval->getType() === BaseType::PTR || $rval->getType() === BaseType::STRING) && $sigil !== '===' && $sigil !== '!==' && $sigil !== '.') {
+                $rval = $this->builder->createPtrToInt($rval);
+            }
+
             // Different types with === / !== — result is known at compile time
             if ($lval->getType() !== $rval->getType() && ($sigil === '===' || $sigil === '!==')) {
                 return new Constant($sigil === '!==' ? 1 : 0, BaseType::BOOL);
@@ -1043,6 +1052,10 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             return $oldVal;
         } elseif ($expr instanceof \PhpParser\Node\Expr\BooleanNot) {
             $val = $this->buildExpr($expr->expr);
+            // For ptr/mixed values, !$val means $val == null (i.e. falsy)
+            if ($val->getType() === BaseType::PTR || $val->getType() === BaseType::STRING) {
+                return $this->builder->createInstruction('icmp eq', [$val, new \App\PicoHP\LLVM\Value\NullConstant()], resultType: BaseType::BOOL);
+            }
             return $this->builder->createInstruction('xor', [$val, new Constant(1, BaseType::BOOL)], resultType: BaseType::BOOL);
         } elseif ($expr instanceof \PhpParser\Node\Expr\PreInc) {
             $ptr = $this->resolveVarPtr($expr->var);
