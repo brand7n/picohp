@@ -44,6 +44,7 @@ build/
 
 # Test project vendor (changes on every composer install)
 examples/test-proj/vendor/
+examples/test-proj/build/
 
 # Generated files
 tests/programs/self_compile/php8_transformed.php
