@@ -176,6 +176,13 @@ class Builder
         return $resultVal;
     }
 
+    public function createPtrToInt(ValueAbstract $val): ValueAbstract
+    {
+        $resultVal = new Instruction("ptrtoint", BaseType::INT);
+        $this->addLine("{$resultVal->render()} = ptrtoint ptr {$val->render()} to i32", 1);
+        return $resultVal;
+    }
+
     public function createSiToFp(ValueAbstract $val): ValueAbstract
     {
         $resultVal = new Instruction("cast", BaseType::FLOAT);
@@ -326,6 +333,14 @@ class Builder
     {
         $suffix = $this->arrayFuncSuffix($elementType);
         $llvmType = $this->arrayArgType($elementType);
+        // Coerce non-ptr values to ptr for mixed arrays (e.g. integer 0 → inttoptr)
+        // STRING and PTR are both ptr in LLVM; NullConstant renders as ptr null
+        if ($elementType === BaseType::PTR && $val->getType() !== BaseType::PTR && $val->getType() !== BaseType::STRING) {
+            $castVal = new Instruction("inttoptr", BaseType::PTR);
+            $valType = $val->getType()->toLLVM();
+            $this->addLine("{$castVal->render()} = inttoptr {$valType} {$val->render()} to ptr", 1);
+            $val = $castVal;
+        }
         $this->addLine("call void @pico_array_push_{$suffix}(ptr {$arr->render()}, {$llvmType} {$val->render()})", 1);
     }
 
@@ -342,6 +357,12 @@ class Builder
     {
         $suffix = $this->arrayFuncSuffix($elementType);
         $llvmType = $this->arrayArgType($elementType);
+        if ($elementType === BaseType::PTR && $val->getType() !== BaseType::PTR && $val->getType() !== BaseType::STRING) {
+            $castVal = new Instruction("inttoptr", BaseType::PTR);
+            $valType = $val->getType()->toLLVM();
+            $this->addLine("{$castVal->render()} = inttoptr {$valType} {$val->render()} to ptr", 1);
+            $val = $castVal;
+        }
         $this->addLine("call void @pico_array_set_{$suffix}(ptr {$arr->render()}, i32 {$idx->render()}, {$llvmType} {$val->render()})", 1);
     }
 
