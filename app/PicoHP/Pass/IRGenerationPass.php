@@ -1553,7 +1553,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     }
 
     /**
-     * Find all concrete descendants of $className (interface implementors + subclass tree).
+     * Find all descendants of $className (interface implementors + subclass tree).
+     * May include abstract intermediates — callers should handle missing methods/properties.
      *
      * @return array<string>
      */
@@ -1596,8 +1597,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
     /**
      * Emit virtual dispatch for a method call on an interface/abstract-typed variable.
-     * Loads the type_id from field 0 of the object, then emits a switch to
-     * dispatch to the correct concrete class method.
+     * Loads the type_id from field 0 of the object, then emits a switch to dispatch
+     * to the correct concrete class method.
      *
      * @param array<\App\PicoHP\LLVM\ValueAbstract> $allArgs
      */
