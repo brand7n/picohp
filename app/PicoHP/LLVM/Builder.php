@@ -333,9 +333,9 @@ class Builder
     {
         $suffix = $this->arrayFuncSuffix($elementType);
         $llvmType = $this->arrayArgType($elementType);
-        // Coerce non-ptr values to ptr for mixed arrays (e.g. integer 0 → inttoptr)
-        // STRING and PTR are both ptr in LLVM; NullConstant renders as ptr null
-        if ($elementType === BaseType::PTR && $val->getType() !== BaseType::PTR && $val->getType() !== BaseType::STRING) {
+        // Coerce integer-like values to ptr for mixed arrays (e.g. integer 0 → null ptr).
+        // We intentionally do NOT cast FLOAT here to avoid invalid LLVM casts.
+        if ($elementType === BaseType::PTR && ($val->getType() === BaseType::INT || $val->getType() === BaseType::BOOL)) {
             $castVal = new Instruction("inttoptr", BaseType::PTR);
             $valType = $val->getType()->toLLVM();
             $this->addLine("{$castVal->render()} = inttoptr {$valType} {$val->render()} to ptr", 1);
@@ -357,7 +357,7 @@ class Builder
     {
         $suffix = $this->arrayFuncSuffix($elementType);
         $llvmType = $this->arrayArgType($elementType);
-        if ($elementType === BaseType::PTR && $val->getType() !== BaseType::PTR && $val->getType() !== BaseType::STRING) {
+        if ($elementType === BaseType::PTR && ($val->getType() === BaseType::INT || $val->getType() === BaseType::BOOL)) {
             $castVal = new Instruction("inttoptr", BaseType::PTR);
             $valType = $val->getType()->toLLVM();
             $this->addLine("{$castVal->render()} = inttoptr {$valType} {$val->render()} to ptr", 1);
