@@ -33,6 +33,9 @@ class ClassMetadata
     /** @var array<string, \PhpParser\Node\Expr|null> static property name => default value expression */
     public array $staticDefaults = [];
 
+    /** @var array<string, \PhpParser\Node\Expr|null> instance property name => default value expression */
+    public array $propertyDefaults = [];
+
     /** @var array<string, int> constant name => integer value */
     public array $constants = [];
 
@@ -49,6 +52,10 @@ class ClassMetadata
         foreach ($parent->properties as $propName => $propType) {
             $this->properties[$propName] = $propType;
             $this->propertyOffsets[$propName] = $parent->propertyOffsets[$propName];
+        }
+        // Copy parent property defaults
+        foreach ($parent->propertyDefaults as $propName => $default) {
+            $this->propertyDefaults[$propName] = $default;
         }
         // Copy parent methods (child can override later)
         foreach ($parent->methods as $methodName => $methodSymbol) {

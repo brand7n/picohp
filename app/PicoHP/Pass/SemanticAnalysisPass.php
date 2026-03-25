@@ -187,6 +187,9 @@ class SemanticAnalysisPass implements PassInterface
                                     $effectiveType = $classMeta->properties[$propName];
                                 }
                                 $classMeta->addProperty($propName, $effectiveType);
+                                if ($prop->default !== null) {
+                                    $classMeta->propertyDefaults[$propName] = $prop->default;
+                                }
                             }
                         }
                     } elseif ($classStmt instanceof \PhpParser\Node\Stmt\ClassMethod) {

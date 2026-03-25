@@ -1080,6 +1080,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             // Store type_id in field 0
             $typeIdPtr = $this->builder->createStructGEP($className, $objPtr, 0, BaseType::INT);
             $this->builder->createStore(new Constant($typeId, BaseType::INT), $typeIdPtr);
+            // Emit property default values before constructor
+            $this->emitPropertyDefaults($className, $classMeta, $objPtr);
             // Call constructor if it exists
             if (isset($classMeta->methods['__construct'])) {
                 $ctorSymbol = $classMeta->methods['__construct'];
@@ -1722,6 +1724,46 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
         $this->builder->setInsertPoint($endBB);
         return $this->builder->createLoad($resultPtr);
+    }
+
+    protected function emitPropertyDefaults(string $className, \App\PicoHP\SymbolTable\ClassMetadata $classMeta, ValueAbstract $objPtr): void
+    {
+        foreach ($classMeta->propertyDefaults as $propName => $default) {
+            $fieldIndex = $classMeta->getPropertyIndex($propName);
+            $fieldType = $classMeta->getPropertyType($propName)->toBase();
+            $fieldPtr = $this->builder->createStructGEP($className, $objPtr, $fieldIndex, $fieldType);
+            if ($default instanceof \PhpParser\Node\Expr\Array_) {
+                $arrPtr = $this->builder->createArrayNew();
+                foreach ($default->items as $item) {
+                    if ($item->value instanceof \PhpParser\Node\Scalar\Int_) {
+                        $this->builder->createArrayPush($arrPtr, new Constant($item->value->value, BaseType::INT), BaseType::INT);
+                    } elseif ($item->value instanceof \PhpParser\Node\Scalar\String_) {
+                        $strVal = $this->builder->createStringConstant($item->value->value);
+                        $this->builder->createArrayPush($arrPtr, $strVal, BaseType::STRING);
+                    } elseif ($item->value instanceof \PhpParser\Node\Expr\UnaryMinus
+                        && $item->value->expr instanceof \PhpParser\Node\Scalar\Int_) {
+                        $this->builder->createArrayPush($arrPtr, new Constant(-$item->value->expr->value, BaseType::INT), BaseType::INT);
+                    }
+                }
+                $this->builder->createStore($arrPtr, $fieldPtr);
+            } elseif ($default instanceof \PhpParser\Node\Scalar\Int_) {
+                $this->builder->createStore(new Constant($default->value, BaseType::INT), $fieldPtr);
+            } elseif ($default instanceof \PhpParser\Node\Scalar\Float_) {
+                $this->builder->createStore(new Constant($default->value, BaseType::FLOAT), $fieldPtr);
+            } elseif ($default instanceof \PhpParser\Node\Scalar\String_) {
+                $strVal = $this->builder->createStringConstant($default->value);
+                $this->builder->createStore($strVal, $fieldPtr);
+            } elseif ($default instanceof \PhpParser\Node\Expr\ConstFetch) {
+                $name = $default->name->toLowerString();
+                if ($name === 'null') {
+                    $this->builder->createStore(new NullConstant(), $fieldPtr);
+                } elseif ($name === 'true') {
+                    $this->builder->createStore(new Constant(1, BaseType::BOOL), $fieldPtr);
+                } elseif ($name === 'false') {
+                    $this->builder->createStore(new Constant(0, BaseType::BOOL), $fieldPtr);
+                }
+            }
+        }
     }
 
     /**

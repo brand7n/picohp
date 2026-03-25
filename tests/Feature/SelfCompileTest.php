@@ -106,4 +106,15 @@ it('self-compiles Php8 transformed parser and matches PHP oracle', function () {
     } finally {
         @unlink($tmpOracle);
     }
+
+    // FFI test: build as shared lib and call real parser table lookups
+    /** @phpstan-ignore-next-line */
+    $this->artisan("build {$file} --shared-lib --out=php8_parser.so")->assertExitCode(0);
+
+    $ffi = \FFI::cdef("int php8_parser_test();", "{$buildPath}/php8_parser.so");
+
+    /** @phpstan-ignore-next-line */
+    $ffiResult = (int) $ffi->php8_parser_test();
+    // Should match the standalone tables FFI test (same tables, same algorithm)
+    expect($ffiResult)->toBe(570086);
 });
