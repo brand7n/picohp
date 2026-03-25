@@ -63,6 +63,13 @@ it('compiles real Php8 parser tables and calls lookups via FFI', function () {
 it('self-compiles Php8 transformed parser and matches PHP oracle', function () {
     $file = 'tests/programs/self_compile/php8_transformed.php';
 
+    if (!file_exists($file)) {
+        // php8_transformed.php is generated and gitignored; CI needs to produce it.
+        $generator = 'tests/programs/self_compile/generate_php8_stub.php';
+        shell_exec("php {$generator}");
+        expect(file_exists($file))->toBeTrue();
+    }
+
     /** @phpstan-ignore-next-line */
     $this->artisan("build --debug {$file}")->assertExitCode(0);
 
