@@ -1330,10 +1330,17 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
             $targetClass = $expr->class->toString();
 
-            // Load runtime type_id from field 0
-            $firstClass = array_key_first($this->typeIdMap);
-            \App\PicoHP\CompilerInvariant::check($firstClass !== null);
-            $typeIdPtr = $this->builder->createStructGEP($firstClass, $objVal, 0, BaseType::INT);
+            // Load runtime type_id from field 0 using the static type for GEP
+            // All class structs share i32 type_id at index 0 by convention
+            $staticType = $this->getExprResolvedType($expr->expr);
+            $gepClass = $staticType->isObject() ? $staticType->getClassName() : $targetClass;
+            // For interface types, use the target class or first descendant for GEP
+            if (!isset($this->typeIdMap[$gepClass])) {
+                $descendants = $this->findDescendants($gepClass);
+                \App\PicoHP\CompilerInvariant::check(count($descendants) > 0, "no concrete types for instanceof {$targetClass}");
+                $gepClass = $descendants[0];
+            }
+            $typeIdPtr = $this->builder->createStructGEP($gepClass, $objVal, 0, BaseType::INT);
             $typeIdVal = $this->builder->createLoad($typeIdPtr);
 
             // Collect all type_ids that match: the target class + all concrete descendants
@@ -1347,6 +1354,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 }
             }
 
+            $matchIds = array_values(array_unique($matchIds));
             if (count($matchIds) === 0) {
                 return new Constant(0, BaseType::BOOL);
             }
