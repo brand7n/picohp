@@ -37,12 +37,6 @@ class SemanticAnalysisPass implements PassInterface
         $this->docTypeParser = new DocTypeParser();
     }
 
-    public function getClassMetadata(string $name): ClassMetadata
-    {
-        \App\PicoHP\CompilerInvariant::check(isset($this->classRegistry[$name]), "class {$name} not found");
-        return $this->classRegistry[$name];
-    }
-
     /**
      * @return array<string, ClassMetadata>
      */
@@ -343,41 +337,6 @@ class SemanticAnalysisPass implements PassInterface
                 }
             }
         }
-    }
-
-    /**
-     * Check if a class is an exception class (is or extends Exception).
-     */
-    protected function isExceptionClass(string $className): bool
-    {
-        if ($className === 'Exception') {
-            return true;
-        }
-        $meta = $this->classRegistry[$className] ?? null;
-        if ($meta === null) {
-            return false;
-        }
-        if ($meta->parentName !== null) {
-            return $this->isExceptionClass($meta->parentName);
-        }
-        return false;
-    }
-
-    /**
-     * Get all type_ids that should match a catch clause for a given class.
-     * Includes the class itself and all its descendants.
-     *
-     * @return array<int>
-     */
-    public function getMatchingTypeIds(string $className): array
-    {
-        $ids = [];
-        foreach ($this->typeIdMap as $name => $id) {
-            if ($this->isSubclassOf($name, $className)) {
-                $ids[] = $id;
-            }
-        }
-        return $ids;
     }
 
     protected function isSubclassOf(string $className, string $parentName): bool
