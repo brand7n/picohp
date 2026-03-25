@@ -58,6 +58,20 @@ it('handles multiple catch clauses', function () {
     expect($compiled_output)->toBe($php_output);
 });
 
+it('handles catching base Exception type', function () {
+    $file = 'tests/programs/exceptions/catch_base_exception.php';
+
+    /** @phpstan-ignore-next-line */
+    $this->artisan("build --debug {$file}")->assertExitCode(0);
+
+    $buildPath = config('app.build_path');
+    assert(is_string($buildPath));
+    $compiled_output = shell_exec("{$buildPath}/a.out");
+    $php_output = shell_exec("php {$file}");
+
+    expect($compiled_output)->toBe($php_output);
+});
+
 it('handles custom exception with extra properties', function () {
     $file = 'tests/programs/exceptions/custom_exception.php';
 

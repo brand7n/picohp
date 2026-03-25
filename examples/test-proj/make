@@ -1,8 +1,4 @@
 #!/bin/sh
-
-# TODO: convert to composer script
-
-php -d memory_limit=-1 vendor/bin/phpstan analyse --configuration phpstan.neon --debug src               
-composer install --no-dev --optimize-autoloader
-composer dump-autoload --classmap-authoritative
+# Minimal local build (vendor must exist: run `composer install` in this directory once).
+cd "$(dirname "$0")" || exit 1
 ../../picoHP build --debug .
