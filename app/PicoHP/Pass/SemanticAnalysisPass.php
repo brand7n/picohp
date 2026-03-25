@@ -208,6 +208,7 @@ class SemanticAnalysisPass implements PassInterface
                             $methodSymbol->paramNames[$pi] = $param->var->name;
                             $pi++;
                         }
+                        $methodSymbol->isAbstract = $classStmt->isAbstract();
                         $classMeta->methods[$methodName] = $methodSymbol;
                         $classMeta->methodOwner[$methodName] = $className;
                     } elseif ($classStmt instanceof \PhpParser\Node\Stmt\ClassConst) {

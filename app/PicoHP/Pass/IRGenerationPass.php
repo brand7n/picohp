@@ -1124,8 +1124,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $allArgs = array_merge([$objVal], $args);
             $returnType = $methodSymbol->type->toBase();
 
-            // Check if this is a virtual dispatch (interface or abstract type without type_id)
-            if (!isset($this->typeIdMap[$className])) {
+            // Virtual dispatch: interface (no type_id), or method not owned by this class
+            // (abstract method, or method only defined on subclasses)
+            if (!isset($this->typeIdMap[$className]) || $this->needsVirtualDispatch($className, $methodName)) {
                 return $this->emitVirtualDispatch($objVal, $className, $methodName, $allArgs, $returnType);
             }
 
@@ -1554,6 +1555,20 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     /**
      * Emit virtual dispatch for a method call on an interface-typed variable.
      * Loads the type_id from field 0 of the object, then emits a switch to
+     * Check if a method call on $className needs virtual dispatch.
+     * True when subclasses override the method (abstract or polymorphic).
+     */
+    /**
+     * Check if a method on $className needs virtual dispatch.
+     * True when the method is abstract on the owning class.
+     */
+    protected function needsVirtualDispatch(string $className, string $methodName): bool
+    {
+        $classMeta = $this->classRegistry[$className];
+        return isset($classMeta->methods[$methodName]) && $classMeta->methods[$methodName]->isAbstract;
+    }
+
+    /**
      * dispatch to the correct concrete class method.
      *
      * @param array<\App\PicoHP\LLVM\ValueAbstract> $allArgs
@@ -1567,14 +1582,14 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     ): ValueAbstract {
         \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
 
-        // Find all classes that implement this interface
+        // Find all concrete classes: interface implementors or subclasses
         $implementors = [];
         foreach ($this->classRegistry as $name => $meta) {
-            if (in_array($interfaceName, $meta->interfaces, true)) {
+            if (in_array($interfaceName, $meta->interfaces, true) || $meta->parentName === $interfaceName) {
                 $implementors[] = $name;
             }
         }
-        \App\PicoHP\CompilerInvariant::check(count($implementors) > 0, "no implementors found for interface {$interfaceName}");
+        \App\PicoHP\CompilerInvariant::check(count($implementors) > 0, "no implementors found for {$interfaceName}");
 
         $vd = $this->vdispatchCount++;
 
@@ -1638,7 +1653,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
         $implementors = [];
         foreach ($this->classRegistry as $name => $meta) {
-            if (in_array($interfaceName, $meta->interfaces, true) && isset($meta->properties[$propName])) {
+            if ((in_array($interfaceName, $meta->interfaces, true) || $meta->parentName === $interfaceName)
+                && isset($meta->properties[$propName])) {
                 $implementors[] = $name;
             }
         }
