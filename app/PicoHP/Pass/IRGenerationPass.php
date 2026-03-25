@@ -563,26 +563,28 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $arrPtr = $this->builder->createLoad($arrPtrPtr);
                 $arrayType = $this->getExprResolvedType($arrVarExpr);
                 $elemBaseType = $arrayType->isMixed() ? BaseType::PTR : $arrayType->getElementBaseType();
-                if ($arrayType->isArray() && $arrayType->hasStringKeys()) {
-                    // Map set: $map['key'] = val
-                    \App\PicoHP\CompilerInvariant::check($expr->var->dim !== null, "map push not supported");
-                    $keyVal = $this->buildExpr($expr->var->dim);
-                    $setFunc = 'pico_map_set_' . match ($elemBaseType) {
-                        BaseType::INT => 'int',
-                        BaseType::FLOAT => 'float',
-                        BaseType::BOOL => 'bool',
-                        BaseType::STRING => 'str',
-                        BaseType::PTR => 'ptr',
-                        default => throw new \RuntimeException("unsupported map set type"),
-                    };
-                    $this->builder->createCall($setFunc, [$arrPtr, $keyVal, $rval], BaseType::VOID);
-                } elseif ($expr->var->dim === null) {
+                if ($expr->var->dim === null) {
                     // $arr[] = val (push)
                     $this->builder->createArrayPush($arrPtr, $rval, $elemBaseType);
                 } else {
-                    // $arr[idx] = val (set)
-                    $idx = $this->buildExpr($expr->var->dim);
-                    $this->builder->createArraySet($arrPtr, $idx, $rval, $elemBaseType);
+                    // $arr[idx] = val (set). If idx is a STRING, treat this as a map assignment.
+                    $keyOrIdxVal = $this->buildExpr($expr->var->dim);
+                    $shouldUseMapSet = ($arrayType->isArray() && $arrayType->hasStringKeys())
+                        || $keyOrIdxVal->getType() === BaseType::STRING;
+
+                    if ($shouldUseMapSet) {
+                        $setFunc = 'pico_map_set_' . match ($elemBaseType) {
+                            BaseType::INT => 'int',
+                            BaseType::FLOAT => 'float',
+                            BaseType::BOOL => 'bool',
+                            BaseType::STRING => 'str',
+                            BaseType::PTR => 'ptr',
+                            default => throw new \RuntimeException("unsupported map set type"),
+                        };
+                        $this->builder->createCall($setFunc, [$arrPtr, $keyOrIdxVal, $rval], BaseType::VOID);
+                    } else {
+                        $this->builder->createArraySet($arrPtr, $keyOrIdxVal, $rval, $elemBaseType);
+                    }
                 }
                 return $rval;
             }
@@ -619,6 +621,15 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
             if ($sigil === '.') {
                 return $this->builder->createStringConcat($lval, $rval);
+            }
+
+            // For mixed-backed boxed-int values, treat ptr/string as integer bits before integer ops.
+            $intOpSigils = ['|', '&', '^', '<<', '>>', '+', '-', '*', '/', '%', '<', '>', '<=', '>='];
+            if (($lval->getType() === BaseType::PTR || $lval->getType() === BaseType::STRING) && in_array($sigil, $intOpSigils, true)) {
+                $lval = $this->builder->createPtrToInt($lval);
+            }
+            if (($rval->getType() === BaseType::PTR || $rval->getType() === BaseType::STRING) && in_array($sigil, $intOpSigils, true)) {
+                $rval = $this->builder->createPtrToInt($rval);
             }
 
             // Different types with === / !== — result is known at compile time
@@ -1043,6 +1054,10 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             return $oldVal;
         } elseif ($expr instanceof \PhpParser\Node\Expr\BooleanNot) {
             $val = $this->buildExpr($expr->expr);
+            // For ptr/mixed values, !$val means $val == null (i.e. falsy)
+            if ($val->getType() === BaseType::PTR || $val->getType() === BaseType::STRING) {
+                return $this->builder->createInstruction('icmp eq', [$val, new \App\PicoHP\LLVM\Value\NullConstant()], resultType: BaseType::BOOL);
+            }
             return $this->builder->createInstruction('xor', [$val, new Constant(1, BaseType::BOOL)], resultType: BaseType::BOOL);
         } elseif ($expr instanceof \PhpParser\Node\Expr\PreInc) {
             $ptr = $this->resolveVarPtr($expr->var);
