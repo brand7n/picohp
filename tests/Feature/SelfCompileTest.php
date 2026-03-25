@@ -59,3 +59,44 @@ it('compiles real Php8 parser tables and calls lookups via FFI', function () {
     $expected = (int) shell_exec("php -r \"require '{$file}'; echo php8_table_test();\"");
     expect($result)->toBe($expected);
 });
+
+it('self-compiles Php8 transformed parser and matches PHP oracle', function () {
+    $file = 'tests/programs/self_compile/php8_transformed.php';
+
+    /** @phpstan-ignore-next-line */
+    $this->artisan("build --debug {$file}")->assertExitCode(0);
+
+    $buildPath = config('app.build_path');
+    assert(is_string($buildPath));
+
+    $compiled_output = shell_exec("{$buildPath}/a.out");
+
+    $src = file_get_contents($file);
+    \App\PicoHP\CompilerInvariant::check(is_string($src), 'Failed to read Php8 transformed source');
+
+    // The transformed Php8 parser defines RuntimeException/Error in the global namespace.
+    // When running under stock PHP, that can collide with PHP's built-in names.
+    // We run a namespaced oracle copy to avoid redeclare conflicts.
+    $oracleSrc = preg_replace(
+        '/declare\\(strict_types=1\\);\\s*/',
+        "declare(strict_types=1);\n\nnamespace Php8Oracle;\n\n",
+        $src,
+        1,
+    );
+    \App\PicoHP\CompilerInvariant::check(is_string($oracleSrc));
+
+    // Ensure any unqualified Exception references bind to global \Exception.
+    $oracleSrc = preg_replace('/\\bException\\b/', '\\\\Exception', $oracleSrc);
+    \App\PicoHP\CompilerInvariant::check(is_string($oracleSrc));
+
+    $tmpOracle = tempnam(sys_get_temp_dir(), 'php8_oracle_');
+    \App\PicoHP\CompilerInvariant::check($tmpOracle !== false);
+    file_put_contents($tmpOracle, $oracleSrc);
+
+    try {
+        $php_output = shell_exec('php ' . escapeshellarg($tmpOracle));
+        expect($compiled_output)->toBe($php_output);
+    } finally {
+        @unlink($tmpOracle);
+    }
+});
