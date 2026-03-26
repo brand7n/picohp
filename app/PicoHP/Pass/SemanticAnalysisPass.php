@@ -941,19 +941,21 @@ class SemanticAnalysisPass implements PassInterface
             if ($objType->isMixed()) {
                 return PicoType::fromString('mixed');
             }
-            \App\PicoHP\CompilerInvariant::check($objType->isObject(), "property fetch on non-object type: {$objType->toString()}");
+            $line = $this->getLine($expr);
+            \App\PicoHP\CompilerInvariant::check($objType->isObject(), "line {$line}, property fetch on non-object type: {$objType->toString()}");
             $className = $objType->getClassName();
+            \App\PicoHP\CompilerInvariant::check(isset($this->classRegistry[$className]), "line {$line}, class {$className} not found in registry for property fetch");
             $classMeta = $this->classRegistry[$className];
             $propName = $expr->name->toString();
             // Interface/abstract property access: resolve through descendants
             if (!isset($classMeta->properties[$propName])) {
                 foreach ($this->classRegistry as $implMeta) {
                     if ($this->isDescendantOf($implMeta, $className) && isset($implMeta->properties[$propName])) {
-                        return $implMeta->getPropertyType($propName);
+                        return $implMeta->getPropertyType($propName, $line);
                     }
                 }
             }
-            return $classMeta->getPropertyType($propName);
+            return $classMeta->getPropertyType($propName, $line);
         } elseif ($expr instanceof \PhpParser\Node\Expr\MethodCall) {
             $objType = $this->resolveExpr($expr->var);
             // Mixed type: method calls resolve to mixed

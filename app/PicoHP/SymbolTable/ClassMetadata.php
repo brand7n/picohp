@@ -84,9 +84,13 @@ class ClassMetadata
         return $this->propertyOffsets[$name];
     }
 
-    public function getPropertyType(string $name): PicoType
+    public function getPropertyType(string $name, ?int $line = null): PicoType
     {
-        \App\PicoHP\CompilerInvariant::check(isset($this->properties[$name]), "property {$name} not found on class {$this->name}");
+        $message = "property {$name} not found on class {$this->name}";
+        if ($line !== null) {
+            $message = "line {$line}, {$message}";
+        }
+        \App\PicoHP\CompilerInvariant::check(isset($this->properties[$name]), $message);
         return $this->properties[$name];
     }
 

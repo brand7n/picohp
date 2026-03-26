@@ -266,6 +266,17 @@ class Builder
         return $resultVal;
     }
 
+    public function createStringByteAt(ValueAbstract $strPtr, ValueAbstract $index): ValueAbstract
+    {
+        $charPtr = new Instruction('str_char_ptr', BaseType::PTR);
+        $charI8 = new Instruction('str_char_i8', BaseType::INT);
+        $charI32 = new Instruction('str_char_i32', BaseType::INT);
+        $this->addLine("{$charPtr->render()} = getelementptr inbounds i8, ptr {$strPtr->render()}, i32 {$index->render()}", 1);
+        $this->addLine("{$charI8->render()} = load i8, ptr {$charPtr->render()}", 1);
+        $this->addLine("{$charI32->render()} = zext i8 {$charI8->render()} to i32", 1);
+        return $charI32;
+    }
+
     // -- object support ------------------------------------------------------
 
     public function createObjectAlloc(string $structName, int $typeId = 0): ValueAbstract

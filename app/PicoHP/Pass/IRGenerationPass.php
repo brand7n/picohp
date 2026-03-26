@@ -598,6 +598,21 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->builder->createStore($rval, $lval);
             return $rval;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Variable) {
+            if (is_string($expr->name) && $expr->name === 'this') {
+                \App\PicoHP\CompilerInvariant::check(
+                    $this->currentThisPtr !== null,
+                    "line {$expr->getStartLine()}, \$this is unavailable outside class method context"
+                );
+                if ($pData->lVal) {
+                    return $this->currentThisPtr;
+                }
+                return $this->builder->createLoad($this->currentThisPtr);
+            }
+            $varName = is_string($expr->name) ? $expr->name : get_debug_type($expr->name);
+            \App\PicoHP\CompilerInvariant::check(
+                $pData->symbol !== null && $pData->symbol->value !== null,
+                "line {$expr->getStartLine()}, variable \${$varName} has no allocated IR value"
+            );
             $value = $pData->getValue();
             if ($pData->lVal) {
                 return $value;
@@ -1023,21 +1038,15 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 }
                 return $this->builder->createArrayGet($arrPtr, $idx, $elemBaseType);
             }
-            $varData = PicoHPData::getPData($expr->var);
             // String indexing (existing behavior)
             \App\PicoHP\CompilerInvariant::check($expr->dim !== null);
-            if ($pData->lVal === true) {
-                return $this->builder->createGetElementPtr(
-                    $varData->getValue(),
-                    $this->buildExpr($expr->dim)
-                );
-            }
-            return $this->builder->createLoad(
-                $this->builder->createGetElementPtr(
-                    $varData->getValue(),
-                    $this->buildExpr($expr->dim)
-                )
+            \App\PicoHP\CompilerInvariant::check(
+                $pData->lVal !== true,
+                "line {$expr->getStartLine()}, string index assignment is not supported"
             );
+            $strVal = $this->buildExpr($expr->var);
+            $idx = $this->buildExpr($expr->dim);
+            return $this->builder->createStringByteAt($strVal, $idx);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Include_) {
             return new Void_();
         } elseif ($expr instanceof \PhpParser\Node\Expr\PostInc) {
@@ -1555,6 +1564,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     protected function getExprResolvedType(\PhpParser\Node\Expr $expr): \App\PicoHP\PicoType
     {
         if ($expr instanceof \PhpParser\Node\Expr\Variable) {
+            if (is_string($expr->name) && $expr->name === 'this' && $this->currentClassName !== null) {
+                return \App\PicoHP\PicoType::object($this->currentClassName);
+            }
             return PicoHPData::getPData($expr)->getSymbol()->type;
         }
         if ($expr instanceof \PhpParser\Node\Expr\PropertyFetch) {
@@ -1776,6 +1788,14 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 } elseif ($name === 'false') {
                     $this->builder->createStore(new Constant(0, BaseType::BOOL), $fieldPtr);
                 }
+            } elseif ($default instanceof \PhpParser\Node\Expr\ClassConstFetch) {
+                \App\PicoHP\CompilerInvariant::check($default->class instanceof \PhpParser\Node\Name);
+                \App\PicoHP\CompilerInvariant::check($default->name instanceof \PhpParser\Node\Identifier);
+                $enumName = $default->class->toString();
+                $caseName = $default->name->toString();
+                \App\PicoHP\CompilerInvariant::check(isset($this->enumRegistry[$enumName]), "enum {$enumName} not found for property default");
+                $tag = $this->enumRegistry[$enumName]->getCaseTag($caseName);
+                $this->builder->createStore(new Constant($tag, BaseType::INT), $fieldPtr);
             } else {
                 /** @phpstan-ignore-next-line */
                 \App\PicoHP\CompilerInvariant::check(false, "unsupported property default type: " . get_class($default));
@@ -1884,9 +1904,14 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             return BaseType::BOOL;
         }
-        // Fall back to the type stored during semantic analysis
-        $pData = PicoHPData::getPData($expr);
-        return $pData->getSymbol()->type->toBase();
+        // Fall back to resolved expression type (handles method/property calls too).
+        $line = $expr->getStartLine();
+        $exprType = get_debug_type($expr);
+        try {
+            return $this->getExprResolvedType($expr)->toBase();
+        } catch (\Throwable $e) {
+            throw new \RuntimeException("line {$line}, could not resolve match arm type for {$exprType}", 0, $e);
+        }
     }
 
     protected function buildShortCircuit(\PhpParser\Node\Expr\BinaryOp $expr, PicoHPData $pData): ValueAbstract

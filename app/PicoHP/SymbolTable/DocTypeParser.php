@@ -61,11 +61,15 @@ class DocTypeParser
         }
 
         $genericTag = $phpDocNode->getTagsByName('@picobuf');
-        \App\PicoHP\CompilerInvariant::check(count($genericTag) === 1);
-        \App\PicoHP\CompilerInvariant::check($genericTag[0]->name === '@picobuf');
-        \App\PicoHP\CompilerInvariant::check($genericTag[0]->value instanceof GenericTagValueNode);
-        // TODO: return something like a type buffer of size 256
-        return PicoType::fromString('string');
+        if (count($genericTag) === 1
+            && $genericTag[0]->name === '@picobuf'
+            && $genericTag[0]->value instanceof GenericTagValueNode
+        ) {
+            // TODO: return something like a type buffer of size 256
+            return PicoType::fromString('string');
+        }
+        // Unknown/unsupported PHPDoc shape for local inference; treat as mixed.
+        return PicoType::fromString('mixed');
         //dump($genericTag[0]->value);
         //throw new \Exception("invalid doc type");
     }
