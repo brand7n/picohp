@@ -57,7 +57,7 @@ it('documents known regex matrix divergence', function () {
     expect($compiled_output)->not->toBe($php_output);
 });
 
-it('documents known string equality divergence', function () {
+it('matches PHP oracle for strict string equality in compiled output', function () {
     $file = 'tests/programs/hand_lexer/string_ops_probe_steps.php';
     /** @phpstan-ignore-next-line */
     $this->artisan("build --debug {$file}")->assertExitCode(0);
@@ -67,7 +67,7 @@ it('documents known string equality divergence', function () {
     $compiled_output = shell_exec("{$buildPath}/a.out");
     $php_output = shell_exec("php {$file}");
 
-    expect($compiled_output)->not->toBe($php_output);
+    expect($compiled_output)->toBe($php_output);
 });
 
 it('runs nikic-style HandLexer under PHP', function () {

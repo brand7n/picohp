@@ -684,10 +684,34 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                     break;
                 case '==':
                 case '===':
+                    if ($operandType === BaseType::STRING
+                        && !($lval instanceof NullConstant)
+                        && !($rval instanceof NullConstant)
+                    ) {
+                        $result = $this->builder->createCall('pico_string_eq', [$lval, $rval], BaseType::INT);
+                        $val = $this->builder->createInstruction(
+                            'icmp ne',
+                            [$result, new Constant(0, BaseType::INT)],
+                            resultType: BaseType::BOOL,
+                        );
+                        break;
+                    }
                     $val = $this->builder->createInstruction($isFloat ? 'fcmp oeq' : 'icmp eq', [$lval, $rval], resultType: BaseType::BOOL);
                     break;
                 case '!=':
                 case '!==':
+                    if ($operandType === BaseType::STRING
+                        && !($lval instanceof NullConstant)
+                        && !($rval instanceof NullConstant)
+                    ) {
+                        $result = $this->builder->createCall('pico_string_ne', [$lval, $rval], BaseType::INT);
+                        $val = $this->builder->createInstruction(
+                            'icmp ne',
+                            [$result, new Constant(0, BaseType::INT)],
+                            resultType: BaseType::BOOL,
+                        );
+                        break;
+                    }
                     $val = $this->builder->createInstruction($isFloat ? 'fcmp one' : 'icmp ne', [$lval, $rval], resultType: BaseType::BOOL);
                     break;
                 case '<':
