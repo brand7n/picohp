@@ -17,6 +17,9 @@ class TokenAdapter extends \PhpParser\Token {
         //     $phpTokens[] = new static($token->type->value, $token->value, $token->line);
         // }
         // return $phpTokens;
-        return parent::tokenize($code, $flags);
+        /** @var list<static> $tokens */
+        $tokens = array_values(parent::tokenize($code, $flags));
+
+        return $tokens;
     }
 }
