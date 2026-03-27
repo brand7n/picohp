@@ -8,7 +8,6 @@ use Illuminate\Console\Scheduling\Schedule;
 use LaravelZero\Framework\Commands\Command;
 use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitor\NameResolver;
-use PhpParser\Lexer;
 use PhpParser\PhpVersion;
 use PhpParser\PrettyPrinter\Standard;
 use App\PicoHP\ClassToFunctionVisitor;
