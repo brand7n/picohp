@@ -597,6 +597,10 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             $this->builder->createStore($rval, $lval);
             return $rval;
+        } elseif ($expr instanceof \PhpParser\Node\Expr\AssignOp\Plus) {
+            return $this->buildCompoundAssign($expr, 'add', 'fadd');
+        } elseif ($expr instanceof \PhpParser\Node\Expr\AssignOp\Minus) {
+            return $this->buildCompoundAssign($expr, 'sub', 'fsub');
         } elseif ($expr instanceof \PhpParser\Node\Expr\Variable) {
             if (is_string($expr->name) && $expr->name === 'this') {
                 \App\PicoHP\CompilerInvariant::check(
@@ -1456,6 +1460,101 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         } else {
             throw new \Exception("unknown node type in expr: " . get_class($expr));
         }
+    }
+
+    /**
+     * @param 'add'|'sub' $intOpcode
+     * @param 'fadd'|'fsub' $floatOpcode
+     */
+    protected function buildCompoundAssign(
+        \PhpParser\Node\Expr\AssignOp\Plus|\PhpParser\Node\Expr\AssignOp\Minus $expr,
+        string $intOpcode,
+        string $floatOpcode
+    ): ValueAbstract {
+        $lhs = $expr->var;
+        if ($lhs instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
+            \App\PicoHP\CompilerInvariant::check($lhs->dim !== null);
+            $innerType = $this->getExprResolvedType($lhs->var);
+            \App\PicoHP\CompilerInvariant::check(
+                $innerType->isArray() || $innerType->isMixed(),
+                "line {$lhs->getStartLine()}, compound assignment on this target is not supported"
+            );
+            $arrVarExpr = $lhs->var;
+            $arrPtrPtr = $this->buildExpr($arrVarExpr);
+            $arrPtr = $this->builder->createLoad($arrPtrPtr);
+            $arrayType = $this->getExprResolvedType($arrVarExpr);
+            $elemBaseType = $arrayType->isMixed() ? BaseType::PTR : $arrayType->getElementBaseType();
+            $keyOrIdxVal = $this->buildExpr($lhs->dim);
+            $shouldUseMapSet = ($arrayType->isArray() && $arrayType->hasStringKeys())
+                || $keyOrIdxVal->getType() === BaseType::STRING;
+
+            if ($shouldUseMapSet) {
+                $getFunc = 'pico_map_get_' . match ($elemBaseType) {
+                    BaseType::INT => 'int',
+                    BaseType::FLOAT => 'float',
+                    BaseType::BOOL => 'bool',
+                    BaseType::STRING => 'str',
+                    BaseType::PTR => 'ptr',
+                    default => throw new \RuntimeException('unsupported map get type'),
+                };
+                $oldVal = $this->builder->createCall($getFunc, [$arrPtr, $keyOrIdxVal], $elemBaseType);
+            } else {
+                $oldVal = $this->builder->createArrayGet($arrPtr, $keyOrIdxVal, $elemBaseType);
+            }
+
+            $rhs = $this->buildExpr($expr->expr);
+            $newVal = $this->buildArithmeticBinResult($oldVal, $rhs, $intOpcode, $floatOpcode);
+
+            if ($shouldUseMapSet) {
+                $setFunc = 'pico_map_set_' . match ($elemBaseType) {
+                    BaseType::INT => 'int',
+                    BaseType::FLOAT => 'float',
+                    BaseType::BOOL => 'bool',
+                    BaseType::STRING => 'str',
+                    BaseType::PTR => 'ptr',
+                    default => throw new \RuntimeException('unsupported map set type'),
+                };
+                $this->builder->createCall($setFunc, [$arrPtr, $keyOrIdxVal, $newVal], BaseType::VOID);
+            } else {
+                $this->builder->createArraySet($arrPtr, $keyOrIdxVal, $newVal, $elemBaseType);
+            }
+
+            return $newVal;
+        }
+
+        $ptr = $this->buildExpr($lhs);
+        $oldVal = $this->builder->createLoad($ptr);
+        $rhs = $this->buildExpr($expr->expr);
+        $newVal = $this->buildArithmeticBinResult($oldVal, $rhs, $intOpcode, $floatOpcode);
+        $this->builder->createStore($newVal, $ptr);
+
+        return $newVal;
+    }
+
+    /**
+     * Integer/float add or sub, mirroring {@see buildExpr} binary op handling for `+` / `-`.
+     *
+     * @param 'add'|'sub' $intOpcode
+     * @param 'fadd'|'fsub' $floatOpcode
+     */
+    protected function buildArithmeticBinResult(
+        ValueAbstract $lval,
+        ValueAbstract $rval,
+        string $intOpcode,
+        string $floatOpcode
+    ): ValueAbstract {
+        // Match BinaryOp `+` / `-` handling for mixed/ptr-backed values.
+        if ($lval->getType() === BaseType::PTR || $lval->getType() === BaseType::STRING) {
+            $lval = $this->builder->createPtrToInt($lval);
+        }
+        if ($rval->getType() === BaseType::PTR || $rval->getType() === BaseType::STRING) {
+            $rval = $this->builder->createPtrToInt($rval);
+        }
+
+        $isFloat = $lval->getType() === BaseType::FLOAT;
+        $operandType = $lval->getType();
+
+        return $this->builder->createInstruction($isFloat ? $floatOpcode : $intOpcode, [$lval, $rval], resultType: $operandType);
     }
 
     /**

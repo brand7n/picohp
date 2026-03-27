@@ -58,32 +58,40 @@ final class Lexer
 
         /** @var array<int, string> $m */
         $m = [];
-        if (preg_match('/^<\?php/i', $rest, $m) === 1) {
+        $tag = substr($rest, 0, 5);
+        if (strtolower($tag) === '<?php') {
             $next = substr($rest, 5, 1);
-            if ($next === '' || preg_match('/^[ \t\r\n]/', $next) === 1) {
-                $this->pos = $this->pos + strlen($m[0]);
+            $isWs = $next === ''
+                || $next === ' '
+                || $next === "\t"
+                || $next === "\r"
+                || $next === "\n";
+            if ($isWs) {
+                $this->pos += 5;
                 $this->state = LexerState::InScripting;
 
-                return new Token(TokenType::OpenTag, $m[0], $this->line);
+                return new Token(TokenType::OpenTag, $tag, $this->line);
             }
         }
 
         if (preg_match('/^[^<]+/', $rest, $m) === 1) {
             $startLine = $this->line;
-            $this->line = $this->line + $this->countNewlines($m[0]);
-            $this->pos = strlen($m[0]) + $this->pos;
+            $this->line += $this->countNewlines($m[0]);
+            $this->pos += strlen($m[0]);
 
             return new Token(TokenType::InlineHtml, $m[0], $startLine);
         }
 
-        if (preg_match('/^</', $rest) === 1 && preg_match('/^<\?/', $rest) !== 1) {
-            $this->pos = $this->pos + 1;
+        if (substr($rest, 0, 1) === '<' && substr($rest, 1, 1) !== '?') {
+            $this->pos += 1;
 
             return new Token(TokenType::InlineHtml, '<', $this->line);
         }
 
-        $char = $src[$this->pos];
-        $this->pos = $this->pos + 1;
+        // Use substr(), not $src[$i]: PicoHP string indexing yields int (byte), PHP yields string.
+        // https://github.com/brand7n/picohp/issues/169
+        $char = substr($src, $this->pos, 1);
+        $this->pos += 1;
 
         return new Token(TokenType::BadChar, $char, $this->line);
     }
@@ -98,65 +106,67 @@ final class Lexer
         /** @var array<int, string> $m */
         $m = [];
         if (preg_match('/^[ \t\r\n]+/', $rest, $m) === 1) {
-            $this->line = $this->line + $this->countNewlines($m[0]);
-            $this->pos = strlen($m[0]) + $this->pos;
+            $this->line += $this->countNewlines($m[0]);
+            $this->pos += strlen($m[0]);
 
             return new Token(TokenType::Whitespace, $m[0], $line);
         }
 
         if (preg_match('/^(\/\/|#)[^\r\n]*/', $rest, $m) === 1) {
-            $this->pos = strlen($m[0]) + $this->pos;
+            $this->pos += strlen($m[0]);
 
             return new Token(TokenType::Comment, $m[0], $line);
         }
 
         if (preg_match('/^\/\*.*?\*\//s', $rest, $m) === 1) {
-            $this->line = $this->line + $this->countNewlines($m[0]);
-            $this->pos = strlen($m[0]) + $this->pos;
+            $this->line += $this->countNewlines($m[0]);
+            $this->pos += strlen($m[0]);
 
             return new Token(TokenType::Comment, $m[0], $line);
         }
 
         if (preg_match('/^\?>/', $rest, $m) === 1) {
-            $this->pos = strlen($m[0]) + $this->pos;
+            $this->pos += strlen($m[0]);
             $this->state = LexerState::Initial;
 
             return new Token(TokenType::CloseTag, $m[0], $line);
         }
 
         if (preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*/', $rest, $m) === 1) {
-            $this->pos = strlen($m[0]) + $this->pos;
+            $this->pos += strlen($m[0]);
 
             return new Token($this->keywordOrIdent($m[0]), $m[0], $line);
         }
 
         if (preg_match('/^\$[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*/', $rest, $m) === 1) {
-            $this->pos = strlen($m[0]) + $this->pos;
+            $this->pos += strlen($m[0]);
 
             return new Token(TokenType::Variable, $m[0], $line);
         }
 
         if (preg_match('/^(\d+\.\d*|\d*\.\d+)([eE][+-]?\d+)?/', $rest, $m) === 1) {
-            $this->pos = strlen($m[0]) + $this->pos;
+            $this->pos += strlen($m[0]);
 
             return new Token(TokenType::DNumber, $m[0], $line);
         }
 
         if (preg_match('/^0x[0-9a-fA-F]+|^0b[01]+|^0o[0-7]+|^\d+/', $rest, $m) === 1) {
-            $this->pos = strlen($m[0]) + $this->pos;
+            $this->pos += strlen($m[0]);
 
             return new Token(TokenType::LNumber, $m[0], $line);
         }
 
         if (preg_match('/^\'(?:[^\'\\\\]|\\\\.)*\'/', $rest, $m) === 1) {
-            $this->line = $this->line + $this->countNewlines($m[0]);
-            $this->pos = strlen($m[0]) + $this->pos;
+            $this->line += $this->countNewlines($m[0]);
+            $this->pos += strlen($m[0]);
 
             return new Token(TokenType::String, $m[0], $line);
         }
 
-        $char = $src[$this->pos];
-        $this->pos = $this->pos + 1;
+        // Use substr(), not $src[$i]: PicoHP string indexing yields int (byte), PHP yields string.
+        // https://github.com/brand7n/picohp/issues/169
+        $char = substr($src, $this->pos, 1);
+        $this->pos += 1;
 
         return new Token($this->singleChar($char), $char, $line);
     }
@@ -205,6 +215,19 @@ final class Lexer
             '=' => TokenType::Equals,
             '+' => TokenType::Plus,
             '-' => TokenType::Minus,
+            '(' => TokenType::LeftParen,
+            ')' => TokenType::RightParen,
+            '<' => TokenType::LessThan,
+            '>' => TokenType::GreaterThan,
+            '{' => TokenType::LeftBrace,
+            '}' => TokenType::RightBrace,
+            '[' => TokenType::LeftBracket,
+            ']' => TokenType::RightBracket,
+            ',' => TokenType::Comma,
+            '"' => TokenType::DoubleQuote,
+            "'" => TokenType::SingleQuote,
+            '/' => TokenType::Slash,
+            '\\' => TokenType::Backslash,
             default => TokenType::BadChar,
         };
     }
@@ -216,9 +239,9 @@ final class Lexer
         $length = strlen($text);
         while ($i < $length) {
             if ($text[$i] === "\n") {
-                $count = $count + 1;
+                $count += 1;
             }
-            $i = $i + 1;
+            $i += 1;
         }
 
         return $count;

@@ -4,32 +4,202 @@ declare(strict_types=1);
 
 namespace App\PicoHP\HandLexer;
 
-enum TokenType
+enum TokenType: int
 {
-    case OpenTag;
-    case CloseTag;
-    case Echo;
-    case If;
-    case Else;
-    case While;
-    case For;
-    case Foreach;
-    case Function;
-    case Return;
-    case ClassKeyword;
-    case New;
-    case Ident;
-    case Variable;
-    case LNumber;
-    case DNumber;
-    case String;
-    case Semicolon;
-    case Equals;
-    case Plus;
-    case Minus;
-    case Whitespace;
-    case Comment;
-    case InlineHtml;
-    case Eof;
-    case BadChar;
+    case OpenTag = 394;
+    case CloseTag = 396;
+    case Echo = 291;
+    case If = 287;
+    case Else = 289;
+    case While = 293;
+    case For = 295;
+    case Foreach = 297;
+    case Function = 310;
+    case Return = 313;
+    case ClassKeyword = 336;
+    case New = 284;
+    case Ident = 262;
+    case Variable = 266;
+    case LNumber = 260;
+    case DNumber = 261;
+    case String = 269;
+    case Semicolon = 59;
+    case Equals = 61;   
+    case Plus = 43;
+    case Minus = 45;
+    case Whitespace = 397;
+    case Comment = 392;
+    case InlineHtml = 267;
+    case Eof = 0;
+    case BadChar = 411;
+    case LeftParen = 40;
+    case RightParen = 41;
+    case LessThan = 60;
+    case GreaterThan = 62;
+    case LeftBracket = 91;
+    case RightBracket = 93;
+    case LeftBrace = 123;
+    case RightBrace = 125;
+    case Comma = 44;
+    case DoubleQuote = 34;
+    case SingleQuote = 39;
+    case Slash = 47;
+    case Backslash = 92;
 }
+
+/*
+T_FMT = 3
+T_FMT_AMPM = 4
+T_LNUMBER = 260
+T_DNUMBER = 261
+T_STRING = 262
+T_NAME_FULLY_QUALIFIED = 263
+T_NAME_RELATIVE = 264
+T_NAME_QUALIFIED = 265
+T_VARIABLE = 266
+T_INLINE_HTML = 267
+T_ENCAPSED_AND_WHITESPACE = 268
+T_CONSTANT_ENCAPSED_STRING = 269
+T_STRING_VARNAME = 270
+T_NUM_STRING = 271
+T_INCLUDE = 272
+T_INCLUDE_ONCE = 273
+T_EVAL = 274
+T_REQUIRE = 275
+T_REQUIRE_ONCE = 276
+T_LOGICAL_OR = 277
+T_LOGICAL_XOR = 278
+T_LOGICAL_AND = 279
+T_PRINT = 280
+T_YIELD = 281
+T_YIELD_FROM = 282
+T_INSTANCEOF = 283
+T_NEW = 284
+T_CLONE = 285
+T_EXIT = 286
+T_IF = 287
+T_ELSEIF = 288
+T_ELSE = 289
+T_ENDIF = 290
+T_ECHO = 291
+T_DO = 292
+T_WHILE = 293
+T_ENDWHILE = 294
+T_FOR = 295
+T_ENDFOR = 296
+T_FOREACH = 297
+T_ENDFOREACH = 298
+T_DECLARE = 299
+T_ENDDECLARE = 300
+T_AS = 301
+T_SWITCH = 302
+T_ENDSWITCH = 303
+T_CASE = 304
+T_DEFAULT = 305
+T_MATCH = 306
+T_BREAK = 307
+T_CONTINUE = 308
+T_GOTO = 309
+T_FUNCTION = 310
+T_FN = 311
+T_CONST = 312
+T_RETURN = 313
+T_TRY = 314
+T_CATCH = 315
+T_FINALLY = 316
+T_THROW = 317
+T_USE = 318
+T_INSTEADOF = 319
+T_GLOBAL = 320
+T_STATIC = 321
+T_ABSTRACT = 322
+T_FINAL = 323
+T_PRIVATE = 324
+T_PROTECTED = 325
+T_PUBLIC = 326
+T_PRIVATE_SET = 327
+T_PROTECTED_SET = 328
+T_PUBLIC_SET = 329
+T_READONLY = 330
+T_VAR = 331
+T_UNSET = 332
+T_ISSET = 333
+T_EMPTY = 334
+T_HALT_COMPILER = 335
+T_CLASS = 336
+T_TRAIT = 337
+T_INTERFACE = 338
+T_ENUM = 339
+T_EXTENDS = 340
+T_IMPLEMENTS = 341
+T_NAMESPACE = 342
+T_LIST = 343
+T_ARRAY = 344
+T_CALLABLE = 345
+T_LINE = 346
+T_FILE = 347
+T_DIR = 348
+T_CLASS_C = 349
+T_TRAIT_C = 350
+T_METHOD_C = 351
+T_FUNC_C = 352
+T_PROPERTY_C = 353
+T_NS_C = 354
+T_ATTRIBUTE = 355
+T_PLUS_EQUAL = 356
+T_MINUS_EQUAL = 357
+T_MUL_EQUAL = 358
+T_DIV_EQUAL = 359
+T_CONCAT_EQUAL = 360
+T_MOD_EQUAL = 361
+T_AND_EQUAL = 362
+T_OR_EQUAL = 363
+T_XOR_EQUAL = 364
+T_SL_EQUAL = 365
+T_SR_EQUAL = 366
+T_COALESCE_EQUAL = 367
+T_BOOLEAN_OR = 368
+T_BOOLEAN_AND = 369
+T_IS_EQUAL = 370
+T_IS_NOT_EQUAL = 371
+T_IS_IDENTICAL = 372
+T_IS_NOT_IDENTICAL = 373
+T_IS_SMALLER_OR_EQUAL = 374
+T_IS_GREATER_OR_EQUAL = 375
+T_SPACESHIP = 376
+T_SL = 377
+T_SR = 378
+T_INC = 379
+T_DEC = 380
+T_INT_CAST = 381
+T_DOUBLE_CAST = 382
+T_STRING_CAST = 383
+T_ARRAY_CAST = 384
+T_OBJECT_CAST = 385
+T_BOOL_CAST = 386
+T_UNSET_CAST = 387
+T_VOID_CAST = 388
+T_OBJECT_OPERATOR = 389
+T_NULLSAFE_OBJECT_OPERATOR = 390
+T_DOUBLE_ARROW = 391
+T_COMMENT = 392
+T_DOC_COMMENT = 393
+T_OPEN_TAG = 394
+T_OPEN_TAG_WITH_ECHO = 395
+T_CLOSE_TAG = 396
+T_WHITESPACE = 397
+T_START_HEREDOC = 398
+T_END_HEREDOC = 399
+T_DOLLAR_OPEN_CURLY_BRACES = 400
+T_CURLY_OPEN = 401
+T_PAAMAYIM_NEKUDOTAYIM = 402
+T_NS_SEPARATOR = 403
+T_ELLIPSIS = 404
+T_COALESCE = 405
+T_POW = 406
+T_POW_EQUAL = 407
+T_PIPE = 408
+T_AMPERSAND_FOLLOWED_BY_VAR_OR_VARARG = 409
+T_AMPERSAND_NOT_FOLLOWED_BY_VAR_OR_VARARG = 410
+T_BAD_CHARACTER = 411
+T_DOUBLE_COLON = 402 */

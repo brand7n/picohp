@@ -195,9 +195,7 @@ class SemanticAnalysisPass implements PassInterface
                     } elseif ($classStmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
                         $methodName = $classStmt->name->toString();
                         \App\PicoHP\CompilerInvariant::check($classStmt->returnType === null || $classStmt->returnType instanceof \PhpParser\Node\Identifier || $classStmt->returnType instanceof \PhpParser\Node\NullableType || $classStmt->returnType instanceof \PhpParser\Node\Name || $classStmt->returnType instanceof \PhpParser\Node\UnionType);
-                        $returnType = $classStmt->returnType !== null
-                            ? $this->typeFromNode($classStmt->returnType)
-                            : PicoType::fromString('void');
+                        $returnType = $this->resolveMethodReturnTypeFromClassMethodNode($classStmt);
                         $methodSymbol = new \App\PicoHP\SymbolTable\Symbol($methodName, $returnType, func: true);
                         $pi = 0;
                         foreach ($classStmt->params as $param) {
@@ -227,9 +225,7 @@ class SemanticAnalysisPass implements PassInterface
                     if ($ifaceStmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
                         $methodName = $ifaceStmt->name->toString();
                         \App\PicoHP\CompilerInvariant::check($ifaceStmt->returnType === null || $ifaceStmt->returnType instanceof \PhpParser\Node\Identifier || $ifaceStmt->returnType instanceof \PhpParser\Node\NullableType || $ifaceStmt->returnType instanceof \PhpParser\Node\Name || $ifaceStmt->returnType instanceof \PhpParser\Node\UnionType);
-                        $returnType = $ifaceStmt->returnType !== null
-                            ? $this->typeFromNode($ifaceStmt->returnType)
-                            : PicoType::fromString('void');
+                        $returnType = $this->resolveMethodReturnTypeFromClassMethodNode($ifaceStmt);
                         $methodSymbol = new \App\PicoHP\SymbolTable\Symbol($methodName, $returnType, func: true);
                         $pi = 0;
                         foreach ($ifaceStmt->params as $param) {
@@ -403,6 +399,54 @@ class SemanticAnalysisPass implements PassInterface
             $current = isset($this->classRegistry[$current]) ? $this->classRegistry[$current]->parentName : null;
         }
         return false;
+    }
+
+    /**
+     * Native return type from the signature, optionally overridden by a precise `@return` PHPDoc
+     * (e.g. `function foo(): array` + `@return array<int, Token>`).
+     */
+    private function resolveMethodReturnTypeFromClassMethodNode(\PhpParser\Node\Stmt\ClassMethod $stmt): PicoType
+    {
+        $native = PicoType::fromString('void');
+        if ($stmt->returnType !== null) {
+            \App\PicoHP\CompilerInvariant::check(
+                $stmt->returnType instanceof \PhpParser\Node\Identifier
+                || $stmt->returnType instanceof \PhpParser\Node\NullableType
+                || $stmt->returnType instanceof \PhpParser\Node\Name
+                || $stmt->returnType instanceof \PhpParser\Node\UnionType
+            );
+            $native = $this->typeFromNode($stmt->returnType);
+        }
+        $doc = $stmt->getDocComment();
+        if ($doc === null) {
+            return $native;
+        }
+        $fromDoc = $this->docTypeParser->parseReturnTypeFromPhpDoc($doc->getText());
+        if ($fromDoc === null) {
+            return $native;
+        }
+        // Only refine the native signature when PHP gives a bare `array` (unknown element type).
+        // If we always preferred `@return`, stubs like `function f(): mixed { return null; }` with a
+        // documenting `@return array<...>` would break return checking (see php8_transformed stubs).
+        if ($this->shouldRefineArrayReturnTypeWithPhpDoc($native)) {
+            return $fromDoc;
+        }
+
+        return $native;
+    }
+
+    /**
+     * True when the signature return is an array whose element type is still the generic ptr slot
+     * (from `function foo(): array` with no generics in PHP).
+     */
+    private function shouldRefineArrayReturnTypeWithPhpDoc(PicoType $native): bool
+    {
+        if (!$native->isArray()) {
+            return false;
+        }
+        $el = $native->getElementType();
+
+        return $el->toBase() === BaseType::PTR && !$el->isObject() && !$el->isMixed();
     }
 
     private function typeFromNode(\PhpParser\Node\Identifier|\PhpParser\Node\NullableType|\PhpParser\Node\Name|\PhpParser\Node\UnionType $node): PicoType
@@ -599,7 +643,7 @@ class SemanticAnalysisPass implements PassInterface
                 return;
             }
             \App\PicoHP\CompilerInvariant::check($stmt->returnType instanceof \PhpParser\Node\Identifier || $stmt->returnType instanceof \PhpParser\Node\NullableType || $stmt->returnType instanceof \PhpParser\Node\Name || $stmt->returnType instanceof \PhpParser\Node\UnionType || $stmt->returnType === null);
-            $returnType = $stmt->returnType !== null ? $this->typeFromNode($stmt->returnType) : PicoType::fromString('void');
+            $returnType = $this->resolveMethodReturnTypeFromClassMethodNode($stmt);
             $methodSymbol = $this->symbolTable->addSymbol($methodName, $returnType, func: true);
             $pData->symbol = $methodSymbol;
             $this->currentClass->methods[$methodName] = $methodSymbol;
@@ -685,6 +729,24 @@ class SemanticAnalysisPass implements PassInterface
                 || $this->isAssignmentCompatible($ltype, $rtype);
             \App\PicoHP\CompilerInvariant::check($compatible, "line {$line}, type mismatch in assignment: {$ltype->toString()} = {$rtype->toString()}");
             return $rtype;
+        } elseif ($expr instanceof \PhpParser\Node\Expr\AssignOp\Plus
+            || $expr instanceof \PhpParser\Node\Expr\AssignOp\Minus) {
+            $rtype = $this->resolveExpr($expr->expr);
+            if ($expr->var instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
+                $line = $this->getLine($expr);
+                \App\PicoHP\CompilerInvariant::check(
+                    $expr->var->dim !== null,
+                    "line {$line}, compound assignment does not support empty [] push"
+                );
+            }
+            $ltype = $this->resolveExpr($expr->var, $doc, lVal: true);
+            $line = $this->getLine($expr);
+            \App\PicoHP\CompilerInvariant::check(
+                $ltype->isEqualTo($rtype),
+                "line {$line}, type mismatch in compound assignment: {$ltype->toString()} " . ($expr instanceof \PhpParser\Node\Expr\AssignOp\Plus ? '+=' : '-=') . " {$rtype->toString()}"
+            );
+
+            return $ltype;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Variable) {
             $pData->lVal = $lVal;
             \App\PicoHP\CompilerInvariant::check(is_string($expr->name));

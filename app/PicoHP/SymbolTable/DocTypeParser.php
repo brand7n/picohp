@@ -11,7 +11,7 @@ use PHPStan\PhpDocParser\Parser\PhpDocParser;
 use PHPStan\PhpDocParser\Parser\TokenIterator;
 use PHPStan\PhpDocParser\Parser\TypeParser;
 use PHPStan\PhpDocParser\Ast\PhpDoc\{GenericTagValueNode};
-use PHPStan\PhpDocParser\Ast\Type\{GenericTypeNode, IdentifierTypeNode};
+use PHPStan\PhpDocParser\Ast\Type\{GenericTypeNode, IdentifierTypeNode, NullableTypeNode, TypeNode, UnionTypeNode};
 use App\PicoHP\PicoType;
 
 class DocTypeParser
@@ -72,5 +72,61 @@ class DocTypeParser
         return PicoType::fromString('mixed');
         //dump($genericTag[0]->value);
         //throw new \Exception("invalid doc type");
+    }
+
+    /**
+     * Parse a `@return` tag from a method or function PHPDoc block.
+     * Returns null when there is no single `@return`, or the type shape is not supported here.
+     */
+    public function parseReturnTypeFromPhpDoc(string $docString): ?PicoType
+    {
+        $tokens = new TokenIterator($this->lexer->tokenize($docString));
+        $phpDocNode = $this->phpDocParser->parse($tokens);
+        $returns = $phpDocNode->getReturnTagValues();
+        if (count($returns) !== 1) {
+            return null;
+        }
+
+        return $this->phpDocTypeNodeToPicoType($returns[0]->type);
+    }
+
+    private function phpDocTypeNodeToPicoType(TypeNode $typeNode): ?PicoType
+    {
+        if ($typeNode instanceof GenericTypeNode && $typeNode->type->name === 'array') {
+            if (count($typeNode->genericTypes) === 2
+                && $typeNode->genericTypes[1] instanceof IdentifierTypeNode
+            ) {
+                $arr = PicoType::array(PicoType::fromString($typeNode->genericTypes[1]->name));
+                if ($typeNode->genericTypes[0] instanceof IdentifierTypeNode
+                    && $typeNode->genericTypes[0]->name === 'string'
+                ) {
+                    $arr->setStringKeys();
+                }
+
+                return $arr;
+            }
+            if (count($typeNode->genericTypes) === 1
+                && $typeNode->genericTypes[0] instanceof IdentifierTypeNode
+            ) {
+                return PicoType::array(PicoType::fromString($typeNode->genericTypes[0]->name));
+            }
+
+            return null;
+        }
+        if ($typeNode instanceof IdentifierTypeNode) {
+            return PicoType::fromString($typeNode->name);
+        }
+        if ($typeNode instanceof NullableTypeNode) {
+            if ($typeNode->type instanceof IdentifierTypeNode) {
+                return PicoType::fromString('?' . $typeNode->type->name);
+            }
+
+            return null;
+        }
+        if ($typeNode instanceof UnionTypeNode) {
+            return null;
+        }
+
+        return null;
     }
 }

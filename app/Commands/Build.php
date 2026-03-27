@@ -6,14 +6,16 @@ namespace App\Commands;
 
 use Illuminate\Console\Scheduling\Schedule;
 use LaravelZero\Framework\Commands\Command;
-use PhpParser\ParserFactory;
 use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitor\NameResolver;
+use PhpParser\Lexer;
+use PhpParser\PhpVersion;
 use PhpParser\PrettyPrinter\Standard;
 use App\PicoHP\ClassToFunctionVisitor;
 use App\PicoHP\CompilerInvariantException;
 use App\PicoHP\GlobalToMainVisitor;
 use App\PicoHP\Pass\{IRGenerationPass, SemanticAnalysisPass};
+use App\PicoHP\HandLexer\HandLexerAdapter;
 
 class Build extends Command
 {
@@ -36,8 +38,7 @@ class Build extends Command
      */
     public function handle(): int
     {
-        $parser = (new ParserFactory())->createForNewestSupportedVersion();
-
+        $parser = new \PhpParser\Parser\Php8(new HandLexerAdapter(), PhpVersion::getNewestSupported());
         $filename = $this->argument('filename');
 
         $ast = [];
@@ -221,7 +222,7 @@ class Build extends Command
      */
     protected function getNodes(string $filename): array
     {
-        $parser = (new ParserFactory())->createForNewestSupportedVersion();
+        $parser = new \PhpParser\Parser\Php8(new HandLexerAdapter(), PhpVersion::getNewestSupported());
         $code = file_get_contents($filename);
         // @codeCoverageIgnoreStart
         if ($code === false) {
