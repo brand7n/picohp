@@ -37,6 +37,8 @@ class Builder
         $this->addLine('declare ptr @pico_float_to_hex(double)');
         $this->addLine('declare i32 @pico_string_starts_with(ptr, ptr)');
         $this->addLine('declare i32 @pico_string_contains(ptr, ptr)');
+        $this->addLine('declare i32 @pico_string_eq(ptr, ptr)');
+        $this->addLine('declare i32 @pico_string_ne(ptr, ptr)');
         $this->addLine('declare ptr @pico_string_substr(ptr, i32, i32)');
         $this->addLine('declare ptr @pico_string_trim(ptr)');
         $this->addLine('declare ptr @pico_string_repeat(ptr, i32)');
@@ -264,6 +266,17 @@ class Builder
         $resultVal = new Instruction('getelementptr', BaseType::PTR);
         $this->addLine("{$resultVal->render()} = getelementptr inbounds {$arrayType->toLLVM()}, ptr {$var->render()}, i64 0, {$dim->getType()->toLLVM()} {$dim->render()}", 1);
         return $resultVal;
+    }
+
+    public function createStringByteAt(ValueAbstract $strPtr, ValueAbstract $index): ValueAbstract
+    {
+        $charPtr = new Instruction('str_char_ptr', BaseType::PTR);
+        $charI8 = new Instruction('str_char_i8', BaseType::INT);
+        $charI32 = new Instruction('str_char_i32', BaseType::INT);
+        $this->addLine("{$charPtr->render()} = getelementptr inbounds i8, ptr {$strPtr->render()}, i32 {$index->render()}", 1);
+        $this->addLine("{$charI8->render()} = load i8, ptr {$charPtr->render()}", 1);
+        $this->addLine("{$charI32->render()} = zext i8 {$charI8->render()} to i32", 1);
+        return $charI32;
     }
 
     // -- object support ------------------------------------------------------

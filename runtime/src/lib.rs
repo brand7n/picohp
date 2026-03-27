@@ -90,6 +90,22 @@ pub extern "C" fn pico_string_contains(haystack: *const c_char, needle: *const c
     h.windows(n.len()).any(|w| w == n) as i32
 }
 
+/// PHP-compatible string strict equality (===): compare string bytes.
+#[no_mangle]
+pub extern "C" fn pico_string_eq(a: *const c_char, b: *const c_char) -> i32 {
+    let a = unsafe { CStr::from_ptr(a) }.to_bytes();
+    let b = unsafe { CStr::from_ptr(b) }.to_bytes();
+    (a == b) as i32
+}
+
+/// PHP-compatible string strict inequality (!==): compare string bytes.
+#[no_mangle]
+pub extern "C" fn pico_string_ne(a: *const c_char, b: *const c_char) -> i32 {
+    let a = unsafe { CStr::from_ptr(a) }.to_bytes();
+    let b = unsafe { CStr::from_ptr(b) }.to_bytes();
+    (a != b) as i32
+}
+
 /// Returns a heap-allocated substring. Negative $start counts from end.
 /// If $length is negative, it's treated as 0 (returns empty string).
 #[no_mangle]

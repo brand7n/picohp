@@ -597,7 +597,26 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             $this->builder->createStore($rval, $lval);
             return $rval;
+        } elseif ($expr instanceof \PhpParser\Node\Expr\AssignOp\Plus) {
+            return $this->buildCompoundAssign($expr, 'add', 'fadd');
+        } elseif ($expr instanceof \PhpParser\Node\Expr\AssignOp\Minus) {
+            return $this->buildCompoundAssign($expr, 'sub', 'fsub');
         } elseif ($expr instanceof \PhpParser\Node\Expr\Variable) {
+            if (is_string($expr->name) && $expr->name === 'this') {
+                \App\PicoHP\CompilerInvariant::check(
+                    $this->currentThisPtr !== null,
+                    "line {$expr->getStartLine()}, \$this is unavailable outside class method context"
+                );
+                if ($pData->lVal) {
+                    return $this->currentThisPtr;
+                }
+                return $this->builder->createLoad($this->currentThisPtr);
+            }
+            $varName = is_string($expr->name) ? $expr->name : get_debug_type($expr->name);
+            \App\PicoHP\CompilerInvariant::check(
+                $pData->symbol !== null && $pData->symbol->value !== null,
+                "line {$expr->getStartLine()}, variable \${$varName} has no allocated IR value"
+            );
             $value = $pData->getValue();
             if ($pData->lVal) {
                 return $value;
@@ -669,10 +688,34 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                     break;
                 case '==':
                 case '===':
+                    if ($operandType === BaseType::STRING
+                        && !($lval instanceof NullConstant)
+                        && !($rval instanceof NullConstant)
+                    ) {
+                        $result = $this->builder->createCall('pico_string_eq', [$lval, $rval], BaseType::INT);
+                        $val = $this->builder->createInstruction(
+                            'icmp ne',
+                            [$result, new Constant(0, BaseType::INT)],
+                            resultType: BaseType::BOOL,
+                        );
+                        break;
+                    }
                     $val = $this->builder->createInstruction($isFloat ? 'fcmp oeq' : 'icmp eq', [$lval, $rval], resultType: BaseType::BOOL);
                     break;
                 case '!=':
                 case '!==':
+                    if ($operandType === BaseType::STRING
+                        && !($lval instanceof NullConstant)
+                        && !($rval instanceof NullConstant)
+                    ) {
+                        $result = $this->builder->createCall('pico_string_ne', [$lval, $rval], BaseType::INT);
+                        $val = $this->builder->createInstruction(
+                            'icmp ne',
+                            [$result, new Constant(0, BaseType::INT)],
+                            resultType: BaseType::BOOL,
+                        );
+                        break;
+                    }
                     $val = $this->builder->createInstruction($isFloat ? 'fcmp one' : 'icmp ne', [$lval, $rval], resultType: BaseType::BOOL);
                     break;
                 case '<':
@@ -1023,21 +1066,15 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 }
                 return $this->builder->createArrayGet($arrPtr, $idx, $elemBaseType);
             }
-            $varData = PicoHPData::getPData($expr->var);
             // String indexing (existing behavior)
             \App\PicoHP\CompilerInvariant::check($expr->dim !== null);
-            if ($pData->lVal === true) {
-                return $this->builder->createGetElementPtr(
-                    $varData->getValue(),
-                    $this->buildExpr($expr->dim)
-                );
-            }
-            return $this->builder->createLoad(
-                $this->builder->createGetElementPtr(
-                    $varData->getValue(),
-                    $this->buildExpr($expr->dim)
-                )
+            \App\PicoHP\CompilerInvariant::check(
+                $pData->lVal !== true,
+                "line {$expr->getStartLine()}, string index assignment is not supported"
             );
+            $strVal = $this->buildExpr($expr->var);
+            $idx = $this->buildExpr($expr->dim);
+            return $this->builder->createStringByteAt($strVal, $idx);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Include_) {
             return new Void_();
         } elseif ($expr instanceof \PhpParser\Node\Expr\PostInc) {
@@ -1080,6 +1117,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             // Store type_id in field 0
             $typeIdPtr = $this->builder->createStructGEP($className, $objPtr, 0, BaseType::INT);
             $this->builder->createStore(new Constant($typeId, BaseType::INT), $typeIdPtr);
+            // Emit property default values before constructor
+            $this->emitPropertyDefaults($className, $classMeta, $objPtr);
             // Call constructor if it exists
             if (isset($classMeta->methods['__construct'])) {
                 $ctorSymbol = $classMeta->methods['__construct'];
@@ -1424,6 +1463,101 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     }
 
     /**
+     * @param 'add'|'sub' $intOpcode
+     * @param 'fadd'|'fsub' $floatOpcode
+     */
+    protected function buildCompoundAssign(
+        \PhpParser\Node\Expr\AssignOp\Plus|\PhpParser\Node\Expr\AssignOp\Minus $expr,
+        string $intOpcode,
+        string $floatOpcode
+    ): ValueAbstract {
+        $lhs = $expr->var;
+        if ($lhs instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
+            \App\PicoHP\CompilerInvariant::check($lhs->dim !== null);
+            $innerType = $this->getExprResolvedType($lhs->var);
+            \App\PicoHP\CompilerInvariant::check(
+                $innerType->isArray() || $innerType->isMixed(),
+                "line {$lhs->getStartLine()}, compound assignment on this target is not supported"
+            );
+            $arrVarExpr = $lhs->var;
+            $arrPtrPtr = $this->buildExpr($arrVarExpr);
+            $arrPtr = $this->builder->createLoad($arrPtrPtr);
+            $arrayType = $this->getExprResolvedType($arrVarExpr);
+            $elemBaseType = $arrayType->isMixed() ? BaseType::PTR : $arrayType->getElementBaseType();
+            $keyOrIdxVal = $this->buildExpr($lhs->dim);
+            $shouldUseMapSet = ($arrayType->isArray() && $arrayType->hasStringKeys())
+                || $keyOrIdxVal->getType() === BaseType::STRING;
+
+            if ($shouldUseMapSet) {
+                $getFunc = 'pico_map_get_' . match ($elemBaseType) {
+                    BaseType::INT => 'int',
+                    BaseType::FLOAT => 'float',
+                    BaseType::BOOL => 'bool',
+                    BaseType::STRING => 'str',
+                    BaseType::PTR => 'ptr',
+                    default => throw new \RuntimeException('unsupported map get type'),
+                };
+                $oldVal = $this->builder->createCall($getFunc, [$arrPtr, $keyOrIdxVal], $elemBaseType);
+            } else {
+                $oldVal = $this->builder->createArrayGet($arrPtr, $keyOrIdxVal, $elemBaseType);
+            }
+
+            $rhs = $this->buildExpr($expr->expr);
+            $newVal = $this->buildArithmeticBinResult($oldVal, $rhs, $intOpcode, $floatOpcode);
+
+            if ($shouldUseMapSet) {
+                $setFunc = 'pico_map_set_' . match ($elemBaseType) {
+                    BaseType::INT => 'int',
+                    BaseType::FLOAT => 'float',
+                    BaseType::BOOL => 'bool',
+                    BaseType::STRING => 'str',
+                    BaseType::PTR => 'ptr',
+                    default => throw new \RuntimeException('unsupported map set type'),
+                };
+                $this->builder->createCall($setFunc, [$arrPtr, $keyOrIdxVal, $newVal], BaseType::VOID);
+            } else {
+                $this->builder->createArraySet($arrPtr, $keyOrIdxVal, $newVal, $elemBaseType);
+            }
+
+            return $newVal;
+        }
+
+        $ptr = $this->buildExpr($lhs);
+        $oldVal = $this->builder->createLoad($ptr);
+        $rhs = $this->buildExpr($expr->expr);
+        $newVal = $this->buildArithmeticBinResult($oldVal, $rhs, $intOpcode, $floatOpcode);
+        $this->builder->createStore($newVal, $ptr);
+
+        return $newVal;
+    }
+
+    /**
+     * Integer/float add or sub, mirroring {@see buildExpr} binary op handling for `+` / `-`.
+     *
+     * @param 'add'|'sub' $intOpcode
+     * @param 'fadd'|'fsub' $floatOpcode
+     */
+    protected function buildArithmeticBinResult(
+        ValueAbstract $lval,
+        ValueAbstract $rval,
+        string $intOpcode,
+        string $floatOpcode
+    ): ValueAbstract {
+        // Match BinaryOp `+` / `-` handling for mixed/ptr-backed values.
+        if ($lval->getType() === BaseType::PTR || $lval->getType() === BaseType::STRING) {
+            $lval = $this->builder->createPtrToInt($lval);
+        }
+        if ($rval->getType() === BaseType::PTR || $rval->getType() === BaseType::STRING) {
+            $rval = $this->builder->createPtrToInt($rval);
+        }
+
+        $isFloat = $lval->getType() === BaseType::FLOAT;
+        $operandType = $lval->getType();
+
+        return $this->builder->createInstruction($isFloat ? $floatOpcode : $intOpcode, [$lval, $rval], resultType: $operandType);
+    }
+
+    /**
      * Get a pointer (for load/store) from a variable expression.
      * Handles local variables and static properties.
      */
@@ -1553,6 +1687,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     protected function getExprResolvedType(\PhpParser\Node\Expr $expr): \App\PicoHP\PicoType
     {
         if ($expr instanceof \PhpParser\Node\Expr\Variable) {
+            if (is_string($expr->name) && $expr->name === 'this' && $this->currentClassName !== null) {
+                return \App\PicoHP\PicoType::object($this->currentClassName);
+            }
             return PicoHPData::getPData($expr)->getSymbol()->type;
         }
         if ($expr instanceof \PhpParser\Node\Expr\PropertyFetch) {
@@ -1725,6 +1862,71 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     }
 
     /**
+     * Emit stores for instance property default values.
+     * Supports: int, float, string, bool, null, array literals (int/string/negative-int elements).
+     * Unsupported default expressions (new, ClassConstFetch, binary exprs) are rejected.
+     */
+    protected function emitPropertyDefaults(string $className, \App\PicoHP\SymbolTable\ClassMetadata $classMeta, ValueAbstract $objPtr): void
+    {
+        foreach ($classMeta->propertyDefaults as $propName => $default) {
+            $fieldIndex = $classMeta->getPropertyIndex($propName);
+            $fieldType = $classMeta->getPropertyType($propName)->toBase();
+            $fieldPtr = $this->builder->createStructGEP($className, $objPtr, $fieldIndex, $fieldType);
+            if ($default instanceof \PhpParser\Node\Expr\Array_) {
+                $arrPtr = $this->builder->createArrayNew();
+                foreach ($default->items as $item) {
+                    if ($item->value instanceof \PhpParser\Node\Scalar\Int_) {
+                        $this->builder->createArrayPush($arrPtr, new Constant($item->value->value, BaseType::INT), BaseType::INT);
+                    } elseif ($item->value instanceof \PhpParser\Node\Scalar\String_) {
+                        $strVal = $this->builder->createStringConstant($item->value->value);
+                        $this->builder->createArrayPush($arrPtr, $strVal, BaseType::STRING);
+                    } elseif ($item->value instanceof \PhpParser\Node\Expr\UnaryMinus
+                        && $item->value->expr instanceof \PhpParser\Node\Scalar\Int_) {
+                        $this->builder->createArrayPush($arrPtr, new Constant(-$item->value->expr->value, BaseType::INT), BaseType::INT);
+                    } else {
+                        /** @phpstan-ignore-next-line */
+                        \App\PicoHP\CompilerInvariant::check(false, "unsupported array element type in property default: " . get_class($item->value));
+                    }
+                }
+                $this->builder->createStore($arrPtr, $fieldPtr);
+            } elseif ($default instanceof \PhpParser\Node\Scalar\Int_) {
+                $this->builder->createStore(new Constant($default->value, BaseType::INT), $fieldPtr);
+            } elseif ($default instanceof \PhpParser\Node\Scalar\Float_) {
+                $this->builder->createStore(new Constant($default->value, BaseType::FLOAT), $fieldPtr);
+            } elseif ($default instanceof \PhpParser\Node\Scalar\String_) {
+                $strVal = $this->builder->createStringConstant($default->value);
+                $this->builder->createStore($strVal, $fieldPtr);
+            } elseif ($default instanceof \PhpParser\Node\Expr\UnaryMinus
+                && $default->expr instanceof \PhpParser\Node\Scalar\Int_) {
+                $this->builder->createStore(new Constant(-$default->expr->value, BaseType::INT), $fieldPtr);
+            } elseif ($default instanceof \PhpParser\Node\Expr\UnaryMinus
+                && $default->expr instanceof \PhpParser\Node\Scalar\Float_) {
+                $this->builder->createStore(new Constant(-$default->expr->value, BaseType::FLOAT), $fieldPtr);
+            } elseif ($default instanceof \PhpParser\Node\Expr\ConstFetch) {
+                $name = $default->name->toLowerString();
+                if ($name === 'null') {
+                    $this->builder->createStore(new NullConstant(), $fieldPtr);
+                } elseif ($name === 'true') {
+                    $this->builder->createStore(new Constant(1, BaseType::BOOL), $fieldPtr);
+                } elseif ($name === 'false') {
+                    $this->builder->createStore(new Constant(0, BaseType::BOOL), $fieldPtr);
+                }
+            } elseif ($default instanceof \PhpParser\Node\Expr\ClassConstFetch) {
+                \App\PicoHP\CompilerInvariant::check($default->class instanceof \PhpParser\Node\Name);
+                \App\PicoHP\CompilerInvariant::check($default->name instanceof \PhpParser\Node\Identifier);
+                $enumName = $default->class->toString();
+                $caseName = $default->name->toString();
+                \App\PicoHP\CompilerInvariant::check(isset($this->enumRegistry[$enumName]), "enum {$enumName} not found for property default");
+                $tag = $this->enumRegistry[$enumName]->getCaseTag($caseName);
+                $this->builder->createStore(new Constant($tag, BaseType::INT), $fieldPtr);
+            } else {
+                /** @phpstan-ignore-next-line */
+                \App\PicoHP\CompilerInvariant::check(false, "unsupported property default type: " . get_class($default));
+            }
+        }
+    }
+
+    /**
      * Emit virtual dispatch for property access on interface-typed values.
      * Switches on type_id, GEPs into each implementor's struct.
      *
@@ -1825,9 +2027,14 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             return BaseType::BOOL;
         }
-        // Fall back to the type stored during semantic analysis
-        $pData = PicoHPData::getPData($expr);
-        return $pData->getSymbol()->type->toBase();
+        // Fall back to resolved expression type (handles method/property calls too).
+        $line = $expr->getStartLine();
+        $exprType = get_debug_type($expr);
+        try {
+            return $this->getExprResolvedType($expr)->toBase();
+        } catch (\Throwable $e) {
+            throw new \RuntimeException("line {$line}, could not resolve match arm type for {$exprType}", 0, $e);
+        }
     }
 
     protected function buildShortCircuit(\PhpParser\Node\Expr\BinaryOp $expr, PicoHPData $pData): ValueAbstract

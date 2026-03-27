@@ -236,7 +236,8 @@ abstract class ParserAbstract implements Parser {
     /** @var array<int, int> */
     protected array $actionDefault = [];
     /** @var array<int, int> */
-    protected array $actionTable = [];
+    protected array $action = [];
+    protected int $actionTableSize = 0;
     /** @var array<int, int> */
     protected array $gotoBase = [];
     /** @var array<int, int> */
@@ -244,7 +245,8 @@ abstract class ParserAbstract implements Parser {
     /** @var array<int, int> */
     protected array $gotoDefault = [];
     /** @var array<int, int> */
-    protected array $gotoTable = [];
+    protected array $goto = [];
+    protected int $gotoTableSize = 0;
     /** @var array<int, int> */
     protected array $ruleToLength = [];
     /** @var array<int, int> */
@@ -322,12 +324,87 @@ abstract class ParserAbstract implements Parser {
     /** @param array<int, string> $a
      *  @param array<int, string> $t */
     public function createExitExpr(string $n, int $p, array $a, array $t): mixed { return null; }
+
+    public function lookupAction(int $state, int $symbol): int
+    {
+        /** @var int $idx */
+        $idx = $this->actionBase[$state] + $symbol;
+        if ($idx >= 0 && $idx < $this->actionTableSize
+            && $this->actionCheck[$idx] === $state) {
+            return $this->action[$idx];
+        }
+        return $this->actionDefault[$state];
+    }
+
+    public function lookupGoto(int $state, int $nonTerminal): int
+    {
+        /** @var int $idx */
+        $idx = $this->gotoBase[$nonTerminal] + $state;
+        if ($idx >= 0 && $idx < $this->gotoTableSize
+            && $this->gotoCheck[$idx] === $nonTerminal) {
+            return $this->goto[$idx];
+        }
+        return $this->gotoDefault[$nonTerminal];
+    }
+
+    public function mapTokenToSymbol(int $tokenId): int
+    {
+        if ($tokenId >= $this->tokenToSymbolMapSize) {
+            return $this->invalidSymbol;
+        }
+        return $this->tokenToSymbol[$tokenId];
+    }
 }
 
 
 PARSER;
 
 $stubFile .= "\n" . $transformed;
+
+// Append test function that exercises the real parser table lookups
+$stubFile .= <<<'TESTFUNC'
+
+function php8_parser_test(): int
+{
+    /** @var Php8 $p */
+    $p = new Php8();
+
+    /** @var int $checksum */
+    $checksum = 0;
+
+    /** @var int $tok */
+    $tok = 0;
+    while ($tok < 50) {
+        /** @var int $sym */
+        $sym = $p->mapTokenToSymbol($tok);
+        $checksum = $checksum + $sym;
+        $tok = $tok + 1;
+    }
+
+    /** @var int $state */
+    $state = 0;
+    while ($state < 20) {
+        /** @var int $act */
+        $act = $p->lookupAction($state, 1);
+        $checksum = $checksum + $act;
+        $state = $state + 1;
+    }
+
+    $state = 0;
+    while ($state < 10) {
+        /** @var int $gt */
+        $gt = $p->lookupGoto($state, 1);
+        $checksum = $checksum + $gt;
+        $state = $state + 1;
+    }
+
+    return $checksum;
+}
+
+echo php8_parser_test();
+echo "\n";
+
+TESTFUNC;
 
 $outPath = __DIR__ . '/php8_transformed.php';
 file_put_contents($outPath, $stubFile);

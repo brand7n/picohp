@@ -33,6 +33,9 @@ class ClassMetadata
     /** @var array<string, \PhpParser\Node\Expr|null> static property name => default value expression */
     public array $staticDefaults = [];
 
+    /** @var array<string, \PhpParser\Node\Expr|null> instance property name => default value expression */
+    public array $propertyDefaults = [];
+
     /** @var array<string, int> constant name => integer value */
     public array $constants = [];
 
@@ -49,6 +52,10 @@ class ClassMetadata
         foreach ($parent->properties as $propName => $propType) {
             $this->properties[$propName] = $propType;
             $this->propertyOffsets[$propName] = $parent->propertyOffsets[$propName];
+        }
+        // Copy parent property defaults
+        foreach ($parent->propertyDefaults as $propName => $default) {
+            $this->propertyDefaults[$propName] = $default;
         }
         // Copy parent methods (child can override later)
         foreach ($parent->methods as $methodName => $methodSymbol) {
@@ -77,9 +84,13 @@ class ClassMetadata
         return $this->propertyOffsets[$name];
     }
 
-    public function getPropertyType(string $name): PicoType
+    public function getPropertyType(string $name, ?int $line = null): PicoType
     {
-        \App\PicoHP\CompilerInvariant::check(isset($this->properties[$name]), "property {$name} not found on class {$this->name}");
+        $message = "property {$name} not found on class {$this->name}";
+        if ($line !== null) {
+            $message = "line {$line}, {$message}";
+        }
+        \App\PicoHP\CompilerInvariant::check(isset($this->properties[$name]), $message);
         return $this->properties[$name];
     }
 
