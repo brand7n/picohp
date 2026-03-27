@@ -24,7 +24,7 @@ enum TokenType: int
     case DNumber = 261;
     case String = 269;
     case Semicolon = 59;
-    case Equals = 61;   
+    case Equals = 61;
     case Plus = 43;
     case Minus = 45;
     case Whitespace = 397;
