@@ -1,7 +1,7 @@
 {
     "name": "brand7n/picohp",
     "description": "picoHP compiler",
-    "keywords": ["php", "compiler", "php compiler", "laravel", "laravel zero", "console", "cli"],
+    "keywords": ["php", "compiler", "php compiler", "console", "cli"],
     "homepage": "https://github.com/brand7n/picohp",
     "type": "project",
     "license": "MIT",
@@ -17,15 +17,15 @@
     ],
     "require": {
         "php": "^8.5",
-        "laravel-zero/framework": "^12.0",
         "nikic/php-parser": "^5.7",
+        "symfony/console": "^7.2",
+        "symfony/dotenv": "^7.2",
         "phpstan/phpdoc-parser": "^2.3",
         "phpstan/phpstan": "^2.1",
         "phpstan/phpstan-strict-rules": "^2.0",
         "ext-dom": "*",
         "ext-mbstring": "*",
-        "ext-xml": "*",
-        "laravel/tinker": "^3.0"
+        "ext-xml": "*"
     },
     "require-dev": {
         "brainmaestro/composer-git-hooks": "^3.0",
@@ -38,7 +38,10 @@
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
-        }
+        },
+        "files": [
+            "bootstrap/functions.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {

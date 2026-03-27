@@ -110,8 +110,7 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
                 return new Node\Expr\FuncCall($name, $node->args);
             }
             // @codeCoverageIgnoreStart
-            dump($node);
-            throw new \Exception('Unexpected node type');
+            throw new \Exception('Unexpected StaticCall class node: ' . get_class($node->class));
             // @codeCoverageIgnoreEnd
         }
 

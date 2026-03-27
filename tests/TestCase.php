@@ -1,10 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests;
 
-use LaravelZero\Framework\Testing\TestCase as BaseTestCase;
+use PHPUnit\Framework\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
-    use CreatesApplication;
+    protected function artisan(string $command): PendingArtisan
+    {
+        return new PendingArtisan($command);
+    }
 }

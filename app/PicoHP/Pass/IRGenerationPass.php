@@ -8,7 +8,6 @@ use App\PicoHP\{BaseType};
 use App\PicoHP\LLVM\{Module, Builder, ValueAbstract, IRLine};
 use App\PicoHP\LLVM\Value\{Constant, Void_, Label, Param, NullConstant};
 use App\PicoHP\SymbolTable\{ClassMetadata, EnumMetadata, PicoHPData};
-use Illuminate\Support\Collection;
 
 class IRGenerationPass implements \App\PicoHP\PassInterface
 {
@@ -1213,12 +1212,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $classMeta = $this->classRegistry[$targetClass];
                 $methodSymbol = $classMeta->methods[$methodName];
             }
-            $args = (new Collection($expr->args))
-                ->map(function ($arg): ValueAbstract {
-                    \App\PicoHP\CompilerInvariant::check($arg instanceof \PhpParser\Node\Arg);
-                    return $this->buildExpr($arg->value);
-                })
-                ->toArray();
+            $args = [];
+            foreach ($expr->args as $arg) {
+                \App\PicoHP\CompilerInvariant::check($arg instanceof \PhpParser\Node\Arg);
+                $args[] = $this->buildExpr($arg->value);
+            }
             // Pass $this as first argument for parent:: calls
             if ($expr->class->toString() === 'parent') {
                 // Load $this from param 0 alloca

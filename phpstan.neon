@@ -3,7 +3,7 @@ parameters:
     paths:
     - app
     - tests
-    - bootstrap
+    - bootstrap/functions.php
     excludePaths:
         - tests/programs/functions/return_type_mismatch.php
         - tests/programs/semantic/assignment_type_mismatch.php
