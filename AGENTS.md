@@ -119,7 +119,7 @@ it('handles <feature description>', function () {
     $file = 'tests/programs/<category>/<test_name>.php';
 
     // Compile
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     // Run compiled binary, capture stdout
     $buildPath = config('app.build_path');

@@ -60,7 +60,7 @@ The same “string constant?” TODO appears in **both** passes for `Stmt\Inline
 
 ### 2.4 Feature tests
 
-Many Pest files repeat `/** @phpstan-ignore-next-line */` before `$this->artisan(...)`. That is **boilerplate duplication**, not a compiler bug.
+Many Pest files repeat `/** @phpstan-ignore-next-line */` before `$this->assertPicohpExitCode(...)`. That is **boilerplate duplication**, not a compiler bug.
 
 ---
 
