@@ -1,10 +1,39 @@
 use std::ffi::{c_char, c_int, CStr, CString};
+use std::path::Path;
 use regex::Regex;
 
 /// Returns the runtime version as an integer.
 #[no_mangle]
 pub extern "C" fn pico_rt_version() -> i32 {
     1
+}
+
+/// Returns 1 if `path` is a regular file (per Rust [`Path::is_file`]), else 0.
+#[no_mangle]
+pub extern "C" fn pico_is_file(path: *const c_char) -> i32 {
+    if path.is_null() {
+        return 0;
+    }
+    unsafe {
+        let Ok(s) = CStr::from_ptr(path).to_str() else {
+            return 0;
+        };
+        Path::new(s).is_file() as i32
+    }
+}
+
+/// Returns 1 if `path` exists (file or directory), else 0. Matches PHP `file_exists` broadly.
+#[no_mangle]
+pub extern "C" fn pico_file_exists(path: *const c_char) -> i32 {
+    if path.is_null() {
+        return 0;
+    }
+    unsafe {
+        let Ok(s) = CStr::from_ptr(path).to_str() else {
+            return 0;
+        };
+        Path::new(s).exists() as i32
+    }
 }
 
 /// Concatenate two C strings into a new heap-allocated C string.

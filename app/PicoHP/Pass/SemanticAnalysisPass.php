@@ -1128,7 +1128,7 @@ class SemanticAnalysisPass implements PassInterface
                 return PicoType::fromString('string');
             }
             if ($funcName === 'is_int' || $funcName === 'is_string' || $funcName === 'is_float' || $funcName === 'is_bool'
-                || $funcName === 'array_key_exists') {
+                || $funcName === 'array_key_exists' || $funcName === 'is_file' || $funcName === 'file_exists') {
                 return PicoType::fromString('bool');
             }
             if ($funcName === 'array_search') {

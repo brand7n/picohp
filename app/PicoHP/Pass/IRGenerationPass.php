@@ -1075,6 +1075,15 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 };
                 return new Constant($val->getType() === $expected ? 1 : 0, BaseType::BOOL);
             }
+            if ($funcName === 'is_file' || $funcName === 'file_exists') {
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                $pathVal = $this->buildExpr($expr->args[0]->value);
+                $callee = $funcName === 'is_file' ? 'pico_is_file' : 'pico_file_exists';
+                $result = $this->builder->createCall($callee, [$pathVal], BaseType::INT);
+
+                return $this->builder->createInstruction('icmp ne', [$result, new Constant(0, BaseType::INT)], resultType: BaseType::BOOL);
+            }
             if ($funcName === 'intval') {
                 \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
                 \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
