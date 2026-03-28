@@ -5,49 +5,86 @@ declare(strict_types=1);
 namespace App\PicoHP;
 
 use PhpParser\Node;
-use PhpParser\NodeVisitorAbstract;
 use PhpParser\NodeTraverser;
+use PhpParser\NodeVisitor;
+use PhpParser\NodeVisitorAbstract;
 
 class ClassToFunctionVisitor extends NodeVisitorAbstract
 {
-    protected ?string $className = null;
+    /** FQCN of the innermost class/enum being visited. */
+    protected ?string $classFqcn = null;
+
+    /** @var list<string|null> */
+    protected array $namespaceStack = [];
 
     /** @var Node\Stmt[] */
     protected array $globalStatements = [];
 
     protected bool $insideTrait = false;
 
+    protected function pushNamespace(?string $namespace): void
+    {
+        $this->namespaceStack[] = $namespace;
+    }
+
+    protected function popNamespace(): void
+    {
+        array_pop($this->namespaceStack);
+    }
+
+    protected function currentNamespace(): ?string
+    {
+        if ($this->namespaceStack === []) {
+            return null;
+        }
+
+        return $this->namespaceStack[array_key_last($this->namespaceStack)];
+    }
+
+    /** @return Node\Name Name with correct parts for a FQCN. */
+    protected function nameFromFqcn(string $fqcn): Node\Name
+    {
+        return new Node\Name(explode('\\', $fqcn));
+    }
+
     /** @return null|int|Node|Node[] */
     public function enterNode(Node $node)
     {
+        if ($node instanceof Node\Stmt\Namespace_) {
+            $childNs = $node->name !== null ? $node->name->toString() : '';
+            $merged = $childNs === '' ? null : $childNs;
+            $this->pushNamespace($merged);
+        }
         // Skip trait nodes — traits are inlined into classes during semantic analysis
         if ($node instanceof Node\Stmt\Trait_) {
             $this->insideTrait = true;
         }
         // Capture the class name for use in transformations
         if ($node instanceof Node\Stmt\Class_ || $node instanceof Node\Stmt\Enum_) {
+            if ($node instanceof Node\Stmt\Class_ && $node->name === null) {
+                return NodeVisitor::DONT_TRAVERSE_CHILDREN;
+            }
             \App\PicoHP\CompilerInvariant::check($node->name !== null);
-            $this->className = $node->name->name;
+            $this->classFqcn = ClassSymbol::fqcn($this->currentNamespace(), $node->name->name);
         }
+
         return null;
     }
 
     /** @return null|int|Node|Node[] */
     public function leaveNode(Node $node)
     {
+        if ($node instanceof Node\Stmt\Namespace_) {
+            $this->popNamespace();
+        }
         if ($node instanceof Node\Stmt\Trait_) {
             $this->insideTrait = false;
+
             return null;
         }
         if ($this->insideTrait) {
             return null;
         }
-
-        // TODO: theoretically, we could remove the namespace declaration
-        // but we need to handle the statements inside the namespace
-        // if ($node instanceof Node\Stmt\Namespace_) {
-        //     return NodeTraverser::REMOVE_NODE;
-        // }
 
         // Transform methods into functions
         if ($node instanceof Node\Stmt\ClassMethod && $node->isStatic()) {
@@ -59,59 +96,68 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
                 // assume this is a interface method for now
                 return null;
             }
+            \App\PicoHP\CompilerInvariant::check($this->classFqcn !== null);
+            $funcName = ClassSymbol::llvmMethodSymbol($this->classFqcn, $methodName);
             $this->globalStatements[] = new Node\Stmt\Function_(
-                "{$this->className}_{$methodName}",
+                $funcName,
                 [
                     'params' => $node->params,
                     'stmts' => $stmts,
                     'returnType' => $node->returnType,
                 ]
             );
+
             return NodeTraverser::REMOVE_NODE;
         }
 
         // Resolve self:: in static property access to the actual class name
         if ($node instanceof Node\Expr\StaticPropertyFetch) {
             if ($node->class instanceof Node\Name && ($node->class->toString() === 'self' || $node->class->toString() === 'static')) {
-                \App\PicoHP\CompilerInvariant::check($this->className !== null);
-                $node->class = new Node\Name($this->className);
+                \App\PicoHP\CompilerInvariant::check($this->classFqcn !== null);
+                $node->class = $this->nameFromFqcn($this->classFqcn);
             }
+
             return $node;
         }
 
         // Resolve self:: in class constant fetch (e.g., self::CASE_NAME)
         if ($node instanceof Node\Expr\ClassConstFetch && $node->class instanceof Node\Name && $node->class->toString() === 'self') {
-            \App\PicoHP\CompilerInvariant::check($this->className !== null);
-            $node->class = new Node\Name($this->className);
+            \App\PicoHP\CompilerInvariant::check($this->classFqcn !== null);
+            $node->class = $this->nameFromFqcn($this->classFqcn);
+
             return $node;
         }
 
         // Resolve self in new expressions (e.g., new self())
         if ($node instanceof Node\Expr\New_ && $node->class instanceof Node\Name && $node->class->toString() === 'self') {
-            \App\PicoHP\CompilerInvariant::check($this->className !== null);
-            $node->class = new Node\Name($this->className);
+            \App\PicoHP\CompilerInvariant::check($this->classFqcn !== null);
+            $node->class = $this->nameFromFqcn($this->classFqcn);
+
             return $node;
         }
 
         // Convert static method calls (e.g., MyClass::methodName())
         if ($node instanceof Node\Expr\StaticCall) {
             if ($node->class instanceof Node\Name) {
-                $className = $node->class->toString();
-                if ($className === 'self') {
-                    \App\PicoHP\CompilerInvariant::check($this->className !== null);
-                    $className = $this->className;
-                    $node->class = new Node\Name($className);
-                }
-                if ($className === 'parent') {
+                $rawClass = $node->class->toString();
+                if ($rawClass === 'self') {
+                    \App\PicoHP\CompilerInvariant::check($this->classFqcn !== null);
+                    $classFqcn = $this->classFqcn;
+                    $node->class = $this->nameFromFqcn($classFqcn);
+                } elseif ($rawClass === 'parent') {
                     return null; // leave as StaticCall
+                } else {
+                    // Short names from `use` / `use X\{A, B}` stay as one segment; NameResolver sets resolvedName.
+                    $classFqcn = ClassSymbol::fqcnFromResolvedName($node->class, $this->currentNamespace());
                 }
                 \App\PicoHP\CompilerInvariant::check($node->name instanceof Node\Identifier);
-                $name = new Node\Name("{$node->class->name}_{$node->name}");
-                return new Node\Expr\FuncCall($name, $node->args);
+                $symbol = ClassSymbol::llvmMethodSymbol($classFqcn, $node->name->toString());
+
+                return new Node\Expr\FuncCall(new Node\Name($symbol), $node->args);
             }
-            // @codeCoverageIgnoreStart
-            throw new \Exception('Unexpected StaticCall class node: ' . get_class($node->class));
-            // @codeCoverageIgnoreEnd
+
+            // Dynamic static call ($expr::method()) — keep as StaticCall; semantic pass rejects or lowers later.
+            return null;
         }
 
         return null;
@@ -121,6 +167,7 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
      * Called after the AST has been traversed.
      *
      * @param Node[] $nodes
+     *
      * @return Node[]
      */
     public function afterTraverse(array $nodes): array

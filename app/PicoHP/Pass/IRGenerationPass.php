@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\PicoHP\Pass;
 
-use App\PicoHP\{BaseType};
+use App\PicoHP\{BaseType, ClassSymbol};
 use App\PicoHP\LLVM\{Module, Builder, ValueAbstract, IRLine};
 use App\PicoHP\LLVM\Value\{Constant, Void_, Label, Param, NullConstant};
 use App\PicoHP\SymbolTable\{ClassMetadata, EnumMetadata, PicoHPData};
@@ -16,6 +16,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     protected ?\App\PicoHP\LLVM\Function_ $currentFunction = null;
     protected ?string $currentClassName = null;
     protected ?ValueAbstract $currentThisPtr = null;
+
+    /** @var list<string|null> */
+    protected array $namespaceStack = [];
 
     /**
      * @var array<\PhpParser\Node> $stmts
@@ -65,6 +68,25 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         $this->classRegistry = $classRegistry;
         $this->enumRegistry = $enumRegistry;
         $this->typeIdMap = $typeIdMap;
+    }
+
+    protected function pushNamespace(?string $namespace): void
+    {
+        $this->namespaceStack[] = $namespace;
+    }
+
+    protected function popNamespace(): void
+    {
+        array_pop($this->namespaceStack);
+    }
+
+    protected function currentNamespace(): ?string
+    {
+        if ($this->namespaceStack === []) {
+            return null;
+        }
+
+        return $this->namespaceStack[array_key_last($this->namespaceStack)];
     }
 
     public function exec(): void
@@ -259,14 +281,15 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->builder->setInsertPoint($endBB);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Class_) {
             \App\PicoHP\CompilerInvariant::check($stmt->name instanceof \PhpParser\Node\Identifier);
-            $className = $stmt->name->toString();
-            \App\PicoHP\CompilerInvariant::check(isset($this->classRegistry[$className]));
-            $classMeta = $this->classRegistry[$className];
+            $fqcn = ClassSymbol::fqcn($this->currentNamespace(), $stmt->name->toString());
+            \App\PicoHP\CompilerInvariant::check(isset($this->classRegistry[$fqcn]));
+            $classMeta = $this->classRegistry[$fqcn];
+            $llvmClass = ClassSymbol::mangle($fqcn);
             $fields = $classMeta->toLLVMStructFields();
             if ($fields !== '') {
-                $this->module->addLine(new IRLine("%struct.{$className} = type { {$fields} }"));
+                $this->module->addLine(new IRLine("%struct.{$llvmClass} = type { {$fields} }"));
             } else {
-                $this->module->addLine(new IRLine("%struct.{$className} = type {}"));
+                $this->module->addLine(new IRLine("%struct.{$llvmClass} = type {}"));
             }
             // Emit static properties as globals
             foreach ($classMeta->staticProperties as $propName => $propType) {
@@ -287,9 +310,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                         $initVal = '0';
                     }
                 }
-                $this->module->addLine(new IRLine("@{$className}_{$propName} = global {$llvmType} {$initVal}"));
+                $this->module->addLine(new IRLine("@{$llvmClass}_{$propName} = global {$llvmType} {$initVal}"));
             }
-            $this->currentClassName = $className;
+            $this->currentClassName = $fqcn;
             $this->buildStmts($stmt->stmts);
             $this->currentClassName = null;
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Property) {
@@ -302,7 +325,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             \App\PicoHP\CompilerInvariant::check($this->currentClassName !== null);
             $methodName = $stmt->name->toString();
             $funcSymbol = $pData->getSymbol();
-            $qualifiedName = "{$this->currentClassName}_{$methodName}";
+            $qualifiedName = ClassSymbol::llvmMethodSymbol($this->currentClassName, $methodName);
             // Methods get $this (ptr) as first param
             $thisParam = new \App\PicoHP\PicoType(\App\PicoHP\BaseType::PTR);
             $allParams = array_merge([$thisParam], $funcSymbol->params);
@@ -492,8 +515,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             // Traits are inlined into classes at semantic analysis time; nothing to emit
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Enum_) {
             \App\PicoHP\CompilerInvariant::check($stmt->name instanceof \PhpParser\Node\Identifier);
-            $enumName = $stmt->name->toString();
-            $enumMeta = $this->enumRegistry[$enumName];
+            $enumFqcn = ClassSymbol::fqcn($this->currentNamespace(), $stmt->name->toString());
+            $enumMeta = $this->enumRegistry[$enumFqcn];
+            $llvmEnum = ClassSymbol::mangle($enumFqcn);
             // Emit backing value lookup table as a global array of ptrs
             if ($enumMeta->backingType === 'string') {
                 $ptrs = [];
@@ -505,14 +529,22 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 }
                 $count = count($ptrs);
                 $init = implode(', ', $ptrs);
-                $this->module->addLine(new IRLine("@{$enumName}_values = global [{$count} x ptr] [{$init}]"));
+                $this->module->addLine(new IRLine("@{$llvmEnum}_values = global [{$count} x ptr] [{$init}]"));
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\ClassConst) {
             // Class constants — values resolved at compile time via ClassConstFetch
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\EnumCase) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Use_) {
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\GroupUse) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Namespace_) {
-            $this->buildStmts($stmt->stmts);
+            $childNs = $stmt->name !== null ? $stmt->name->toString() : '';
+            $merged = $childNs === '' ? null : $childNs;
+            $this->pushNamespace($merged);
+            try {
+                $this->buildStmts($stmt->stmts);
+            } finally {
+                $this->popNamespace();
+            }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\TryCatch) {
             $this->buildTryCatch($stmt, $pData);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\InlineHTML) {
@@ -741,6 +773,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             return new Constant($expr->value, BaseType::FLOAT);
         } elseif ($expr instanceof \PhpParser\Node\Scalar\String_) {
             return $this->builder->createStringConstant($expr->value);
+        } elseif ($expr instanceof \PhpParser\Node\Scalar\MagicConst\Dir) {
+            $path = $expr->getAttribute('pico_source_file');
+            \App\PicoHP\CompilerInvariant::check(is_string($path) && $path !== '', 'Scalar\\MagicConst\\Dir requires pico_source_file on the AST (from BuildCommand)');
+
+            return $this->builder->createStringConstant(dirname($path));
         } elseif ($expr instanceof \PhpParser\Node\Scalar\InterpolatedString) {
             foreach ($expr->parts as $part) {
                 if ($part instanceof \PhpParser\Node\InterpolatedStringPart) {
@@ -753,7 +790,13 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\ClassConstFetch) {
             \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
             \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Identifier);
-            $className = $expr->class->toString();
+            $rawClass = $expr->class->toString();
+            if ($rawClass === 'self') {
+                \App\PicoHP\CompilerInvariant::check($this->currentClassName !== null);
+                $className = $this->currentClassName;
+            } else {
+                $className = ClassSymbol::fqcnFromResolvedName($expr->class, $this->currentNamespace());
+            }
             $caseName = $expr->name->toString();
             if (isset($this->enumRegistry[$className])) {
                 $tag = $this->enumRegistry[$className]->getCaseTag($caseName);
@@ -1109,12 +1152,19 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             return $newVal;
         } elseif ($expr instanceof \PhpParser\Node\Expr\New_) {
             \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
-            $className = $expr->class->toString();
+            $rawClass = $expr->class->toString();
+            if ($rawClass === 'self') {
+                \App\PicoHP\CompilerInvariant::check($this->currentClassName !== null);
+                $className = $this->currentClassName;
+            } else {
+                $className = ClassSymbol::fqcnFromResolvedName($expr->class, $this->currentNamespace());
+            }
             $classMeta = $this->classRegistry[$className];
             $typeId = $this->typeIdMap[$className] ?? 0;
-            $objPtr = $this->builder->createObjectAlloc($className, $typeId);
+            $llvmStruct = ClassSymbol::mangle($className);
+            $objPtr = $this->builder->createObjectAlloc($llvmStruct, $typeId);
             // Store type_id in field 0
-            $typeIdPtr = $this->builder->createStructGEP($className, $objPtr, 0, BaseType::INT);
+            $typeIdPtr = $this->builder->createStructGEP($llvmStruct, $objPtr, 0, BaseType::INT);
             $this->builder->createStore(new Constant($typeId, BaseType::INT), $typeIdPtr);
             // Emit property default values before constructor
             $this->emitPropertyDefaults($className, $classMeta, $objPtr);
@@ -1125,7 +1175,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 /** @var array<ValueAbstract> $allArgs */
                 $allArgs = array_merge([$objPtr], $args);
                 $ctorOwner = $classMeta->methodOwner['__construct'] ?? $className;
-                $qualifiedName = "{$ctorOwner}___construct";
+                $qualifiedName = ClassSymbol::llvmMethodSymbol($ctorOwner, '__construct');
                 $this->builder->createCall($qualifiedName, $allArgs, BaseType::VOID);
             }
             return $objPtr;
@@ -1142,7 +1192,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $enumName = $varType->getClassName();
                 $enumMeta = $this->enumRegistry[$enumName];
                 if ($enumMeta->backingType === 'string') {
-                    $elemPtr = $this->builder->createEnumValueLookup($enumName, count($enumMeta->cases), $objVal);
+                    $elemPtr = $this->builder->createEnumValueLookup(ClassSymbol::mangle($enumName), count($enumMeta->cases), $objVal);
                     return $this->builder->createLoad($elemPtr);
                 }
                 return $objVal; // int-backed: tag IS the value
@@ -1156,7 +1206,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             $fieldIndex = $classMeta->getPropertyIndex($propName);
             $fieldType = $classMeta->getPropertyType($propName)->toBase();
-            $fieldPtr = $this->builder->createStructGEP($className, $objVal, $fieldIndex, $fieldType);
+            $fieldPtr = $this->builder->createStructGEP(ClassSymbol::mangle($className), $objVal, $fieldIndex, $fieldType);
             if ($pData->lVal) {
                 return $fieldPtr;
             }
@@ -1189,16 +1239,20 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
 
             $ownerClass = $classMeta->methodOwner[$methodName] ?? $className;
-            $qualifiedName = "{$ownerClass}_{$methodName}";
+            $qualifiedName = ClassSymbol::llvmMethodSymbol($ownerClass, $methodName);
             return $this->builder->createCall($qualifiedName, $allArgs, $returnType);
         } elseif ($expr instanceof \PhpParser\Node\Expr\StaticCall) {
             \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
             \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Identifier);
-            $targetClass = $expr->class->toString();
+            $rawClass = $expr->class->toString();
             $methodName = $expr->name->toString();
-            if ($targetClass === 'self') {
+            if ($rawClass === 'self') {
                 \App\PicoHP\CompilerInvariant::check($this->currentClassName !== null);
                 $targetClass = $this->currentClassName;
+            } elseif ($rawClass === 'parent') {
+                $targetClass = 'parent';
+            } else {
+                $targetClass = ClassSymbol::fqcnFromResolvedName($expr->class, $this->currentNamespace());
             }
             if ($targetClass === 'parent') {
                 \App\PicoHP\CompilerInvariant::check($this->currentClassName !== null);
@@ -1228,20 +1282,22 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 /** @var array<ValueAbstract> $allArgs */
                 $allArgs = $args;
             }
-            $qualifiedName = "{$targetClass}_{$methodName}";
+            $qualifiedName = ClassSymbol::llvmMethodSymbol($targetClass, $methodName);
             return $this->builder->createCall($qualifiedName, $allArgs, $methodSymbol->type->toBase());
         } elseif ($expr instanceof \PhpParser\Node\Expr\StaticPropertyFetch) {
             \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
             \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\VarLikeIdentifier);
-            $className = $expr->class->toString();
-            if ($className === 'self') {
+            $rawClass = $expr->class->toString();
+            if ($rawClass === 'self' || $rawClass === 'static') {
                 \App\PicoHP\CompilerInvariant::check($this->currentClassName !== null);
                 $className = $this->currentClassName;
+            } else {
+                $className = ClassSymbol::fqcnFromResolvedName($expr->class, $this->currentNamespace());
             }
             $propName = $expr->name->toString();
             $classMeta = $this->classRegistry[$className];
             $propType = $classMeta->staticProperties[$propName];
-            $globalName = "{$className}_{$propName}";
+            $globalName = ClassSymbol::mangle($className) . '_' . $propName;
             $globalPtr = new \App\PicoHP\LLVM\Value\Global_($globalName, $propType->toBase());
             if ($pData->lVal) {
                 return $globalPtr;
@@ -1386,7 +1442,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\Instanceof_) {
             $objVal = $this->buildExpr($expr->expr);
             \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
-            $targetClass = $expr->class->toString();
+            $targetClass = ClassSymbol::fqcnFromResolvedName($expr->class, $this->currentNamespace());
 
             // Load runtime type_id from field 0 using the static type for GEP
             // All class structs share i32 type_id at index 0 by convention
@@ -1399,7 +1455,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 \App\PicoHP\CompilerInvariant::check(count($descendants) > 0, "no concrete types for instanceof {$targetClass}");
                 $gepClass = $descendants[0];
             }
-            $typeIdPtr = $this->builder->createStructGEP($gepClass, $objVal, 0, BaseType::INT);
+            $typeIdPtr = $this->builder->createStructGEP(ClassSymbol::mangle($gepClass), $objVal, 0, BaseType::INT);
             $typeIdVal = $this->builder->createLoad($typeIdPtr);
 
             // Collect all type_ids that match: the target class + all concrete descendants
@@ -1432,12 +1488,13 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             \App\PicoHP\CompilerInvariant::check($expr->expr instanceof \PhpParser\Node\Expr\New_);
             $newExpr = $expr->expr;
             \App\PicoHP\CompilerInvariant::check($newExpr->class instanceof \PhpParser\Node\Name);
-            $className = $newExpr->class->toString();
+            $className = ClassSymbol::fqcnFromResolvedName($newExpr->class, $this->currentNamespace());
             $classMeta = $this->classRegistry[$className];
             $typeId = $this->typeIdMap[$className] ?? 0;
-            $objPtr = $this->builder->createObjectAlloc($className, $typeId);
+            $llvmStruct = ClassSymbol::mangle($className);
+            $objPtr = $this->builder->createObjectAlloc($llvmStruct, $typeId);
             // Store type_id in field 0
-            $typeIdPtr = $this->builder->createStructGEP($className, $objPtr, 0, BaseType::INT);
+            $typeIdPtr = $this->builder->createStructGEP($llvmStruct, $objPtr, 0, BaseType::INT);
             $this->builder->createStore(new Constant($typeId, BaseType::INT), $typeIdPtr);
             // Call constructor if it exists
             if (isset($classMeta->methods['__construct'])) {
@@ -1446,7 +1503,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 /** @var array<ValueAbstract> $allArgs */
                 $allArgs = array_merge([$objPtr], $args);
                 $ctorOwner = $classMeta->methodOwner['__construct'] ?? $className;
-                $qualifiedName = "{$ctorOwner}___construct";
+                $qualifiedName = ClassSymbol::llvmMethodSymbol($ctorOwner, '__construct');
                 $this->builder->createCall($qualifiedName, $allArgs, BaseType::VOID);
             }
             $typeId = $this->typeIdMap[$className] ?? 0;
@@ -1564,14 +1621,16 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         if ($var instanceof \PhpParser\Node\Expr\StaticPropertyFetch) {
             \App\PicoHP\CompilerInvariant::check($var->class instanceof \PhpParser\Node\Name);
             \App\PicoHP\CompilerInvariant::check($var->name instanceof \PhpParser\Node\VarLikeIdentifier);
-            $className = $var->class->toString();
-            if ($className === 'self' || $className === 'static') {
+            $rawClass = $var->class->toString();
+            if ($rawClass === 'self' || $rawClass === 'static') {
                 \App\PicoHP\CompilerInvariant::check($this->currentClassName !== null);
                 $className = $this->currentClassName;
+            } else {
+                $className = ClassSymbol::fqcnFromResolvedName($var->class, $this->currentNamespace());
             }
             $classMeta = $this->classRegistry[$className];
             $propType = $classMeta->staticProperties[$var->name->toString()];
-            return new \App\PicoHP\LLVM\Value\Global_("{$className}_{$var->name->toString()}", $propType->toBase());
+            return new \App\PicoHP\LLVM\Value\Global_(ClassSymbol::mangle($className) . '_' . $var->name->toString(), $propType->toBase());
         }
         return PicoHPData::getPData($var)->getValue();
     }
@@ -1665,7 +1724,13 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             // Enum case as default value — resolve directly
             \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
             \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Identifier);
-            $className = $expr->class->toString();
+            $rawClass = $expr->class->toString();
+            if ($rawClass === 'self') {
+                \App\PicoHP\CompilerInvariant::check($this->currentClassName !== null);
+                $className = $this->currentClassName;
+            } else {
+                $className = ClassSymbol::fqcnFromResolvedName($expr->class, $this->currentNamespace());
+            }
             $caseName = $expr->name->toString();
             if (isset($this->enumRegistry[$className])) {
                 $tag = $this->enumRegistry[$className]->getCaseTag($caseName);
@@ -1729,7 +1794,13 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         }
         if ($expr instanceof \PhpParser\Node\Expr\ClassConstFetch) {
             \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
-            $className = $expr->class->toString();
+            $rawClass = $expr->class->toString();
+            if ($rawClass === 'self') {
+                \App\PicoHP\CompilerInvariant::check($this->currentClassName !== null);
+                $className = $this->currentClassName;
+            } else {
+                $className = ClassSymbol::fqcnFromResolvedName($expr->class, $this->currentNamespace());
+            }
             if (isset($this->enumRegistry[$className])) {
                 return \App\PicoHP\PicoType::enum($className);
             }
@@ -1816,7 +1887,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         $vd = $this->vdispatchCount++;
 
         // Load type_id from field 0 (all structs have i32 type_id as first field)
-        $typeIdPtr = $this->builder->createStructGEP($implementors[0], $objVal, 0, BaseType::INT);
+        $typeIdPtr = $this->builder->createStructGEP(ClassSymbol::mangle($implementors[0]), $objVal, 0, BaseType::INT);
         $typeIdVal = $this->builder->createLoad($typeIdPtr);
 
         // If only one implementor, skip the switch
@@ -1824,7 +1895,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $implClass = $implementors[0];
             $implMeta = $this->classRegistry[$implClass];
             $ownerClass = $implMeta->methodOwner[$methodName] ?? $implClass;
-            return $this->builder->createCall("{$ownerClass}_{$methodName}", $allArgs, $returnType);
+            return $this->builder->createCall(ClassSymbol::llvmMethodSymbol($ownerClass, $methodName), $allArgs, $returnType);
         }
 
         // Multiple implementors: emit switch on type_id
@@ -1850,7 +1921,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->builder->setInsertPoint($caseBBs[$implClass]);
             $implMeta = $this->classRegistry[$implClass];
             $ownerClass = $implMeta->methodOwner[$methodName] ?? $implClass;
-            $callResult = $this->builder->createCall("{$ownerClass}_{$methodName}", $allArgs, $returnType);
+            $callResult = $this->builder->createCall(ClassSymbol::llvmMethodSymbol($ownerClass, $methodName), $allArgs, $returnType);
             $this->builder->createStore($callResult, $resultPtr);
             $this->builder->createBranch([new Label($endBB->getName())]);
         }
@@ -1869,7 +1940,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         foreach ($classMeta->propertyDefaults as $propName => $default) {
             $fieldIndex = $classMeta->getPropertyIndex($propName);
             $fieldType = $classMeta->getPropertyType($propName)->toBase();
-            $fieldPtr = $this->builder->createStructGEP($className, $objPtr, $fieldIndex, $fieldType);
+            $fieldPtr = $this->builder->createStructGEP(ClassSymbol::mangle($className), $objPtr, $fieldIndex, $fieldType);
             if ($default instanceof \PhpParser\Node\Expr\Array_) {
                 $arrPtr = $this->builder->createArrayNew();
                 foreach ($default->items as $item) {
@@ -1912,7 +1983,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             } elseif ($default instanceof \PhpParser\Node\Expr\ClassConstFetch) {
                 \App\PicoHP\CompilerInvariant::check($default->class instanceof \PhpParser\Node\Name);
                 \App\PicoHP\CompilerInvariant::check($default->name instanceof \PhpParser\Node\Identifier);
-                $enumName = $default->class->toString();
+                $enumName = ClassSymbol::fqcnFromResolvedName($default->class, $this->currentNamespace());
                 $caseName = $default->name->toString();
                 \App\PicoHP\CompilerInvariant::check(isset($this->enumRegistry[$enumName]), "enum {$enumName} not found for property default");
                 $tag = $this->enumRegistry[$enumName]->getCaseTag($caseName);
@@ -1949,7 +2020,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         $vd = $this->vdispatchCount++;
 
         // Load type_id from field 0
-        $typeIdPtr = $this->builder->createStructGEP($implementors[0], $objVal, 0, BaseType::INT);
+        $typeIdPtr = $this->builder->createStructGEP(ClassSymbol::mangle($implementors[0]), $objVal, 0, BaseType::INT);
         $typeIdVal = $this->builder->createLoad($typeIdPtr);
 
         // Resolve property type from first implementor
@@ -1959,7 +2030,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $implClass = $implementors[0];
             $implMeta = $this->classRegistry[$implClass];
             $fieldIndex = $implMeta->getPropertyIndex($propName);
-            $fieldPtr = $this->builder->createStructGEP($implClass, $objVal, $fieldIndex, $fieldType);
+            $fieldPtr = $this->builder->createStructGEP(ClassSymbol::mangle($implClass), $objVal, $fieldIndex, $fieldType);
             if ($lVal) {
                 return $fieldPtr;
             }
@@ -1989,7 +2060,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->builder->setInsertPoint($caseBBs[$implClass]);
             $implMeta = $this->classRegistry[$implClass];
             $fieldIndex = $implMeta->getPropertyIndex($propName);
-            $fieldPtr = $this->builder->createStructGEP($implClass, $objVal, $fieldIndex, $fieldType);
+            $fieldPtr = $this->builder->createStructGEP(ClassSymbol::mangle($implClass), $objVal, $fieldIndex, $fieldType);
             if ($lVal) {
                 // GEP returns a ptr regardless of field type; store as ptr
                 $this->builder->addLine("store ptr {$fieldPtr->render()}, ptr {$resultPtr->render()}", 1);
@@ -2198,7 +2269,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             for ($i = 0; $i < $catchCount; $i++) {
                 $catch = $stmt->catches[$i];
                 \App\PicoHP\CompilerInvariant::check(count($catch->types) > 0);
-                $catchTypeName = $catch->types[0]->toString();
+                $catchTypeName = ClassSymbol::fqcnFromResolvedName($catch->types[0], $this->currentNamespace());
                 $catchBodyLabel = new Label($catchBodyBBs[$i]->getName());
 
                 if ($i + 1 < $catchCount) {

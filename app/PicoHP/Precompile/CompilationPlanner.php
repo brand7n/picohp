@@ -56,8 +56,6 @@ final class CompilationPlanner
         sort($fromClassmap);
         $classmapFiles = $fromClassmap;
 
-        $orderedFiles = array_merge([$mainReal], $fromClassmap);
-
         $analyzer = $this->reachabilityAnalyzer ?? ReachabilityAnalyzer::createDefault();
         $reach = $analyzer->analyze($graph, $entrypoints, $projectRoot);
         $reachableFiles = $reach->reachableFiles;
@@ -70,9 +68,11 @@ final class CompilationPlanner
             }
         }
 
+        $orderedFiles = $reachableFiles;
+
         $notes = [
-            'Compile order is entrypoint first, then all classmap paths (sorted) — matches current directory build. Entry file is chosen via --entry (default src/main.php relative to the project directory).',
-            'Reachable = BFS from entrypoints: Composer ClassLoader::findFile() (PSR-4 + classmap) + snapshot classmap fallback + literal require/include of .php paths.',
+            'Reachable files = static closure from the entrypoint (BFS over FQCN references via Composer autoload and literal require/include). Directory `build` merges only these files.',
+            'Entry file is chosen via --entry (default src/main.php relative to the project directory).',
             'Unresolved = FQCNs that could not be resolved to a file and are not known PHP classes/interfaces/traits/enums/functions/constants.',
         ];
 

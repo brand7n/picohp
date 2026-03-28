@@ -11,7 +11,7 @@ final class CompilationPlan
 {
     /**
      * @param list<string> $entrypoints Absolute paths to declared entry files (e.g. src/main.php)
-     * @param list<string> $orderedFiles Absolute paths in current full-bundle compile order (entry first, then classmap)
+     * @param list<string> $orderedFiles Compile order for directory {@code build} (same as reachable files, BFS from entry)
      * @param list<string> $classmapFiles Unique absolute paths from Composer classmap (excluding InstalledVersions)
      * @param list<string> $reachableFiles Absolute paths reachable from entrypoints (AST + classmap + literal requires)
      * @param list<string> $prunedFiles Classmap paths not reachable from entrypoints
