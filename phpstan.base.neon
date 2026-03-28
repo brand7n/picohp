@@ -1,0 +1,23 @@
+# Shared PHPStan rules (level, includes, excludes, ignores). Paths are supplied by
+# phpstan.paths.generated.neon (see scripts/generate-phpstan-paths.php).
+
+parameters:
+    level: max
+    reportUnmatchedIgnoredErrors: false
+    excludePaths:
+        # Reachable compile closure includes Composer packages; PHPStan level max is for picohp sources.
+        - vendor
+        - tests/fixtures/precompile_smoke/vendor
+        - tests/programs/functions/return_type_mismatch.php
+        - tests/programs/semantic/assignment_type_mismatch.php
+        - tests/programs/classes/
+        - tests/programs/self_compile/
+        - tests/programs/functions/default_params.php
+        - tests/programs/functions/named_params.php
+        - tests/programs/nullable/
+    ignoreErrors:
+        - '#Call to method .+ of internal class Pest\\#'
+
+includes:
+    - vendor/phpstan/phpstan/conf/bleedingEdge.neon
+    - vendor/phpstan/phpstan-strict-rules/rules.neon
