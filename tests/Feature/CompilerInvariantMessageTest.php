@@ -5,7 +5,8 @@ declare(strict_types=1);
 it('prints assignment type mismatch with source file:line and compiler call site', function () {
     $file = 'tests/programs/semantic/assignment_type_mismatch.php';
     $root = dirname(__DIR__, 2);
-    $picohp = $root.'/picohp';
+    // Entry script is picoHP (case matters on Linux CI).
+    $picohp = $root . '/picoHP';
     $cmd = escapeshellarg(PHP_BINARY).' '.escapeshellarg($picohp).' build '.escapeshellarg($file).' 2>&1';
     exec($cmd, $lines, $exitCode);
     $output = implode("\n", $lines);
