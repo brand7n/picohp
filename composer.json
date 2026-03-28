@@ -58,7 +58,7 @@
     "scripts": {
         "phpstan": "php -d memory_limit=-1 vendor/bin/phpstan analyse --configuration phpstan.neon",
         "pest": "vendor/bin/pest",
-        "coverage": "vendor/bin/pest --coverage",
+        "coverage": "php -d pcov.directory=app vendor/bin/pest --coverage",
         "mutate": [
             "Composer\\Config::disableProcessTimeout",
             "vendor/bin/pest --mutate"
