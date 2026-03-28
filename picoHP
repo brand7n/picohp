@@ -11,7 +11,7 @@ if (is_file($baseDir . '/.env')) {
     (new Symfony\Component\Dotenv\Dotenv())->load($baseDir . '/.env');
 }
 
-$application = new Symfony\Component\Console\Application('picoHP', '1.0.0');
-$application->addCommand(new App\Commands\BuildCommand());
+/** @var list<string> $cliArgv */
+$cliArgv = $_SERVER['argv'] ?? [];
 
-exit($application->run());
+exit(App\Commands\BuildCommand::runFromArgv($cliArgv));
