@@ -1,0 +1,14 @@
+{
+    "name": "picohp/fixture-precompile-smoke",
+    "description": "Minimal project for precompile-plan smoke tests",
+    "license": "MIT",
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "SmokeFixture\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true
+    }
+}

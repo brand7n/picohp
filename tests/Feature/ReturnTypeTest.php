@@ -6,5 +6,5 @@ it('rejects mismatched return type', function () {
     $file = 'tests/programs/functions/return_type_mismatch.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(1);
+    $this->assertPicohpExitCode("build --debug {$file}", 1);
 });

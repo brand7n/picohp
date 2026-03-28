@@ -6,7 +6,7 @@ it('handles unary minus correctly', function () {
     $file = 'tests/programs/operators/unary_minus.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));

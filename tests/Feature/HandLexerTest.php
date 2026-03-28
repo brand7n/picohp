@@ -8,7 +8,7 @@ use App\PicoHP\HandLexer\TokenType;
 it('matches PHP oracle for minimal PicoHP lexer program', function () {
     $file = 'tests/programs/hand_lexer/minimal_picohp_lexer.php';
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
@@ -21,7 +21,7 @@ it('matches PHP oracle for minimal PicoHP lexer program', function () {
 it('matches PHP oracle for HandLexer script in app/', function () {
     $file = 'app/PicoHP/HandLexer/src/main.php';
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
@@ -34,7 +34,7 @@ it('matches PHP oracle for HandLexer script in app/', function () {
 it('documents known preg_match lookahead divergence', function () {
     $file = 'tests/programs/hand_lexer/preg_probe_open.php';
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
@@ -47,7 +47,7 @@ it('documents known preg_match lookahead divergence', function () {
 it('documents known regex matrix divergence', function () {
     $file = 'tests/programs/hand_lexer/preg_probe_matrix.php';
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
@@ -60,7 +60,7 @@ it('documents known regex matrix divergence', function () {
 it('matches PHP oracle for strict string equality in compiled output', function () {
     $file = 'tests/programs/hand_lexer/string_ops_probe_steps.php';
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
