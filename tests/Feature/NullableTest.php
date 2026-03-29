@@ -6,7 +6,7 @@ it('handles isset() on nullable property', function () {
     $file = 'tests/programs/nullable/isset_check.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
@@ -20,7 +20,7 @@ it('handles return null from nullable function', function () {
     $file = 'tests/programs/nullable/nullable_enum_return.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
@@ -34,7 +34,7 @@ it('handles nullable param with null coalescing', function () {
     $file = 'tests/programs/nullable/nullable_param.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
@@ -48,7 +48,7 @@ it('handles null coalescing operator', function () {
     $file = 'tests/programs/nullable/null_coalesce.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
@@ -62,7 +62,7 @@ it('handles null check with === null', function () {
     $file = 'tests/programs/nullable/null_check.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
@@ -76,7 +76,7 @@ it('handles nullable return type', function () {
     $file = 'tests/programs/nullable/nullable_return.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));

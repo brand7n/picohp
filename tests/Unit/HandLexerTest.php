@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\PicoHP\HandLexer\HandLexerAdapter;
 use App\PicoHP\HandLexer\Lexer;
 use App\PicoHP\HandLexer\TokenType;
 
@@ -30,4 +31,33 @@ it('records start line on open tag', function () {
     $tokens = $lexer->tokenize();
     expect($tokens[0]->line)->toBe(1);
     expect($tokens[0]->value)->toBe('<?php');
+});
+
+it('covers scripting tokens, comments, literals, keywords, close tag, and inline html', function () {
+    $src = <<<'SRC'
+pre
+<?php
+// line
+/* block */
+$a = 1.5e1; 0x10; 0b11; 'sq';
+if ($x) {} else {}
+while (0) {}
+for (;;) {}
+foreach ($a as $b) {}
+function f() {}
+return 1;
+class C {}
+new C;
+ident;
+?>post
+SRC;
+    $lexer = new Lexer($src);
+    $tokens = $lexer->tokenize();
+    expect(count($tokens))->toBeGreaterThan(40);
+});
+
+it('tokenizes via HandLexerAdapter for PhpParser', function () {
+    $adapter = new HandLexerAdapter();
+    $tokens = $adapter->tokenize('<?php echo 1;');
+    expect(count($tokens))->toBeGreaterThan(1);
 });

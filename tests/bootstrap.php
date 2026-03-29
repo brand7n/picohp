@@ -1,0 +1,7 @@
+<?php
+
+declare(strict_types=1);
+
+$baseDir = dirname(__DIR__);
+
+require $baseDir . '/vendor/autoload.php';

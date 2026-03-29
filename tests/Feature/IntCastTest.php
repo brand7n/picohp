@@ -6,7 +6,7 @@ it('handles int casts from various types correctly', function () {
     $file = 'tests/programs/operators/int_cast.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));

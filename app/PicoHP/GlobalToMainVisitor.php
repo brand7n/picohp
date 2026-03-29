@@ -44,7 +44,10 @@ class GlobalToMainVisitor extends NodeVisitorAbstract
                     if ($nsStmt instanceof Node\Stmt\Class_
                         || $nsStmt instanceof Node\Stmt\Function_
                         || $nsStmt instanceof Node\Stmt\Interface_
+                        || $nsStmt instanceof Node\Stmt\Trait_
+                        || $nsStmt instanceof Node\Stmt\Enum_
                         || $nsStmt instanceof Node\Stmt\Use_
+                        || $nsStmt instanceof Node\Stmt\GroupUse
                     ) {
                         $keepInNamespace[] = $nsStmt;
                     } else {

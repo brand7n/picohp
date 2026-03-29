@@ -6,7 +6,7 @@ it('handles post-increment correctly', function () {
     $file = 'tests/programs/operators/post_increment.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
@@ -20,7 +20,7 @@ it('handles post-decrement correctly', function () {
     $file = 'tests/programs/operators/post_decrement.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
@@ -34,7 +34,7 @@ it('handles post-increment in for loop correctly', function () {
     $file = 'tests/programs/operators/inc_dec_for_loop.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
@@ -48,7 +48,7 @@ it('handles += and -= compound assignment', function () {
     $file = 'tests/programs/operators/plus_minus_equals.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
@@ -62,7 +62,7 @@ it('handles += and -= on float values', function () {
     $file = 'tests/programs/operators/plus_minus_equals_float.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));

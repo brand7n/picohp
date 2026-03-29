@@ -11,7 +11,7 @@ produces native binaries. The compiler is invoked via:
 ./picoHP build <directory>
 ```
 
-The compiled binary lands at `<build_path>/a.out` (see `config/app.php` for
+The compiled binary lands at `<build_path>/a.out` (see `app/config.php` for
 build_path).
 
 Development is driven by an agentic TDD loop: Claude Code proposes features,
@@ -119,7 +119,7 @@ it('handles <feature description>', function () {
     $file = 'tests/programs/<category>/<test_name>.php';
 
     // Compile
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     // Run compiled binary, capture stdout
     $buildPath = config('app.build_path');

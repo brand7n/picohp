@@ -2,17 +2,18 @@
 
 declare(strict_types=1);
 
-use Illuminate\Support\Facades\Artisan;
-
-it('prints assignment type mismatch with source line and compiler call site', function () {
+it('prints assignment type mismatch with source file:line and compiler call site', function () {
     $file = 'tests/programs/semantic/assignment_type_mismatch.php';
-
-    $exitCode = Artisan::call('build', ['filename' => $file]);
-    $output = Artisan::output();
+    $root = dirname(__DIR__, 2);
+    // Entry script is picoHP (case matters on Linux CI).
+    $picohp = $root . '/picoHP';
+    $cmd = escapeshellarg(PHP_BINARY).' '.escapeshellarg($picohp).' build '.escapeshellarg($file).' 2>&1';
+    exec($cmd, $lines, $exitCode);
+    $output = implode("\n", $lines);
 
     expect($exitCode)->toBe(1);
     expect($output)->toMatch(
-        '/line 6, type mismatch in assignment: int = string \(at app\/PicoHP\/Pass\/SemanticAnalysisPass\.php:\d+\)/'
+        '/assignment_type_mismatch\.php:6, type mismatch in assignment: int = string \(at\s+app\/PicoHP\/Pass\/SemanticAnalysisPass\.php:\d+\)/'
     );
 });
 

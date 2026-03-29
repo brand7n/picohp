@@ -6,7 +6,7 @@ it('handles mixed type properties with different value types', function () {
     $file = 'tests/programs/classes/mixed_type.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
@@ -20,7 +20,7 @@ it('handles mixed method calls and object retrieval through mixed', function () 
     $file = 'tests/programs/classes/mixed_method_chain.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));

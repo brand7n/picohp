@@ -6,7 +6,7 @@ it('handles enum case as default parameter', function () {
     $file = 'tests/programs/classes/enum_default_param.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
@@ -20,7 +20,7 @@ it('handles string-backed enums', function () {
     $file = 'tests/programs/classes/enum_basic.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
@@ -34,7 +34,7 @@ it('handles enum methods without explicit return types (defaults to void)', func
     $file = 'tests/programs/classes/enum_method_no_return_type.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
@@ -48,7 +48,7 @@ it('registers enum methods with explicit return types (without calling bodies)',
     $file = 'tests/programs/classes/enum_int_explicit_return_signature.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));

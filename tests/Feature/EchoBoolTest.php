@@ -6,7 +6,7 @@ it('echoes bools matching PHP behavior', function () {
     $file = 'tests/programs/echo/echo_bool.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));

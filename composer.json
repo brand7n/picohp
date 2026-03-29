@@ -1,7 +1,7 @@
 {
     "name": "brand7n/picohp",
     "description": "picoHP compiler",
-    "keywords": ["php", "compiler", "php compiler", "laravel", "laravel zero", "console", "cli"],
+    "keywords": ["php", "compiler", "php compiler", "console", "cli"],
     "homepage": "https://github.com/brand7n/picohp",
     "type": "project",
     "license": "MIT",
@@ -17,28 +17,29 @@
     ],
     "require": {
         "php": "^8.5",
-        "laravel-zero/framework": "^12.0",
         "nikic/php-parser": "^5.7",
         "phpstan/phpdoc-parser": "^2.3",
-        "phpstan/phpstan": "^2.1",
-        "phpstan/phpstan-strict-rules": "^2.0",
         "ext-dom": "*",
         "ext-mbstring": "*",
-        "ext-xml": "*",
-        "laravel/tinker": "^3.0"
+        "ext-xml": "*"
     },
     "require-dev": {
         "brainmaestro/composer-git-hooks": "^3.0",
         "laravel/pint": "^1.18.1",
         "mockery/mockery": "^1.6.12",
-        "pestphp/pest": "^3.5.1"
+        "pestphp/pest": "^3.5.1",
+        "phpstan/phpstan": "^2.1",
+        "phpstan/phpstan-strict-rules": "^2.0"
     },
     "autoload": {
         "psr-4": {
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
-        }
+        },
+        "files": [
+            "bootstrap/functions.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {
@@ -54,14 +55,16 @@
         }
     },
     "scripts": {
-        "phpstan": "php -d memory_limit=-1 vendor/bin/phpstan analyse --configuration phpstan.neon --debug",
+        "phpstan": "php -d memory_limit=-1 vendor/bin/phpstan analyse --configuration phpstan.neon",
         "pest": "vendor/bin/pest",
-        "coverage": "vendor/bin/pest --coverage",
+        "coverage": "php -d pcov.directory=app vendor/bin/pest --coverage",
         "mutate": [
             "Composer\\Config::disableProcessTimeout",
             "vendor/bin/pest --mutate"
         ],
         "pint": "vendor/bin/pint",
+        "smoke-build": "./picohp build tests/programs/smoke/word_scan_smoke.php",
+        "smoke-precompile": "./picohp build tests/fixtures/precompile_smoke --precompile-plan --entry=src/main.php",
         "check": [
             "@phpstan",
             "@pest",

@@ -6,7 +6,7 @@ it('handles static class properties', function () {
     $file = 'tests/programs/classes/static_property.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
@@ -20,7 +20,7 @@ it('initializes extended static property defaults (float/bool)', function () {
     $file = 'tests/programs/classes/static_property_init_extended.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));

@@ -6,7 +6,7 @@ it('handles objects as function parameters and return values', function () {
     $file = 'tests/programs/classes/object_params.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));

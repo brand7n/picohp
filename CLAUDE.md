@@ -56,7 +56,7 @@ Test programs live in `tests/programs/<category>/` (one feature per file). Featu
 ```php
 it('handles <feature>', function () {
     $file = 'tests/programs/<category>/<test>.php';
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
     $compiled_output = shell_exec(config('app.build_path') . "/a.out");
     $php_output = shell_exec("php {$file}");
     expect($compiled_output)->toBe($php_output);

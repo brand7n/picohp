@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\PicoHP\LLVM;
 
 use App\PicoHP\{BaseType};
-use Illuminate\Support\Collection;
 use App\PicoHP\LLVM\Value\{Instruction, Void_, AllocaInst, Global_, Label};
 
 class Builder
@@ -115,9 +114,10 @@ class Builder
     {
         \App\PicoHP\CompilerInvariant::check(count($operands) > 0);
         $type = $operands[0]->getType();
-        $operandString = (new Collection($operands))
-            ->map(fn ($operand): string => $operand->render())
-            ->join(', ');
+        $operandString = implode(', ', array_map(
+            static fn ($operand): string => $operand->render(),
+            $operands,
+        ));
         $resultVal = new Void_();
         if ($emitResult) {
             $resultVal = new Instruction($opcode, $resultType);
@@ -248,9 +248,10 @@ class Builder
      */
     public function createCall(string $functionName, array $paramVals, BaseType $returnType): ValueAbstract
     {
-        $paramString = (new Collection($paramVals))
-            ->map(fn ($param): string => "{$param->getType()->toLLVM()} {$param->render()}")
-            ->join(', ');
+        $paramString = implode(', ', array_map(
+            static fn ($param): string => "{$param->getType()->toLLVM()} {$param->render()}",
+            $paramVals,
+        ));
         if ($returnType === BaseType::VOID) {
             $this->addLine("call void @{$functionName} ({$paramString})", 1);
             return new Void_();

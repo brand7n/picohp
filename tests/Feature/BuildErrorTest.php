@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 it('fails gracefully when input file does not exist', function () {
     /** @phpstan-ignore-next-line */
-    $this->artisan('build nonexistent_file.php')->assertExitCode(1);
+    $this->assertPicohpExitCode('build nonexistent_file.php', 1);
 });
 
 it('fails gracefully on unparseable PHP', function () {
@@ -13,7 +13,7 @@ it('fails gracefully on unparseable PHP', function () {
     file_put_contents($tmp, '<?php (');
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build {$tmp}")->assertExitCode(1);
+    $this->assertPicohpExitCode("build {$tmp}", 1);
 
     unlink($tmp);
 });
@@ -25,7 +25,7 @@ it('fails gracefully when directory has no entry point', function () {
     file_put_contents($tmp . '/vendor/composer/autoload_classmap.php', '<?php return [];');
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build {$tmp}")->assertExitCode(1);
+    $this->assertPicohpExitCode("build {$tmp}", 1);
 
     unlink($tmp . '/vendor/composer/autoload_classmap.php');
     rmdir($tmp . '/vendor/composer');

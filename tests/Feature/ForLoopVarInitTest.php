@@ -6,7 +6,7 @@ it('supports @var declarations in for-loop init clause', function () {
     $file = 'tests/programs/control_flow/for_loop_var_init.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));

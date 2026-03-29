@@ -6,7 +6,7 @@ it('self-compiles IRLine class', function () {
     $file = 'tests/programs/self_compile/irline_test.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
@@ -20,7 +20,7 @@ it('self-compiles Symbol class', function () {
     $file = 'tests/programs/self_compile/symbol_test.php';
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
@@ -39,7 +39,7 @@ it('compiles real Php8 parser tables and calls lookups via FFI', function () {
 
     // Oracle test: compiled output matches PHP
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
@@ -49,7 +49,7 @@ it('compiles real Php8 parser tables and calls lookups via FFI', function () {
 
     // FFI test: build as shared lib and call from PHP
     /** @phpstan-ignore-next-line */
-    $this->artisan("build {$file} --shared-lib --out=php8_tables.so")->assertExitCode(0);
+    $this->assertPicohpExitCode("build {$file} --shared-lib --out=php8_tables.so");
 
     $ffi = \FFI::cdef("int php8_table_test();", "{$buildPath}/php8_tables.so");
 
@@ -71,7 +71,7 @@ it('self-compiles Php8 transformed parser and matches PHP oracle', function () {
     }
 
     /** @phpstan-ignore-next-line */
-    $this->artisan("build --debug {$file}")->assertExitCode(0);
+    $this->assertPicohpExitCode("build --debug {$file}");
 
     $buildPath = config('app.build_path');
     assert(is_string($buildPath));
@@ -109,7 +109,7 @@ it('self-compiles Php8 transformed parser and matches PHP oracle', function () {
 
     // FFI test: build as shared lib and call real parser table lookups
     /** @phpstan-ignore-next-line */
-    $this->artisan("build {$file} --shared-lib --out=php8_parser.so")->assertExitCode(0);
+    $this->assertPicohpExitCode("build {$file} --shared-lib --out=php8_parser.so");
 
     $ffi = \FFI::cdef("int php8_parser_test();", "{$buildPath}/php8_parser.so");
 

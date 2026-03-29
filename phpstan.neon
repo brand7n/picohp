@@ -1,19 +1,13 @@
-parameters:
-    level: max
-    paths:
-    - app
-    - tests
-    - bootstrap
-    excludePaths:
-        - tests/programs/functions/return_type_mismatch.php
-        - tests/programs/semantic/assignment_type_mismatch.php
-        - tests/programs/classes/
-        - tests/programs/self_compile/
-        - tests/programs/functions/default_params.php
-        - tests/programs/functions/named_params.php
-    ignoreErrors:
-        - '#Call to method .+ of internal class Pest\\#'
+# Static analysis for the compiler sources only (`app/`). Run locally / CI via:
+#   composer run-script phpstan
+# Requires dev dependencies (phpstan/*).
 
 includes:
     - vendor/phpstan/phpstan/conf/bleedingEdge.neon
     - vendor/phpstan/phpstan-strict-rules/rules.neon
+
+parameters:
+    level: max
+    reportUnmatchedIgnoredErrors: false
+    paths:
+        - app
