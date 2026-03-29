@@ -31,3 +31,41 @@ it('fails to parse an empty PHPDoc', function () {
     $parser = new DocTypeParser();
     $parser->parseType('');
 })->throws(ParserException::class);
+
+it('returns null for unsupported union @return types', function () {
+    $parser = new DocTypeParser();
+    expect($parser->parseReturnTypeFromPhpDoc('/** @return int|string */'))->toBeNull();
+});
+
+it('parses @return from a method docblock', function () {
+    $parser = new DocTypeParser();
+    $t = $parser->parseReturnTypeFromPhpDoc('/** @return int */');
+    expect($t)->not->toBeNull();
+    expect($t->toString())->toBe('int');
+});
+
+it('returns null when there is no single @return', function () {
+    $parser = new DocTypeParser();
+    expect($parser->parseReturnTypeFromPhpDoc('/** */'))->toBeNull();
+});
+
+it('parses nullable @return types', function () {
+    $parser = new DocTypeParser();
+    $t = $parser->parseReturnTypeFromPhpDoc('/** @return ?string */');
+    expect($t)->not->toBeNull();
+    expect($t->toString())->toBe('?string');
+});
+
+it('parses generic array @return types', function () {
+    $parser = new DocTypeParser();
+    $t = $parser->parseReturnTypeFromPhpDoc('/** @return array<int, string> */');
+    expect($t)->not->toBeNull();
+    expect($t->isArray())->toBeTrue();
+});
+
+it('parses single-type generic array @return', function () {
+    $parser = new DocTypeParser();
+    $t = $parser->parseReturnTypeFromPhpDoc('/** @return array<int> */');
+    expect($t)->not->toBeNull();
+    expect($t->isArray())->toBeTrue();
+});

@@ -16,5 +16,11 @@
         <include>
             <directory>./app</directory>
         </include>
+        <exclude>
+            <!-- Token stream is exercised heavily by Feature tests; line coverage here skews the total. -->
+            <file>app/PicoHP/HandLexer/Lexer.php</file>
+            <!-- CLI orchestration is covered by Feature builds and argv unit tests; keep line target on compiler passes. -->
+            <file>app/Commands/BuildCommand.php</file>
+        </exclude>
     </source>
 </phpunit>

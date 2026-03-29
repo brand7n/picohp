@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Support;
 
 /**
- * Loads {@code config/*.php} files (flat arrays) and resolves keys like {@code app.build_path}.
+ * Loads {@code app/config.php} (and optional {@code config/<name>.php}) and resolves keys like {@code app.build_path}.
  */
 final class ProjectConfig
 {
@@ -50,7 +50,10 @@ final class ProjectConfig
     private static function loadFile(string $name): array
     {
         if (!isset(self::$cache[$name])) {
-            $path = dirname(__DIR__, 2) . '/config/' . $name . '.php';
+            $root = dirname(__DIR__, 2);
+            $path = $name === 'app'
+                ? $root . '/app/config.php'
+                : $root . '/config/' . $name . '.php';
             if (!is_file($path)) {
                 self::$cache[$name] = [];
             } else {

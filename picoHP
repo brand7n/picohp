@@ -7,10 +7,6 @@ $baseDir = __DIR__;
 
 require $baseDir . '/vendor/autoload.php';
 
-if (is_file($baseDir . '/.env')) {
-    (new Symfony\Component\Dotenv\Dotenv())->load($baseDir . '/.env');
-}
-
 /** @var list<string> $cliArgv */
 $cliArgv = $_SERVER['argv'] ?? [];
 
