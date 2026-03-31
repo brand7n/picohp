@@ -206,6 +206,7 @@ class SemanticAnalysisPass implements PassInterface
         }
         $this->registerClassStubs($this->ast);
         $this->registerClasses($this->ast);
+        $this->mergeMissingInstancePropertiesFromReflectionAll();
         $this->registerFunctions($this->ast);
         $this->resolveStmts($this->ast);
     }
@@ -239,6 +240,20 @@ class SemanticAnalysisPass implements PassInterface
     protected function ensureExternalClassReference(string $fqcn): void
     {
         if (isset($this->classRegistry[$fqcn])) {
+            $meta = $this->classRegistry[$fqcn];
+            // registerClassStubs() may insert an empty placeholder for merged vendor AST classes.
+            // Only php-parser types are safe to replace: user classes can be empty until traits apply.
+            if ($meta->methods === [] && str_starts_with($fqcn, 'PhpParser\\')) {
+                if (class_exists($fqcn, true) || interface_exists($fqcn, true)) {
+                    unset($this->classRegistry[$fqcn], $this->typeIdMap[$fqcn]);
+                    $this->registerClassHierarchyFromReflection($fqcn);
+                }
+            }
+
+            if (isset($this->classRegistry[$fqcn])) {
+                $this->mergeMissingInstancePropertiesForFqcn($fqcn);
+            }
+
             return;
         }
         $this->registerClassHierarchyFromReflection($fqcn);
@@ -260,6 +275,7 @@ class SemanticAnalysisPass implements PassInterface
             $meta = new ClassMetadata($fqcn);
             $this->classRegistry[$fqcn] = $meta;
             $this->typeIdMap[$fqcn] = $this->nextTypeId++;
+            $this->registerInstanceMethodsFromReflection($meta, $fqcn);
 
             return true;
         }
@@ -275,6 +291,8 @@ class SemanticAnalysisPass implements PassInterface
             $meta = new ClassMetadata($fqcn);
             $this->classRegistry[$fqcn] = $meta;
             $this->typeIdMap[$fqcn] = $this->nextTypeId++;
+            $this->registerInstanceMethodsFromReflection($meta, $fqcn);
+            $this->registerInstancePropertiesFromReflection($meta, $fqcn);
 
             return true;
         }
@@ -293,6 +311,200 @@ class SemanticAnalysisPass implements PassInterface
         $this->typeIdMap[$fqcn] = $this->nextTypeId++;
 
         return true;
+    }
+
+    /**
+     * Populate {@see ClassMetadata::methods} from PHP reflection for external interfaces and root classes
+     * (e.g. {@code PhpParser\Node}, {@code PhpParser\NodeAbstract}) so method calls used in the compiler
+     * against vendor types resolve during semantic analysis.
+     */
+    protected function registerInstanceMethodsFromReflection(ClassMetadata $meta, string $fqcn): void
+    {
+        if (!class_exists($fqcn, true) && !interface_exists($fqcn, true)) {
+            return;
+        }
+        /** @var class-string $fqcn */
+        $ref = new \ReflectionClass($fqcn);
+        foreach ($ref->getMethods(\ReflectionMethod::IS_PUBLIC) as $rm) {
+            if ($rm->isStatic() || $rm->isConstructor()) {
+                continue;
+            }
+            if ($rm->getDeclaringClass()->getName() !== $fqcn) {
+                continue;
+            }
+            $methodName = $rm->getName();
+            $returnType = $this->picoTypeFromReflectionReturnType($rm);
+            $params = [];
+            foreach ($rm->getParameters() as $rp) {
+                $params[] = $this->picoTypeFromReflectionParameter($rp);
+            }
+            $sym = new \App\PicoHP\SymbolTable\Symbol($methodName, $returnType, $params, func: true);
+            $pi = 0;
+            foreach ($rm->getParameters() as $rp) {
+                $sym->paramNames[$pi] = $rp->getName();
+                if ($rp->isDefaultValueAvailable()) {
+                    $sym->defaults[$pi] = null;
+                }
+                $pi++;
+            }
+            $meta->methods[$methodName] = $sym;
+            $meta->methodOwner[$methodName] = $fqcn;
+        }
+    }
+
+    /**
+     * Directory builds merge many files; some class bodies may not be represented on the transformed AST
+     * while the class is still in {@see $classRegistry} (stubs), or registration can be partial. Add any
+     * instance property that exists in PHP reflection but is missing from {@see ClassMetadata::properties}.
+     */
+    protected function mergeMissingInstancePropertiesFromReflectionAll(): void
+    {
+        foreach ($this->classRegistry as $fqcn => $_meta) {
+            $this->mergeMissingInstancePropertiesForFqcn($fqcn);
+        }
+    }
+
+    /**
+     * Same as {@see mergeMissingInstancePropertiesFromReflectionAll} for a single FQCN (e.g. before property fetch).
+     */
+    protected function mergeMissingInstancePropertiesForFqcn(string $fqcn): void
+    {
+        if (!isset($this->classRegistry[$fqcn])) {
+            return;
+        }
+        $meta = $this->classRegistry[$fqcn];
+        if (!class_exists($fqcn, true) || trait_exists($fqcn, false)) {
+            return;
+        }
+        $ref = new \ReflectionClass($fqcn);
+        if ($ref->isInterface()) {
+            return;
+        }
+        foreach ($ref->getProperties() as $rp) {
+            if ($rp->isStatic()) {
+                continue;
+            }
+            if ($rp->getDeclaringClass()->getName() !== $fqcn) {
+                continue;
+            }
+            $propName = $rp->getName();
+            if (isset($meta->properties[$propName])) {
+                continue;
+            }
+            $meta->addProperty($propName, $this->picoTypeFromReflectionProperty($rp));
+        }
+    }
+
+    /**
+     * Instance properties for classes registered only via reflection (directory builds where the class
+     * body is not on the transformed AST). Without this, property fetch on e.g. {@see \App\PicoHP\HandLexer\Token}
+     * fails after {@see registerInstanceMethodsFromReflection}.
+     */
+    protected function registerInstancePropertiesFromReflection(ClassMetadata $meta, string $fqcn): void
+    {
+        if (!class_exists($fqcn, true)) {
+            return;
+        }
+        /** @var class-string $fqcn */
+        $ref = new \ReflectionClass($fqcn);
+        foreach ($ref->getProperties() as $rp) {
+            if ($rp->isStatic()) {
+                continue;
+            }
+            if ($rp->getDeclaringClass()->getName() !== $fqcn) {
+                continue;
+            }
+            $meta->addProperty($rp->getName(), $this->picoTypeFromReflectionProperty($rp));
+        }
+    }
+
+    protected function picoTypeFromReflectionProperty(\ReflectionProperty $rp): PicoType
+    {
+        $rt = $rp->getType();
+        if ($rt === null) {
+            return PicoType::fromString('mixed');
+        }
+        if ($rt instanceof \ReflectionUnionType || $rt instanceof \ReflectionIntersectionType) {
+            return PicoType::fromString('mixed');
+        }
+        if (!($rt instanceof \ReflectionNamedType)) {
+            return PicoType::fromString('mixed');
+        }
+        $name = $rt->getName();
+        $builtin = match ($name) {
+            'int', 'float', 'bool', 'string', 'void', 'mixed', 'array', 'callable', 'iterable', 'object' => $name,
+            'false', 'true' => 'bool',
+            default => null,
+        };
+        if ($builtin !== null) {
+            return $rt->allowsNull() ? PicoType::fromString('?'.$builtin) : PicoType::fromString($builtin);
+        }
+        if (enum_exists($name)) {
+            return PicoType::enum($name);
+        }
+        if (class_exists($name) || interface_exists($name)) {
+            return $rt->allowsNull() ? PicoType::fromString('?'.$name) : PicoType::object($name);
+        }
+
+        return PicoType::fromString('mixed');
+    }
+
+    protected function picoTypeFromReflectionReturnType(\ReflectionMethod $rm): PicoType
+    {
+        $rt = $rm->getReturnType();
+        if ($rt === null) {
+            return PicoType::fromString('mixed');
+        }
+        if ($rt instanceof \ReflectionUnionType || $rt instanceof \ReflectionIntersectionType) {
+            return PicoType::fromString('mixed');
+        }
+        if ($rt instanceof \ReflectionNamedType) {
+            $inner = $this->picoTypeNameFromReflectionNamedType($rt);
+            if ($inner === 'void') {
+                return PicoType::fromString('void');
+            }
+            if ($rt->allowsNull()) {
+                return PicoType::fromString('?'.$inner);
+            }
+
+            return PicoType::fromString($inner);
+        }
+
+        return PicoType::fromString('mixed');
+    }
+
+    protected function picoTypeFromReflectionParameter(\ReflectionParameter $rp): PicoType
+    {
+        $rt = $rp->getType();
+        if ($rt === null) {
+            return PicoType::fromString('mixed');
+        }
+        if ($rt instanceof \ReflectionUnionType || $rt instanceof \ReflectionIntersectionType) {
+            return PicoType::fromString('mixed');
+        }
+        if ($rt instanceof \ReflectionNamedType) {
+            if ($rt->allowsNull()) {
+                return PicoType::fromString('?'.$this->picoTypeNameFromReflectionNamedType($rt));
+            }
+
+            return PicoType::fromString($this->picoTypeNameFromReflectionNamedType($rt));
+        }
+
+        return PicoType::fromString('mixed');
+    }
+
+    /**
+     * Map a single {@see ReflectionNamedType} to a picohp type string (no leading {@code ?}).
+     */
+    protected function picoTypeNameFromReflectionNamedType(\ReflectionNamedType $rt): string
+    {
+        $n = $rt->getName();
+
+        return match ($n) {
+            'int', 'float', 'bool', 'string', 'void', 'mixed', 'array', 'callable', 'iterable', 'object' => $n,
+            'false', 'true' => 'bool',
+            default => 'mixed',
+        };
     }
 
     /**
@@ -918,6 +1130,13 @@ class SemanticAnalysisPass implements PassInterface
                 // Class not pre-registered (e.g., only has static methods handled by ClassToFunctionVisitor)
                 $classMeta = new ClassMetadata($fqcn);
                 $this->classRegistry[$fqcn] = $classMeta;
+                if (class_exists($fqcn, true) && !trait_exists($fqcn, false)) {
+                    $ref = new \ReflectionClass($fqcn);
+                    if (!$ref->isInterface()) {
+                        $this->registerInstanceMethodsFromReflection($classMeta, $fqcn);
+                        $this->registerInstancePropertiesFromReflection($classMeta, $fqcn);
+                    }
+                }
             }
             $previousClass = $this->currentClass;
             $this->currentClass = $classMeta;
@@ -1095,17 +1314,21 @@ class SemanticAnalysisPass implements PassInterface
             $this->resolveExpr($expr->left);
             return $this->resolveExpr($expr->right);
         } elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp) {
+            $sigil = $expr->getOperatorSigil();
+            // PHP `.` coerces both operands to string — do not require equal types.
+            if ($sigil === '.') {
+                $this->resolveExpr($expr->left);
+                $this->resolveExpr($expr->right);
+
+                return PicoType::fromString('string');
+            }
             $ltype = $this->resolveExpr($expr->left);
             $rtype = $this->resolveExpr($expr->right);
             // === and !== can compare different types (that's the point of strict comparison)
-            $sigil = $expr->getOperatorSigil();
             if ($sigil !== '===' && $sigil !== '!==') {
                 \App\PicoHP\CompilerInvariant::check($ltype->isEqualTo($rtype), AstContextFormatter::location($expr) . ', type mismatch in binary op: ' . $ltype->toString() . ' ' . $sigil . ' ' . $rtype->toString());
             }
             switch ($expr->getOperatorSigil()) {
-                case '.':
-                    $type = PicoType::fromString('string');
-                    break;
                 case '+':
                 case '*':
                 case '-':
@@ -1192,8 +1415,14 @@ class SemanticAnalysisPass implements PassInterface
             $funcName = $expr->name->toLowerString();
             $argTypes = $this->resolveArgs($expr->args);
             // Built-in functions
-            if ($funcName === 'count' || $funcName === 'strlen') {
+            if ($funcName === 'count' || $funcName === 'strlen' || $funcName === 'ord') {
                 return PicoType::fromString('int');
+            }
+            if ($funcName === 'getenv') {
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
+                \App\PicoHP\CompilerInvariant::check($argTypes[0]->toBase() === BaseType::STRING);
+
+                return PicoType::fromString('string');
             }
             if ($funcName === 'max') {
                 \App\PicoHP\CompilerInvariant::check(count($argTypes) === 2);
@@ -1212,6 +1441,23 @@ class SemanticAnalysisPass implements PassInterface
                 }
 
                 return PicoType::fromString('int');
+            }
+            if ($funcName === 'debug_backtrace') {
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) <= 2);
+                foreach ($argTypes as $t) {
+                    \App\PicoHP\CompilerInvariant::check($t->toBase() === BaseType::INT);
+                }
+
+                return PicoType::array(PicoType::fromString('mixed'));
+            }
+            if ($funcName === 'dirname') {
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 1 && count($expr->args) <= 2);
+                \App\PicoHP\CompilerInvariant::check($argTypes[0]->toBase() === BaseType::STRING);
+                if (count($expr->args) === 2) {
+                    \App\PicoHP\CompilerInvariant::check($argTypes[1]->toBase() === BaseType::INT);
+                }
+
+                return PicoType::fromString('string');
             }
             if ($funcName === 'str_starts_with' || $funcName === 'str_contains') {
                 return PicoType::fromString('bool');
@@ -1246,6 +1492,19 @@ class SemanticAnalysisPass implements PassInterface
                     return $this->resolveExpr($expr->args[0]->value);
                 }
                 return PicoType::fromString('array');
+            }
+            if ($funcName === 'array_slice') {
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 2 && count($expr->args) <= 4);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
+                $t = $this->resolveExpr($expr->args[0]->value);
+                \App\PicoHP\CompilerInvariant::check($t->isArray());
+                $this->resolveExpr($expr->args[1]->value);
+                if (count($expr->args) >= 3 && $expr->args[2] instanceof \PhpParser\Node\Arg) {
+                    $this->resolveExpr($expr->args[2]->value);
+                }
+
+                return $t;
             }
             if ($funcName === 'assert') {
                 return PicoType::fromString('void');
@@ -1285,7 +1544,8 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\PreDec) {
             return $this->resolveExpr($expr->var);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Array_) {
-            $elemType = PicoType::fromString('string'); // default
+            // Empty `[]` has no element type until items exist; defaulting to string breaks `$xs[] = new SomeClass`.
+            $elemType = PicoType::fromString('mixed');
             $hasStringKeys = false;
             $first = true;
             foreach ($expr->items as $item) {
@@ -1577,6 +1837,12 @@ class SemanticAnalysisPass implements PassInterface
         // Standard streams — modeled as integer handles (Unix FDs: 0/1/2) for compiled I/O.
         if ($lower === 'stdin' || $lower === 'stdout' || $lower === 'stderr') {
             return PicoType::fromString('int');
+        }
+        if ($lower === 'debug_backtrace_ignore_args' || $lower === 'debug_backtrace_provide_object') {
+            return PicoType::fromString('int');
+        }
+        if ($lower === 'directory_separator') {
+            return PicoType::fromString('string');
         }
 
         if ($context !== null) {
