@@ -18,6 +18,8 @@ final class BuildOptions
         public string $withOptLl = 'off',
         public string $entry = 'src/main.php',
         public ?string $filename = null,
+        /** @var array<string, string> FQCN => path (absolute or relative to project root for directory builds) */
+        public array $classPathOverrides = [],
     ) {
     }
 
@@ -106,6 +108,20 @@ final class BuildOptions
                     $o->entry = $tokens[$i];
                     $i++;
                 }
+
+                continue;
+            }
+            if ($t === '--override-class') {
+                $i++;
+                if ($i >= $n) {
+                    throw new \InvalidArgumentException('--override-class requires a fully-qualified class name and a PHP file path');
+                }
+                $fqcn = $tokens[$i++];
+                if ($i >= $n) {
+                    throw new \InvalidArgumentException('--override-class requires a PHP file path after the class name');
+                }
+                $path = $tokens[$i++];
+                $o->classPathOverrides[$fqcn] = $path;
 
                 continue;
             }
