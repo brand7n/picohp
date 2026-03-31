@@ -798,7 +798,8 @@ class SemanticAnalysisPass implements PassInterface
                 $pData->setScope($this->symbolTable->enterScope());
             }
 
-            [$paramTypes, $defaults, $paramNames] = $this->resolveParams($stmt->params);
+            $fnDoc = $stmt->getDocComment() !== null ? $stmt->getDocComment()->getText() : null;
+            [$paramTypes, $defaults, $paramNames] = $this->resolveParams($stmt->params, $fnDoc);
             $pData->getSymbol()->params = $paramTypes;
             $pData->getSymbol()->defaults = $defaults;
             $pData->getSymbol()->paramNames = $paramNames;
@@ -941,7 +942,8 @@ class SemanticAnalysisPass implements PassInterface
             $pData->setScope($this->symbolTable->enterScope());
             // Add $this to method scope
             $this->symbolTable->addSymbol('this', PicoType::object($this->currentClass->name));
-            [$paramTypes, $defaults, $paramNames] = $this->resolveParams($stmt->params);
+            $methodDoc = $stmt->getDocComment() !== null ? $stmt->getDocComment()->getText() : null;
+            [$paramTypes, $defaults, $paramNames] = $this->resolveParams($stmt->params, $methodDoc);
             $methodSymbol->params = $paramTypes;
             $methodSymbol->defaults = $defaults;
             $methodSymbol->paramNames = $paramNames;
@@ -1478,7 +1480,7 @@ class SemanticAnalysisPass implements PassInterface
      * @param array<\PhpParser\Node\Param> $params
      * @return array{0: array<PicoType>, 1: array<int, \PhpParser\Node\Expr|null>, 2: array<int, string>}
      */
-    public function resolveParams(array $params): array
+    public function resolveParams(array $params, ?string $methodDocBlock = null): array
     {
         $paramTypes = [];
         $defaults = [];
@@ -1490,6 +1492,12 @@ class SemanticAnalysisPass implements PassInterface
             \App\PicoHP\CompilerInvariant::check(is_string($param->var->name));
             \App\PicoHP\CompilerInvariant::check($param->type instanceof \PhpParser\Node\Identifier || $param->type instanceof \PhpParser\Node\NullableType || $param->type instanceof \PhpParser\Node\Name || $param->type instanceof \PhpParser\Node\UnionType);
             $paramType = $this->typeFromNode($param->type);
+            if ($methodDocBlock !== null && $param->type instanceof \PhpParser\Node\Identifier && $param->type->name === 'array') {
+                $fromDoc = $this->docTypeParser->parseParamTypeByName($methodDocBlock, $param->var->name);
+                if ($fromDoc !== null) {
+                    $paramType = $fromDoc;
+                }
+            }
             $pData->symbol = $this->symbolTable->addSymbol($param->var->name, $paramType);
             $paramTypes[] = $paramType;
             $defaults[$index] = $param->default;
