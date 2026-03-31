@@ -99,13 +99,29 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
             }
             \App\PicoHP\CompilerInvariant::check($this->classFqcn !== null);
             $funcName = ClassSymbol::llvmMethodSymbol($this->classFqcn, $methodName);
+            $docAttributes = [];
+            if ($node->hasAttribute('comments')) {
+                $docAttributes['comments'] = $node->getAttribute('comments');
+            }
+            $returnType = $node->returnType;
+            if ($returnType instanceof Node\Identifier && $returnType->name === 'self') {
+                $returnType = $this->nameFromFqcn($this->classFqcn);
+            } elseif ($returnType instanceof Node\Name && $returnType->toString() === 'self') {
+                $returnType = $this->nameFromFqcn($this->classFqcn);
+            } elseif ($returnType instanceof Node\NullableType && $returnType->type instanceof Node\Identifier && $returnType->type->name === 'self') {
+                $returnType = new Node\NullableType($this->nameFromFqcn($this->classFqcn));
+            } elseif ($returnType instanceof Node\NullableType && $returnType->type instanceof Node\Name && $returnType->type->toString() === 'self') {
+                $returnType = new Node\NullableType($this->nameFromFqcn($this->classFqcn));
+            }
             $this->globalStatements[] = new Node\Stmt\Function_(
                 $funcName,
                 [
                     'params' => $node->params,
                     'stmts' => $stmts,
-                    'returnType' => $node->returnType,
-                ]
+                    'returnType' => $returnType,
+                    'attrGroups' => $node->attrGroups,
+                ],
+                $docAttributes
             );
 
             return NodeTraverser::REMOVE_NODE;
