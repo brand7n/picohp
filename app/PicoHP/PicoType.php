@@ -102,6 +102,17 @@ class PicoType
         return $pt;
     }
 
+    /**
+     * Compile-time model for {@code $_SERVER}: an empty string-keyed map (no real runtime superglobals).
+     */
+    public static function serverSuperglobalEmptyArray(): PicoType
+    {
+        $t = self::array(self::fromString('mixed'));
+        $t->setStringKeys();
+
+        return $t;
+    }
+
     public static function object(string $className): PicoType
     {
         $pt = new PicoType(BaseType::PTR);
