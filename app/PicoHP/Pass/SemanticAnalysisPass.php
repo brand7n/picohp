@@ -77,6 +77,10 @@ class SemanticAnalysisPass implements PassInterface
     /**
      * PHPDoc / block comment with {@code @var} for a constructor-promoted parameter (same idea as
      * {@see docTextForPropertyVarTag} for {@see \PhpParser\Node\Stmt\Property}).
+     *
+     * Plain block comments containing {@code @var} (non-T_DOC_COMMENT) are normalized to docblock shape
+     * so {@see DocTypeParser::parseType} sees a single PHPDoc string (PhpParser stores those blocks as
+     * {@see \PhpParser\Comment}, so {@code getDocComment()} is null for them).
      */
     private function docTextForPromotedParam(\PhpParser\Node\Param $param): ?string
     {
@@ -1047,6 +1051,7 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\Variable) {
             $pData->lVal = $lVal;
             \App\PicoHP\CompilerInvariant::check(is_string($expr->name));
+            // Compile-time stub only: no real superglobals. Index reads (e.g. $_SERVER['argv']) lower to null.
             if ($expr->name === '_SERVER') {
                 return PicoType::serverSuperglobalEmptyArray();
             }
@@ -1181,7 +1186,7 @@ class SemanticAnalysisPass implements PassInterface
             // Class constants — assume int for now
             return PicoType::fromString('int');
         } elseif ($expr instanceof \PhpParser\Node\Expr\ConstFetch) {
-            return $this->picoTypeForConstFetchName($expr->name);
+            return $this->picoTypeForConstFetchName($expr->name, $expr);
         } elseif ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
             \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Name);
             $funcName = $expr->name->toLowerString();
@@ -1441,6 +1446,9 @@ class SemanticAnalysisPass implements PassInterface
             $this->resolveExpr($expr->expr);
             return PicoType::fromString('bool');
         } elseif ($expr instanceof \PhpParser\Node\Expr\Exit_) {
+            // PicoHP lowers exit()/die() to an early return from the current function (LLVM ret), not process
+            // termination. Callers after exit() in the same PHP function are still reachable in the binary;
+            // this matches self-hosting / dead-code patterns but diverges from PHP's real exit semantics.
             if ($expr->expr !== null) {
                 $exprType = $this->resolveExpr($expr->expr);
                 if ($this->currentFunctionReturnType !== null) {
@@ -1526,8 +1534,11 @@ class SemanticAnalysisPass implements PassInterface
     /**
      * Inferred type for {@see \PhpParser\Node\Expr\ConstFetch}. PHP magic constants used in
      * nikic/php-parser (e.g. {@code \PHP_VERSION_ID}) must match real PHP (int), not {@code bool}.
+     *
+     * Unknown constant names fall back to {@code int} and emit a semantic warning when a callback is
+     * configured — typos are not hard errors so vendor code with edge-case constants can still compile.
      */
-    private function picoTypeForConstFetchName(\PhpParser\Node\Name $name): PicoType
+    private function picoTypeForConstFetchName(\PhpParser\Node\Name $name, ?\PhpParser\Node\Expr\ConstFetch $context = null): PicoType
     {
         $lower = $name->toLowerString();
         if ($lower === 'null') {
@@ -1550,6 +1561,13 @@ class SemanticAnalysisPass implements PassInterface
             || $lower === 'php_sapi'
             || $lower === 'php_eol') {
             return PicoType::fromString('string');
+        }
+
+        if ($context !== null) {
+            $this->emitSemanticWarning(
+                'ConstFetch name not in known PHP magic constant list; inferred as int (verify spelling or extend picoTypeForConstFetchName)',
+                $context,
+            );
         }
 
         return PicoType::fromString('int');

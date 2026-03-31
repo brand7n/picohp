@@ -1547,6 +1547,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             return $result;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Exit_) {
+            // Not PHP process exit: emits ret from the current LLVM function only (see SemanticAnalysisPass).
             \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
             $returnType = $this->currentFunction->getReturnType();
             if ($expr->expr !== null) {
