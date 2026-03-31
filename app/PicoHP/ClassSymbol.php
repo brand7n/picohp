@@ -36,6 +36,11 @@ final class ClassSymbol
             return $name->toString();
         }
 
+        // Qualified Name without resolvedName: use full string, not only the last segment.
+        if (!$name->isUnqualified()) {
+            return $name->toString();
+        }
+
         return self::fqcn($namespaceFallback, $name->getLast());
     }
 
