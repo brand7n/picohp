@@ -58,6 +58,20 @@ it('handles strlen() on strings', function () {
     expect($compiled_output)->toBe($php_output);
 });
 
+it('handles max() on two integers', function () {
+    $file = 'tests/programs/functions/builtin_max.php';
+
+    /** @phpstan-ignore-next-line */
+    $this->assertPicohpExitCode("build --debug {$file}");
+
+    $buildPath = config('app.build_path');
+    assert(is_string($buildPath));
+    $compiled_output = shell_exec("{$buildPath}/a.out");
+    $php_output = shell_exec("php {$file}");
+
+    expect($compiled_output)->toBe($php_output);
+});
+
 it('handles string utility builtins (strtoupper, strtolower, dechex, str_pad)', function () {
     $file = 'tests/programs/functions/builtins_string.php';
 

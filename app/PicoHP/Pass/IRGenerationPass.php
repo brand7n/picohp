@@ -942,6 +942,16 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $strVal = $this->buildExpr($expr->args[0]->value);
                 return $this->builder->createStringLen($strVal);
             }
+            if ($funcName === 'max') {
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 2);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg && $expr->args[1] instanceof \PhpParser\Node\Arg);
+                $a = $this->buildExpr($expr->args[0]->value);
+                $b = $this->buildExpr($expr->args[1]->value);
+                \App\PicoHP\CompilerInvariant::check($a->getType() === BaseType::INT && $b->getType() === BaseType::INT);
+                $cmp = $this->builder->createInstruction('icmp sgt', [$a, $b], resultType: BaseType::BOOL);
+
+                return $this->builder->createSelect($cmp, $a, $b);
+            }
             if ($funcName === 'str_starts_with') {
                 \App\PicoHP\CompilerInvariant::check(count($expr->args) === 2);
                 \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);

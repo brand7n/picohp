@@ -1183,9 +1183,15 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
             \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Name);
             $funcName = $expr->name->toLowerString();
-            $this->resolveArgs($expr->args);
+            $argTypes = $this->resolveArgs($expr->args);
             // Built-in functions
             if ($funcName === 'count' || $funcName === 'strlen') {
+                return PicoType::fromString('int');
+            }
+            if ($funcName === 'max') {
+                \App\PicoHP\CompilerInvariant::check(count($argTypes) === 2);
+                \App\PicoHP\CompilerInvariant::check($argTypes[0]->toBase() === BaseType::INT && $argTypes[1]->toBase() === BaseType::INT);
+
                 return PicoType::fromString('int');
             }
             if ($funcName === 'str_starts_with' || $funcName === 'str_contains') {
