@@ -17,7 +17,7 @@ class HandLexerAdapter extends \PhpParser\Lexer
      * Zend branch uses {@see Token::tokenize()} then {@see \PhpParser\Lexer::postprocessTokens}. Native branch
      * builds {@see Token} via constructor from {@see NativeTokenPipeline} (no Zend tokenization).
      *
-     * @return list<Token>
+     * @return list<\PhpParser\Token>
      */
     public function tokenize(string $code, ?ErrorHandler $errorHandler = null): array
     {
@@ -32,7 +32,7 @@ class HandLexerAdapter extends \PhpParser\Lexer
                 return NativeTokenPipeline::tokenizeAndPostprocess($code, $errorHandler);
             }
 
-            /** @var list<Token> $tokens */
+            /** @var list<\PhpParser\Token> $tokens */
             $tokens = array_values(@Token::tokenize($code));
             $this->postprocessTokens($tokens, $errorHandler);
 

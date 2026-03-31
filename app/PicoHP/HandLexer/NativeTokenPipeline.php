@@ -17,7 +17,7 @@ use PhpParser\Token;
 final class NativeTokenPipeline
 {
     /**
-     * @return list<Token>
+     * @return list<\PhpParser\Token>
      */
     public static function tokenizeAndPostprocess(string $code, ErrorHandler $errorHandler): array
     {
@@ -38,7 +38,7 @@ final class NativeTokenPipeline
     }
 
     /**
-     * @param list<Token> $tokens
+     * @param list<\PhpParser\Token> $tokens
      */
     private static function postprocessTokens(array &$tokens, ErrorHandler $errorHandler): void
     {
@@ -87,11 +87,8 @@ final class NativeTokenPipeline
         if ($chr === "\0") {
             $errorMsg = 'Unexpected null byte';
         } else {
-            $errorMsg = \sprintf(
-                'Unexpected character "%s" (ASCII %d)',
-                $chr,
-                \ord($chr),
-            );
+            // String concat instead of sprintf — picohp does not implement sprintf yet (self-compile).
+            $errorMsg = 'Unexpected character "' . $chr . '" (ASCII ' . \strval(\ord($chr)) . ')';
         }
 
         $errorHandler->handleError(new Error($errorMsg, [

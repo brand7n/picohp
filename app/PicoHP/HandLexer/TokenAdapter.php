@@ -18,11 +18,10 @@ final class TokenAdapter
     {
         $e = getenv('PICOHP_USE_NATIVE_LEXER');
         if ($e !== false && $e !== '') {
-            return $e === '1' || strcasecmp($e, 'true') === 0;
+            return $e === '1' || strtolower($e) === 'true';
         }
 
-        $v = \config('app.use_native_lexer');
-
-        return $v === true || $v === '1' || $v === 1;
+        // Default matches app/config.php (use_native_lexer is env-only; picohp has no Laravel config() when compiled).
+        return false;
     }
 }
