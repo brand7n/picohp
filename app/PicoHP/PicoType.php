@@ -116,7 +116,7 @@ class PicoType
     public static function object(string $className): PicoType
     {
         $pt = new PicoType(BaseType::PTR);
-        $pt->className = $className;
+        $pt->className = self::normalizeFqcn($className);
         return $pt;
     }
 
@@ -134,9 +134,17 @@ class PicoType
     public static function enum(string $name): PicoType
     {
         $pt = new PicoType(BaseType::INT); // enums represented as i32 tags
-        $pt->className = $name;
+        $pt->className = self::normalizeFqcn($name);
         $pt->isEnum = true;
         return $pt;
+    }
+
+    /**
+     * PHPDoc and parser nodes may use a leading {@code \}; registry keys and Composer FQCNs do not.
+     */
+    private static function normalizeFqcn(string $fqcn): string
+    {
+        return ltrim($fqcn, '\\');
     }
 
     public function isEnum(): bool
