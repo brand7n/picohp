@@ -41,6 +41,8 @@ enum TokenType: int
     case LeftBrace = 123;
     case RightBrace = 125;
     case Comma = 44;
+    /** Nullable type prefix; PHP’s tokenizer uses raw {@code ord('?')} (63), not a T_* name. */
+    case QuestionMark = 63;
     case DoubleQuote = 34;
     case SingleQuote = 39;
     case Slash = 47;

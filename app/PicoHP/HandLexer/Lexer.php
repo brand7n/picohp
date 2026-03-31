@@ -224,6 +224,7 @@ final class Lexer
             '[' => TokenType::LeftBracket,
             ']' => TokenType::RightBracket,
             ',' => TokenType::Comma,
+            '?' => TokenType::QuestionMark,
             '"' => TokenType::DoubleQuote,
             "'" => TokenType::SingleQuote,
             '/' => TokenType::Slash,

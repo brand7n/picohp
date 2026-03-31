@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\PicoHP\HandLexer\HandLexerAdapter;
 use App\PicoHP\HandLexer\Lexer;
+use App\PicoHP\HandLexer\TokenAdapter;
 use App\PicoHP\HandLexer\TokenType;
 
 it('tokenizes a small script into expected kinds', function () {
@@ -24,6 +25,17 @@ it('tokenizes a small script into expected kinds', function () {
         TokenType::Semicolon,
         TokenType::Eof,
     ]);
+});
+
+it('tokenizes ? for nullable types as PHP does (ASCII 63, not T_BAD_CHARACTER)', function () {
+    $lexer = new Lexer('<?php public ?string $x;');
+    $tokens = $lexer->tokenize();
+    $marks = array_values(array_filter(
+        $tokens,
+        static fn ($t) => $t->value === '?',
+    ));
+    expect($marks)->toHaveCount(1);
+    expect($marks[0]->type)->toBe(TokenType::QuestionMark);
 });
 
 it('records start line on open tag', function () {
@@ -60,4 +72,22 @@ it('tokenizes via HandLexerAdapter for PhpParser', function () {
     $adapter = new HandLexerAdapter();
     $tokens = $adapter->tokenize('<?php echo 1;');
     expect(count($tokens))->toBeGreaterThan(1);
+});
+
+it('switches to native lexer when PICOHP_USE_NATIVE_LEXER=1', function () {
+    $prev = getenv('PICOHP_USE_NATIVE_LEXER');
+    putenv('PICOHP_USE_NATIVE_LEXER=1');
+    try {
+        expect(TokenAdapter::useNativeLexer())->toBeTrue();
+        $adapter = new HandLexerAdapter();
+        $tokens = $adapter->tokenize('<?php echo 1;');
+        expect(count($tokens))->toBeGreaterThan(3);
+        expect($tokens[0])->toBeInstanceOf(\PhpParser\Token::class);
+    } finally {
+        if ($prev === false) {
+            putenv('PICOHP_USE_NATIVE_LEXER');
+        } else {
+            putenv('PICOHP_USE_NATIVE_LEXER=' . $prev);
+        }
+    }
 });
