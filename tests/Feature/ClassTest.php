@@ -141,3 +141,17 @@ it('handles static property initialization with values', function () {
 
     expect($compiled_output)->toBe($php_output);
 });
+
+it('handles constructor property promotion', function () {
+    $file = 'tests/programs/classes/promoted_constructor_props.php';
+
+    /** @phpstan-ignore-next-line */
+    $this->assertPicohpExitCode("build --debug {$file}");
+
+    $buildPath = config('app.build_path');
+    assert(is_string($buildPath));
+    $compiled_output = shell_exec("{$buildPath}/a.out");
+    $php_output = shell_exec("php {$file}");
+
+    expect($compiled_output)->toBe($php_output);
+});
