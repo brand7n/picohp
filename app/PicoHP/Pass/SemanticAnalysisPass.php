@@ -75,6 +75,74 @@ class SemanticAnalysisPass implements PassInterface
     }
 
     /**
+     * PHPDoc / block comment with {@code @var} for a constructor-promoted parameter (same idea as
+     * {@see docTextForPropertyVarTag} for {@see \PhpParser\Node\Stmt\Property}).
+     */
+    private function docTextForPromotedParam(\PhpParser\Node\Param $param): ?string
+    {
+        $doc = $param->getDocComment();
+        if ($doc !== null) {
+            return $doc->getText();
+        }
+        foreach (array_reverse($param->getComments()) as $comment) {
+            $text = $comment->getText();
+            if (!str_contains($text, '@var')) {
+                continue;
+            }
+            if (str_starts_with($text, '/*') && !str_starts_with($text, '/**')) {
+                return '/**'.substr($text, 2);
+            }
+
+            return $text;
+        }
+
+        return null;
+    }
+
+    /**
+     * Register instance properties declared via PHP 8+ constructor promotion.
+     */
+    private function registerPromotedConstructorParams(ClassMetadata $classMeta, \PhpParser\Node\Stmt\ClassMethod $method): void
+    {
+        if ($method->name->toString() !== '__construct') {
+            return;
+        }
+        foreach ($method->params as $param) {
+            if (!$param->isPromoted()) {
+                continue;
+            }
+            \App\PicoHP\CompilerInvariant::check($param->var instanceof \PhpParser\Node\Expr\Variable && is_string($param->var->name));
+            $propName = $param->var->name;
+            if ($param->type === null) {
+                $docText = $this->docTextForPromotedParam($param);
+                \App\PicoHP\CompilerInvariant::check(
+                    $docText !== null,
+                    'untyped promoted constructor parameter requires PHPDoc type annotation ('.AstContextFormatter::format($param).')',
+                );
+                $propType = $this->docTypeParser->parseType($docText);
+            } else {
+                \App\PicoHP\CompilerInvariant::check($param->type instanceof \PhpParser\Node\Identifier || $param->type instanceof \PhpParser\Node\NullableType || $param->type instanceof \PhpParser\Node\Name || $param->type instanceof \PhpParser\Node\UnionType);
+                $docText = $this->docTextForPromotedParam($param);
+                if ($docText !== null) {
+                    $propType = $this->docTypeParser->parseType($docText);
+                } else {
+                    $propType = $this->typeFromNode($param->type);
+                }
+            }
+            $effectiveType = $propType;
+            if ($propType->isArray() && $propType->getElementType()->toBase() === BaseType::PTR
+                && isset($classMeta->properties[$propName]) && $classMeta->properties[$propName]->isArray()
+                && $classMeta->properties[$propName]->getElementType()->toBase() !== BaseType::PTR) {
+                $effectiveType = $classMeta->properties[$propName];
+            }
+            $classMeta->addProperty($propName, $effectiveType);
+            if ($param->default !== null) {
+                $classMeta->propertyDefaults[$propName] = $param->default;
+            }
+        }
+    }
+
+    /**
      * @return array<string, ClassMetadata>
      */
     public function getClassRegistry(): array
@@ -368,6 +436,7 @@ class SemanticAnalysisPass implements PassInterface
                         }
                     } elseif ($classStmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
                         $methodName = $classStmt->name->toString();
+                        $this->registerPromotedConstructorParams($classMeta, $classStmt);
                         \App\PicoHP\CompilerInvariant::check($classStmt->returnType === null || $classStmt->returnType instanceof \PhpParser\Node\Identifier || $classStmt->returnType instanceof \PhpParser\Node\NullableType || $classStmt->returnType instanceof \PhpParser\Node\Name || $classStmt->returnType instanceof \PhpParser\Node\UnionType || $classStmt->returnType instanceof \PhpParser\Node\IntersectionType);
                         $returnType = $this->resolveMethodReturnTypeFromClassMethodNode($classStmt);
                         $methodSymbol = new \App\PicoHP\SymbolTable\Symbol($methodName, $returnType, func: true);
@@ -803,6 +872,8 @@ class SemanticAnalysisPass implements PassInterface
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Break_) {
             // Break handled by IR gen
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Continue_) {
+            // Continue handled by IR gen
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\ClassConst) {
             // Class constants handled during class registration
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Foreach_) {
@@ -974,6 +1045,9 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\Variable) {
             $pData->lVal = $lVal;
             \App\PicoHP\CompilerInvariant::check(is_string($expr->name));
+            if ($expr->name === '_SERVER') {
+                return PicoType::serverSuperglobalEmptyArray();
+            }
             $s = $this->symbolTable->lookupCurrentScope($expr->name);
 
             if (!is_null($doc) && is_null($s)) {
@@ -1105,10 +1179,7 @@ class SemanticAnalysisPass implements PassInterface
             // Class constants — assume int for now
             return PicoType::fromString('int');
         } elseif ($expr instanceof \PhpParser\Node\Expr\ConstFetch) {
-            if ($expr->name->toLowerString() === 'null') {
-                return PicoType::fromString('string'); // null represented as ptr
-            }
-            return PicoType::fromString('bool');
+            return $this->picoTypeForConstFetchName($expr->name);
         } elseif ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
             \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Name);
             $funcName = $expr->name->toLowerString();
@@ -1152,6 +1223,9 @@ class SemanticAnalysisPass implements PassInterface
                 return PicoType::fromString('array');
             }
             if ($funcName === 'assert') {
+                return PicoType::fromString('void');
+            }
+            if ($funcName === 'class_alias') {
                 return PicoType::fromString('void');
             }
             if ($funcName === 'preg_match') {
@@ -1358,6 +1432,20 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\Instanceof_) {
             $this->resolveExpr($expr->expr);
             return PicoType::fromString('bool');
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Exit_) {
+            if ($expr->expr !== null) {
+                $exprType = $this->resolveExpr($expr->expr);
+                if ($this->currentFunctionReturnType !== null) {
+                    $returnTypeOk = $exprType->isEqualTo($this->currentFunctionReturnType)
+                        || $this->isAssignmentCompatible($this->currentFunctionReturnType, $exprType)
+                        || ($this->currentFunctionReturnType->isNullable() && $expr->expr instanceof \PhpParser\Node\Expr\ConstFetch && $expr->expr->name->toLowerString() === 'null');
+                    if (!$returnTypeOk) {
+                        throw new \Exception(AstContextFormatter::location($expr) . ', exit value type mismatch: expected ' . $this->currentFunctionReturnType->toString() . ', got ' . $exprType->toString());
+                    }
+                }
+            }
+
+            return PicoType::fromString('void');
         } elseif ($expr instanceof \PhpParser\Node\Expr\Throw_) {
             $this->resolveExpr($expr->expr);
             return PicoType::fromString('void');
@@ -1419,5 +1507,37 @@ class SemanticAnalysisPass implements PassInterface
             $node->setAttribute("picoHP", new PicoHPData($this->symbolTable->getCurrentScope()));
         }
         return PicoHPData::getPData($node);
+    }
+
+    /**
+     * Inferred type for {@see \PhpParser\Node\Expr\ConstFetch}. PHP magic constants used in
+     * nikic/php-parser (e.g. {@code \PHP_VERSION_ID}) must match real PHP (int), not {@code bool}.
+     */
+    private function picoTypeForConstFetchName(\PhpParser\Node\Name $name): PicoType
+    {
+        $lower = $name->toLowerString();
+        if ($lower === 'null') {
+            return PicoType::fromString('string'); // null represented as ptr
+        }
+        if ($lower === 'true' || $lower === 'false') {
+            return PicoType::fromString('bool');
+        }
+        if ($lower === 'php_version_id'
+            || $lower === 'php_major_version'
+            || $lower === 'php_minor_version'
+            || $lower === 'php_release_version'
+            || str_starts_with($lower, 'e_')) {
+            return PicoType::fromString('int');
+        }
+        if ($lower === 'php_version'
+            || $lower === 'php_extra_version'
+            || $lower === 'php_os'
+            || $lower === 'php_os_family'
+            || $lower === 'php_sapi'
+            || $lower === 'php_eol') {
+            return PicoType::fromString('string');
+        }
+
+        return PicoType::fromString('int');
     }
 }
