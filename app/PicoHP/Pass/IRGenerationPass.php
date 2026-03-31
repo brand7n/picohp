@@ -94,8 +94,26 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
     public function exec(): void
     {
+        $this->emitStructDefinitionsForRegistry();
         $this->emitBuiltinExceptionClass();
         $this->buildStmts($this->stmts);
+    }
+
+    /**
+     * Emit {@code %struct.FQCN_mangled = type { ... }} for every class in the registry.
+     *
+     * Reflection-registered classes (e.g. SPL exceptions) never appear as {@see \PhpParser\Node\Stmt\Class_}
+     * in the merged AST, so {@see buildStmt} would not emit their LLVM type otherwise — but {@see createObjectAlloc}
+     * and {@see createStructGEP} still reference {@code %struct.*}. User-defined classes use the same path so
+     * struct layout stays single-sourced from {@see ClassMetadata::toLLVMStructFields()}.
+     */
+    protected function emitStructDefinitionsForRegistry(): void
+    {
+        foreach ($this->classRegistry as $fqcn => $meta) {
+            $llvmClass = ClassSymbol::mangle($fqcn);
+            $fields = $meta->toLLVMStructFields();
+            $this->module->addLine(new IRLine("%struct.{$llvmClass} = type { {$fields} }"));
+        }
     }
 
     protected function emitBuiltinExceptionClass(): void
@@ -103,8 +121,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         if (!isset($this->classRegistry['Exception'])) {
             return;
         }
-        // Exception struct: { ptr message }
-        $this->module->addLine(new \App\PicoHP\LLVM\IRLine('%struct.Exception = type { ptr }'));
+        // Struct type is emitted by emitStructDefinitionsForRegistry() — field 0 is type_id (i32), field 1 is message (ptr).
 
         // Exception___construct(ptr %this, ptr %message)
         $ctorFunc = $this->module->addFunction('Exception___construct', new \App\PicoHP\PicoType(BaseType::VOID), [
@@ -115,7 +132,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         $this->builder->setInsertPoint($bb);
         $thisParam = new Param(0, BaseType::PTR);
         $msgParam = new Param(1, BaseType::STRING);
-        $fieldPtr = $this->builder->createStructGEP('Exception', $thisParam, 0, BaseType::STRING);
+        $fieldPtr = $this->builder->createStructGEP('Exception', $thisParam, 1, BaseType::STRING);
         $this->builder->createStore($msgParam, $fieldPtr);
         $this->builder->createRetVoid();
 
@@ -126,7 +143,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         $bb = $getMessageFunc->addBasicBlock('entry');
         $this->builder->setInsertPoint($bb);
         $thisParam = new Param(0, BaseType::PTR);
-        $fieldPtr = $this->builder->createStructGEP('Exception', $thisParam, 0, BaseType::STRING);
+        $fieldPtr = $this->builder->createStructGEP('Exception', $thisParam, 1, BaseType::STRING);
         $msgVal = $this->builder->createLoad($fieldPtr);
         $this->builder->createInstruction('ret', [$msgVal], false);
     }
@@ -292,12 +309,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             \App\PicoHP\CompilerInvariant::check(isset($this->classRegistry[$fqcn]));
             $classMeta = $this->classRegistry[$fqcn];
             $llvmClass = ClassSymbol::mangle($fqcn);
-            $fields = $classMeta->toLLVMStructFields();
-            if ($fields !== '') {
-                $this->module->addLine(new IRLine("%struct.{$llvmClass} = type { {$fields} }"));
-            } else {
-                $this->module->addLine(new IRLine("%struct.{$llvmClass} = type {}"));
-            }
+            // Instance struct layout is emitted once in emitStructDefinitionsForRegistry() for all registry classes.
             // Emit static properties as globals
             foreach ($classMeta->staticProperties as $propName => $propType) {
                 $llvmType = $propType->toBase()->toLLVM();
