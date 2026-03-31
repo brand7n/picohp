@@ -1,4 +1,5 @@
 use std::ffi::{c_char, c_int, CStr, CString};
+use std::io::{self, Write};
 use regex::Regex;
 
 /// Returns the runtime version as an integer.
@@ -70,6 +71,43 @@ pub extern "C" fn pico_float_to_hex(val: f64) -> *mut c_char {
 pub extern "C" fn pico_string_len(s: *const c_char) -> i32 {
     let s = unsafe { CStr::from_ptr(s) };
     s.to_bytes().len() as i32
+}
+
+/// Write bytes to a standard stream. `fd` matches Unix FDs: 0 stdin (writes ignored), 1 stdout, 2 stderr.
+/// `length` is the maximum number of bytes to write; negative means full string content (PHP `fwrite` without length).
+#[no_mangle]
+pub extern "C" fn pico_fwrite(fd: i32, data: *const c_char, length: i32) -> i32 {
+    let bytes = unsafe { CStr::from_ptr(data) }.to_bytes();
+    let n = if length < 0 {
+        bytes.len()
+    } else {
+        (length as usize).min(bytes.len())
+    };
+    let slice = &bytes[..n];
+    match fd {
+        0 => 0,
+        1 => {
+            let mut out = io::stdout();
+            match out.write_all(slice) {
+                Ok(()) => match out.flush() {
+                    Ok(()) => n as i32,
+                    Err(_) => -1,
+                },
+                Err(_) => -1,
+            }
+        }
+        2 => {
+            let mut err = io::stderr();
+            match err.write_all(slice) {
+                Ok(()) => match err.flush() {
+                    Ok(()) => n as i32,
+                    Err(_) => -1,
+                },
+                Err(_) => -1,
+            }
+        }
+        _ => -1,
+    }
 }
 
 #[no_mangle]
@@ -876,6 +914,12 @@ mod tests {
     #[test]
     fn test_version() {
         assert_eq!(pico_rt_version(), 1);
+    }
+
+    #[test]
+    fn test_pico_fwrite_stdin_is_noop() {
+        let s = CString::new("ab").unwrap();
+        assert_eq!(pico_fwrite(0, s.as_ptr(), -1), 0);
     }
 
     #[test]

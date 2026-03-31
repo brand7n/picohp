@@ -869,6 +869,21 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             if ($constName === 'null') {
                 return new NullConstant();
             }
+            if ($constName === 'true') {
+                return new Constant(1, BaseType::BOOL);
+            }
+            if ($constName === 'false') {
+                return new Constant(0, BaseType::BOOL);
+            }
+            if ($constName === 'stdin') {
+                return new Constant(0, BaseType::INT);
+            }
+            if ($constName === 'stdout') {
+                return new Constant(1, BaseType::INT);
+            }
+            if ($constName === 'stderr') {
+                return new Constant(2, BaseType::INT);
+            }
             return new Constant($constName === 'true' ? 1 : 0, BaseType::BOOL);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Int_) {
             $val = $this->buildExpr($expr->expr);
@@ -963,6 +978,20 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $cmp = $this->builder->createInstruction('icmp sgt', [$a, $b], resultType: BaseType::BOOL);
 
                 return $this->builder->createSelect($cmp, $a, $b);
+            }
+            if ($funcName === 'fwrite') {
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 2 && count($expr->args) <= 3);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg && $expr->args[1] instanceof \PhpParser\Node\Arg);
+                $fd = $this->buildExpr($expr->args[0]->value);
+                $data = $this->buildExpr($expr->args[1]->value);
+                \App\PicoHP\CompilerInvariant::check($fd->getType() === BaseType::INT && $data->getType() === BaseType::STRING);
+                if (count($expr->args) === 3 && $expr->args[2] instanceof \PhpParser\Node\Arg) {
+                    $length = $this->buildExpr($expr->args[2]->value);
+
+                    return $this->builder->createCall('pico_fwrite', [$fd, $data, $length], BaseType::INT);
+                }
+
+                return $this->builder->createCall('pico_fwrite', [$fd, $data, new Constant(-1, BaseType::INT)], BaseType::INT);
             }
             if ($funcName === 'str_starts_with') {
                 \App\PicoHP\CompilerInvariant::check(count($expr->args) === 2);

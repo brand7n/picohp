@@ -1201,6 +1201,18 @@ class SemanticAnalysisPass implements PassInterface
 
                 return PicoType::fromString('int');
             }
+            if ($funcName === 'fwrite') {
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 2 && count($expr->args) <= 3);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg && $expr->args[1] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check($argTypes[0]->toBase() === BaseType::INT);
+                \App\PicoHP\CompilerInvariant::check($argTypes[1]->toBase() === BaseType::STRING);
+                if (count($expr->args) === 3) {
+                    \App\PicoHP\CompilerInvariant::check($expr->args[2] instanceof \PhpParser\Node\Arg);
+                    \App\PicoHP\CompilerInvariant::check($argTypes[2]->toBase() === BaseType::INT);
+                }
+
+                return PicoType::fromString('int');
+            }
             if ($funcName === 'str_starts_with' || $funcName === 'str_contains') {
                 return PicoType::fromString('bool');
             }
@@ -1561,6 +1573,10 @@ class SemanticAnalysisPass implements PassInterface
             || $lower === 'php_sapi'
             || $lower === 'php_eol') {
             return PicoType::fromString('string');
+        }
+        // Standard streams — modeled as integer handles (Unix FDs: 0/1/2) for compiled I/O.
+        if ($lower === 'stdin' || $lower === 'stdout' || $lower === 'stderr') {
+            return PicoType::fromString('int');
         }
 
         if ($context !== null) {

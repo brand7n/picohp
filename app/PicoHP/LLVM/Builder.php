@@ -31,6 +31,7 @@ class Builder
         $this->addLine('declare ptr @pico_string_concat(ptr, ptr)');
         $this->addLine('declare i32 @pico_rt_version()');
         $this->addLine('declare i32 @pico_string_len(ptr)');
+        $this->addLine('declare i32 @pico_fwrite(i32, ptr, i32)');
         $this->addLine('declare ptr @pico_int_to_string(i32)');
         $this->addLine('declare ptr @pico_float_to_string(double)');
         $this->addLine('declare ptr @pico_float_to_hex(double)');
