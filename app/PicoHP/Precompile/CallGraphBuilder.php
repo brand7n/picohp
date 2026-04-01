@@ -21,7 +21,7 @@ use PhpParser\NodeFinder;
 final class CallGraphBuilder
 {
     /**
-     * @param array<Node\Stmt> $ast  Parsed + name-resolved AST for one file
+     * @param array<Node> $ast  Parsed + name-resolved AST for one file
      * @param string           $file Absolute file path (for diagnostics)
      *
      * @return CallGraphResult
