@@ -34,6 +34,8 @@ class SemanticAnalysisPass implements PassInterface
     public function __construct(
         protected array $ast,
         private readonly ?\Closure $semanticWarning = null,
+        /** When true, method/function bodies that fail semantic analysis are stubbed (abort at runtime) instead of erroring. */
+        private readonly bool $allowStubbing = false,
     ) {
         $this->symbolTable = new SymbolTable();
         $this->docTypeParser = new DocTypeParser();
@@ -1052,7 +1054,16 @@ class SemanticAnalysisPass implements PassInterface
             $pData->getSymbol()->paramNames = $paramNames;
             $previousReturnType = $this->currentFunctionReturnType;
             $this->currentFunctionReturnType = $returnType;
-            $this->resolveStmts($stmt->stmts);
+            try {
+                $this->resolveStmts($stmt->stmts);
+            } catch (\Exception $e) {
+                if ($this->allowStubbing) {
+                    $pData->stubbed = true;
+                    $this->emitSemanticWarning('function body stubbed (will abort at runtime): ' . $e->getMessage(), $stmt);
+                } else {
+                    throw $e;
+                }
+            }
             $this->currentFunctionReturnType = $previousReturnType;
 
             if ($stmt->name->name !== 'main') {
@@ -1207,7 +1218,16 @@ class SemanticAnalysisPass implements PassInterface
             $methodSymbol->paramNames = $paramNames;
             $previousReturnType = $this->currentFunctionReturnType;
             $this->currentFunctionReturnType = $returnType;
-            $this->resolveStmts($stmt->stmts);
+            try {
+                $this->resolveStmts($stmt->stmts);
+            } catch (\Exception $e) {
+                if ($this->allowStubbing) {
+                    $pData->stubbed = true;
+                    $this->emitSemanticWarning('method body stubbed (will abort at runtime): ' . $e->getMessage(), $stmt);
+                } else {
+                    throw $e;
+                }
+            }
             $this->currentFunctionReturnType = $previousReturnType;
             $this->symbolTable->exitScope();
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Enum_) {

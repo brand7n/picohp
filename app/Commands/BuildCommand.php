@@ -197,9 +197,10 @@ final class BuildCommand
         }
 
         try {
+            $isDirectoryBuild = is_dir($filename);
             $semanticPass = new SemanticAnalysisPass($transformedAst, static function (string $message) use ($io): void {
                 $io->warning($message);
-            });
+            }, allowStubbing: $isDirectoryBuild);
             $semanticPass->exec();
 
             if ($debug) {

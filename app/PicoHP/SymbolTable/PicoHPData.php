@@ -10,6 +10,8 @@ class PicoHPData
     public ?Symbol $symbol = null;
     public bool $lVal = false;
     public int $mycount = 0;
+    /** When true, IR gen emits abort() instead of compiling the body. */
+    public bool $stubbed = false;
     public static int $count = 1;
 
     public function __construct(Scope $scope)

@@ -169,15 +169,20 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->currentFunction = $this->module->addFunction($stmt->name->toString(), $funcSymbol->type, $funcSymbol->params);
             $bb = $this->currentFunction->addBasicBlock("entry");
             $this->builder->setInsertPoint($bb);
-            $scope = $pData->getScope();
-            foreach ($scope->symbols as $symbol) {
-                if ($symbol->func) {
-                    continue;
+            if ($pData->stubbed) {
+                $this->builder->addLine('call void @abort()', 1);
+                $this->builder->addLine('unreachable', 1);
+            } else {
+                $scope = $pData->getScope();
+                foreach ($scope->symbols as $symbol) {
+                    if ($symbol->func) {
+                        continue;
+                    }
+                    $symbol->value = $this->buildSymbolAlloca($symbol);
                 }
-                $symbol->value = $this->buildSymbolAlloca($symbol);
+                $this->buildParams($stmt->params);
+                $this->buildStmts($stmt->stmts);
             }
-            $this->buildParams($stmt->params);
-            $this->buildStmts($stmt->stmts);
             if ($funcSymbol->type->toBase() === BaseType::VOID) {
                 $this->builder->createRetVoid();
             }
@@ -351,29 +356,34 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->currentFunction = $this->module->addFunction($qualifiedName, $funcSymbol->type, $allParams);
             $bb = $this->currentFunction->addBasicBlock("entry");
             $this->builder->setInsertPoint($bb);
-            $scope = $pData->getScope();
-            foreach ($scope->symbols as $symbol) {
-                if ($symbol->func) {
-                    continue;
+            if ($pData->stubbed) {
+                $this->builder->addLine('call void @abort()', 1);
+                $this->builder->addLine('unreachable', 1);
+            } else {
+                $scope = $pData->getScope();
+                foreach ($scope->symbols as $symbol) {
+                    if ($symbol->func) {
+                        continue;
+                    }
+                    $symbol->value = $this->buildSymbolAlloca($symbol);
                 }
-                $symbol->value = $this->buildSymbolAlloca($symbol);
-            }
-            // Store $this param (param 0) into its alloca
-            $thisSymbol = $scope->symbols['this'] ?? null;
-            \App\PicoHP\CompilerInvariant::check($thisSymbol !== null);
-            \App\PicoHP\CompilerInvariant::check($thisSymbol->value !== null);
-            $this->builder->createStore(new Param(0, \App\PicoHP\BaseType::PTR), $thisSymbol->value);
-            $this->currentThisPtr = $thisSymbol->value;
-            // Store remaining params (offset by 1)
-            $paramIndex = 1;
-            foreach ($stmt->params as $param) {
-                $paramPData = PicoHPData::getPData($param);
-                $type = $paramPData->getSymbol()->type;
-                $this->builder->createStore(new Param($paramIndex++, $type->toBase()), $paramPData->getValue());
-            }
-            $this->buildStmts($stmt->stmts);
-            if ($funcSymbol->type->toBase() === \App\PicoHP\BaseType::VOID) {
-                $this->builder->createRetVoid();
+                // Store $this param (param 0) into its alloca
+                $thisSymbol = $scope->symbols['this'] ?? null;
+                \App\PicoHP\CompilerInvariant::check($thisSymbol !== null);
+                \App\PicoHP\CompilerInvariant::check($thisSymbol->value !== null);
+                $this->builder->createStore(new Param(0, \App\PicoHP\BaseType::PTR), $thisSymbol->value);
+                $this->currentThisPtr = $thisSymbol->value;
+                // Store remaining params (offset by 1)
+                $paramIndex = 1;
+                foreach ($stmt->params as $param) {
+                    $paramPData = PicoHPData::getPData($param);
+                    $type = $paramPData->getSymbol()->type;
+                    $this->builder->createStore(new Param($paramIndex++, $type->toBase()), $paramPData->getValue());
+                }
+                $this->buildStmts($stmt->stmts);
+                if ($funcSymbol->type->toBase() === \App\PicoHP\BaseType::VOID) {
+                    $this->builder->createRetVoid();
+                }
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Do_) {
             \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
