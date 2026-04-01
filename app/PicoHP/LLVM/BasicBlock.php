@@ -50,7 +50,19 @@ class BasicBlock implements NodeInterface
     public function getLines(): array
     {
         $this->verify();
-        return $this->lines;
+        // Truncate dead code after unreachable (abort stubs can leave trailing instructions)
+        $truncated = [];
+        $terminated = false;
+        foreach ($this->lines as $line) {
+            if ($terminated) {
+                continue;
+            }
+            $truncated[] = $line;
+            if (trim($line->toString()) === 'unreachable') {
+                $terminated = true;
+            }
+        }
+        return $truncated;
     }
 
     public function hasTerminator(): bool

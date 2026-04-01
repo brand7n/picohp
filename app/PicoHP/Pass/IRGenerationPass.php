@@ -185,9 +185,10 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                     $this->buildStmts($stmt->stmts);
                 } catch (\Throwable) {
                     $this->sealAllBlocks();
+                    $pData->stubbed = true;
                 }
             }
-            if ($funcSymbol->type->toBase() === BaseType::VOID) {
+            if (!$pData->stubbed && $funcSymbol->type->toBase() === BaseType::VOID) {
                 $this->builder->createRetVoid();
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Block) {
@@ -2577,6 +2578,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
         $result = $this->builder->createAlloca("sc_result{$count}", BaseType::BOOL);
         $lval = $this->buildExpr($expr->left);
+        if ($lval->getType() !== BaseType::BOOL) {
+            $lval = $this->builder->createInstruction('icmp ne', [$lval, new Constant(0, $lval->getType())], resultType: BaseType::BOOL);
+        }
         $this->builder->createStore($lval, $result);
 
         if ($isAnd) {
