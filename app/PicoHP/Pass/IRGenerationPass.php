@@ -1034,7 +1034,13 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg && $expr->args[1] instanceof \PhpParser\Node\Arg);
                 $fd = $this->buildExpr($expr->args[0]->value);
                 $data = $this->buildExpr($expr->args[1]->value);
-                \App\PicoHP\CompilerInvariant::check($fd->getType() === BaseType::INT && $data->getType() === BaseType::STRING);
+                // Coerce ptr/mixed fd to int (vendor code may pass resource-typed values)
+                if ($fd->getType() !== BaseType::INT) {
+                    $fd = $this->builder->createPtrToInt($fd);
+                }
+                if ($data->getType() !== BaseType::STRING && $data->getType() !== BaseType::PTR) {
+                    $data = $this->builder->createCall('pico_int_to_string', [$data], BaseType::STRING);
+                }
                 if (count($expr->args) === 3 && $expr->args[2] instanceof \PhpParser\Node\Arg) {
                     $length = $this->buildExpr($expr->args[2]->value);
 
@@ -2142,6 +2148,13 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         }
         if ($expr instanceof \PhpParser\Node\Expr\BinaryOp\Coalesce) {
             return $this->getExprResolvedType($expr->right);
+        }
+        if ($expr instanceof \PhpParser\Node\Expr\New_) {
+            if ($expr->class instanceof \PhpParser\Node\Name) {
+                $className = ClassSymbol::fqcnFromResolvedName($expr->class, $this->currentNamespace());
+                return \App\PicoHP\PicoType::object($className);
+            }
+            return \App\PicoHP\PicoType::fromString('mixed');
         }
         throw new \RuntimeException('getExprResolvedType: unsupported expr type ' . get_class($expr));
     }
