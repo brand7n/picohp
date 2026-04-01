@@ -871,8 +871,12 @@ class SemanticAnalysisPass implements PassInterface
      */
     protected function isAssignmentCompatible(PicoType $ltype, PicoType $rtype): bool
     {
-        // Both must be ptr-based (objects, nullable objects, arrays, strings)
-        if ($ltype->toBase() !== BaseType::PTR || $rtype->toBase() !== BaseType::PTR) {
+        // Both must be ptr-based (objects, nullable objects, arrays, strings, mixed)
+        $lBase = $ltype->toBase();
+        $rBase = $rtype->toBase();
+        $lIsPtr = $lBase === BaseType::PTR || $lBase === BaseType::STRING;
+        $rIsPtr = $rBase === BaseType::PTR || $rBase === BaseType::STRING;
+        if (!$lIsPtr || !$rIsPtr) {
             return false;
         }
         // If either is an object type, check class hierarchy and interfaces
@@ -898,7 +902,8 @@ class SemanticAnalysisPass implements PassInterface
                 return true; // @codeCoverageIgnore
             }
         }
-        return false; // @codeCoverageIgnore
+        // Both are ptr-based (string, array, mixed, nullable) — compatible in LLVM
+        return true;
     }
 
     private function isDescendantOf(ClassMetadata $meta, string $ancestor): bool
@@ -1560,8 +1565,14 @@ class SemanticAnalysisPass implements PassInterface
             if ($funcName === 'array_splice') {
                 return PicoType::fromString('void');
             }
-            $s = $this->symbolTable->lookup($expr->name->name);
-            \App\PicoHP\CompilerInvariant::check($s !== null, AstContextFormatter::location($expr) . ', function ' . $expr->name->name . ' not found');
+            $funcNameRaw = $expr->name->name;
+            $s = $this->symbolTable->lookup($funcNameRaw);
+            if ($s === null) {
+                // Unknown function — register a stub that returns mixed.
+                // IR gen emits abort() if the stub is ever called at runtime.
+                $this->emitSemanticWarning('unknown function ' . $funcNameRaw . ' — stub registered (will abort at runtime if called)', $expr);
+                $s = $this->symbolTable->addSymbol($funcNameRaw, PicoType::fromString('mixed'), func: true);
+            }
             $pData->symbol = $s;
             return $s->type;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Include_) {
@@ -1779,6 +1790,9 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\Throw_) {
             $this->resolveExpr($expr->expr);
             return PicoType::fromString('void');
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Closure || $expr instanceof \PhpParser\Node\Expr\ArrowFunction) {
+            $this->emitSemanticWarning('closure/arrow function not supported — treating as mixed (will abort at runtime)', $expr);
+            return PicoType::fromString('mixed');
         } else {
             throw new \Exception(AstContextFormatter::location($expr) . ', unknown node type in expr resolver: ' . get_class($expr));
         }

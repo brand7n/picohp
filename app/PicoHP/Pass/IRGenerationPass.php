@@ -1252,6 +1252,17 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 return $val;
             }
             $funcSymbol = $pData->getSymbol();
+            // Stub functions (unknown builtins) — emit abort trap instead of call
+            if ($funcSymbol->type->isMixed() && !$this->module->hasFunction($expr->name->name)) {
+                // Build args for side effects, then trap
+                foreach ($expr->args as $arg) {
+                    \App\PicoHP\CompilerInvariant::check($arg instanceof \PhpParser\Node\Arg);
+                    $this->buildExpr($arg->value);
+                }
+                $this->builder->addLine('call void @abort()', 1);
+                $this->builder->addLine('unreachable', 1);
+                return new NullConstant(BaseType::PTR);
+            }
             $args = $this->buildArgsWithDefaults($expr->args, $funcSymbol);
             $returnType = $funcSymbol->type->toBase();
             return $this->builder->createCall($expr->name->name, $args, $returnType);
@@ -1659,18 +1670,12 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             return $result;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Exit_) {
-            // Not PHP process exit: emits ret from the current LLVM function only (see SemanticAnalysisPass).
-            \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
-            $returnType = $this->currentFunction->getReturnType();
+            // exit()/die() → abort (process termination), same as unknown function stubs
             if ($expr->expr !== null) {
-                $val = $this->buildExpr($expr->expr);
-                $this->builder->createInstruction('ret', [$val], false);
-            } elseif ($returnType->toBase() === BaseType::VOID) {
-                $this->builder->createRetVoid();
-            } else {
-                $this->builder->createInstruction('ret', [new Constant(0, BaseType::INT)], false);
+                $this->buildExpr($expr->expr); // evaluate for side effects
             }
-
+            $this->builder->addLine('call void @abort()', 1);
+            $this->builder->addLine('unreachable', 1);
             return new Void_();
         } elseif ($expr instanceof \PhpParser\Node\Expr\Throw_) {
             // throw new ClassName(args...)
