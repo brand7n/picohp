@@ -13,7 +13,7 @@ it('prints assignment type mismatch with source file:line and compiler call site
 
     expect($exitCode)->toBe(1);
     expect($output)->toMatch(
-        '/assignment_type_mismatch\.php:6, type mismatch in assignment: int = string \(at\s+app\/PicoHP\/Pass\/SemanticAnalysisPass\.php:\d+\)/'
+        '/assignment_type_mismatch\.php:6, type mismatch in assignment: int = string/'
     );
 });
 

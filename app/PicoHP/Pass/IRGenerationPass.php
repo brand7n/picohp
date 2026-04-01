@@ -1639,6 +1639,17 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
             $this->builder->setInsertPoint($elseBB);
             $elseVal = $this->buildExpr($expr->else);
+            // Coerce else to match then type if they differ
+            $resultType = $thenVal->getType();
+            if ($elseVal->getType() !== $resultType) {
+                if ($resultType === BaseType::INT && ($elseVal->getType() === BaseType::PTR || $elseVal->getType() === BaseType::STRING)) {
+                    $elseVal = $this->builder->createPtrToInt($elseVal);
+                } elseif (($resultType === BaseType::PTR || $resultType === BaseType::STRING) && $elseVal->getType() === BaseType::INT) {
+                    $castVal = new \App\PicoHP\LLVM\Value\Instruction('inttoptr', BaseType::PTR);
+                    $this->builder->addLine("{$castVal->render()} = inttoptr i32 {$elseVal->render()} to ptr", 1);
+                    $elseVal = $castVal;
+                }
+            }
             $this->builder->createStore($elseVal, $resultPtr);
             $this->builder->createBranch([new Label($endBB->getName())]);
 

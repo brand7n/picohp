@@ -32,16 +32,9 @@ class PicoHPData
 
     public function getValue(): ValueAbstract
     {
-        $caller = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1] ?? [];
-        $callerFuncRaw = $caller['function'] ?? null;
-        $callerFileRaw = $caller['file'] ?? null;
-        $callerLineRaw = $caller['line'] ?? null;
-        $callerFunc = is_string($callerFuncRaw) ? $callerFuncRaw : 'unknown';
-        $callerFile = is_string($callerFileRaw) ? basename($callerFileRaw) : 'unknown';
-        $callerLine = is_int($callerLineRaw) ? $callerLineRaw : 0;
         \App\PicoHP\CompilerInvariant::check(
             $this->symbol !== null && $this->symbol->value !== null,
-            "symbol/value missing in getValue() (caller: {$callerFunc} @ {$callerFile}:{$callerLine})"
+            'symbol/value missing in getValue()'
         );
         return $this->symbol->value;
     }
