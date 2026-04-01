@@ -2585,8 +2585,12 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
     protected function buildSymbolAlloca(\App\PicoHP\SymbolTable\Symbol $symbol): ValueAbstract
     {
-        // Arrays are ptr slots (will hold pico_array_new() result)
-        return $this->builder->createAlloca($symbol->name, $symbol->type->toBase());
+        $baseType = $symbol->type->toBase();
+        // void-typed vars (unresolvable types from reflection) → treat as ptr
+        if ($baseType === BaseType::VOID) {
+            $baseType = BaseType::PTR;
+        }
+        return $this->builder->createAlloca($symbol->name, $baseType);
     }
 
     protected function buildArrayInit(\PhpParser\Node\Expr\Array_ $arrayExpr, \App\PicoHP\PicoType $arrayType): ValueAbstract
