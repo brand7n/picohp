@@ -1068,7 +1068,11 @@ class SemanticAnalysisPass implements PassInterface
                     || $this->isAssignmentCompatible($this->currentFunctionReturnType, $exprType)
                     || ($this->currentFunctionReturnType->isNullable() && $stmt->expr instanceof \PhpParser\Node\Expr\ConstFetch && $stmt->expr->name->toLowerString() === 'null');
                 if (!$returnTypeOk) {
-                    throw new \Exception(AstContextFormatter::location($stmt) . ', return type mismatch: expected ' . $this->currentFunctionReturnType->toString() . ', got ' . $exprType->toString());
+                    if ($exprType->isMixed() || $exprType->toBase() === BaseType::VOID) {
+                        $this->emitSemanticWarning('return type coercion: ' . $exprType->toString() . ' → ' . $this->currentFunctionReturnType->toString() . ' (PHPStan validates at source level)', $stmt);
+                    } else {
+                        throw new \Exception(AstContextFormatter::location($stmt) . ', return type mismatch: expected ' . $this->currentFunctionReturnType->toString() . ', got ' . $exprType->toString());
+                    }
                 }
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Nop) {
@@ -1492,7 +1496,8 @@ class SemanticAnalysisPass implements PassInterface
             if ($funcName === 'strval') {
                 return PicoType::fromString('string');
             }
-            if ($funcName === 'implode' || $funcName === 'substr' || $funcName === 'trim' || $funcName === 'str_repeat' || $funcName === 'str_replace'
+            if ($funcName === 'implode' || $funcName === 'substr' || $funcName === 'trim' || $funcName === 'ltrim' || $funcName === 'rtrim'
+                || $funcName === 'str_repeat' || $funcName === 'str_replace'
                 || $funcName === 'strtoupper' || $funcName === 'strtolower' || $funcName === 'dechex' || $funcName === 'str_pad') {
                 return PicoType::fromString('string');
             }

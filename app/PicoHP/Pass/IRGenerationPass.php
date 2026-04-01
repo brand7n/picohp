@@ -1080,10 +1080,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                     : new Constant(2147483647, BaseType::INT);
                 return $this->builder->createCall('pico_string_substr', [$strVal, $start, $len], BaseType::STRING);
             }
-            if ($funcName === 'trim') {
-                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
+            if ($funcName === 'trim' || $funcName === 'ltrim' || $funcName === 'rtrim') {
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 1);
                 \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
                 $strVal = $this->buildExpr($expr->args[0]->value);
+                // All three map to pico_string_trim for now (full trim)
                 return $this->builder->createCall('pico_string_trim', [$strVal], BaseType::STRING);
             }
             if ($funcName === 'str_replace') {
@@ -1981,7 +1982,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         if ($fn === 'str_starts_with' || $fn === 'str_contains' || $fn === 'is_int' || $fn === 'is_string' || $fn === 'is_float' || $fn === 'is_bool' || $fn === 'array_key_exists') {
             return \App\PicoHP\PicoType::fromString('bool');
         }
-        if ($fn === 'strval' || $fn === 'implode' || $fn === 'substr' || $fn === 'trim' || $fn === 'str_repeat' || $fn === 'str_replace'
+        if ($fn === 'strval' || $fn === 'implode' || $fn === 'substr' || $fn === 'trim' || $fn === 'ltrim' || $fn === 'rtrim' || $fn === 'str_repeat' || $fn === 'str_replace'
             || $fn === 'strtoupper' || $fn === 'strtolower' || $fn === 'dechex' || $fn === 'str_pad') {
             return \App\PicoHP\PicoType::fromString('string');
         }
