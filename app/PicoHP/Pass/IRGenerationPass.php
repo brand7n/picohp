@@ -1891,10 +1891,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         for ($i = 0; $i < $paramCount; $i++) {
             if (isset($argsByPos[$i])) {
                 $val = $this->buildExpr($argsByPos[$i]);
-            } elseif (isset($funcSymbol->defaults[$i])) {
-                $val = $this->buildDefaultValue($funcSymbol->defaults[$i]);
+            } elseif (array_key_exists($i, $funcSymbol->defaults)) {
+                $defaultExpr = $funcSymbol->defaults[$i];
+                $val = $defaultExpr !== null ? $this->buildDefaultValue($defaultExpr) : new NullConstant();
             } else {
-                throw new \RuntimeException("missing argument {$i} for function {$funcSymbol->name} with no default");
+                throw new \RuntimeException("missing argument {$i} for function {$funcSymbol->name} (expects {$paramCount} params, got " . count($argsByPos) . ") with no default");
             }
             // Coerce int to float when param expects float (e.g. int|float union widened to float)
             if ($val->getType() === BaseType::INT && $funcSymbol->params[$i]->toBase() === BaseType::FLOAT) {
@@ -2148,6 +2149,16 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         }
         if ($expr instanceof \PhpParser\Node\Expr\BinaryOp\Coalesce) {
             return $this->getExprResolvedType($expr->right);
+        }
+        if ($expr instanceof \PhpParser\Node\Expr\ConstFetch) {
+            $name = $expr->name->toLowerString();
+            if ($name === 'null') {
+                return \App\PicoHP\PicoType::fromString('string');
+            }
+            if ($name === 'true' || $name === 'false') {
+                return \App\PicoHP\PicoType::fromString('bool');
+            }
+            return \App\PicoHP\PicoType::fromString('int');
         }
         if ($expr instanceof \PhpParser\Node\Expr\New_) {
             if ($expr->class instanceof \PhpParser\Node\Name) {
