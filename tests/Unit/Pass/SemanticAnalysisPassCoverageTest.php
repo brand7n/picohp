@@ -396,9 +396,7 @@ it('probe: registerClassHierarchyFromReflection returns true and re-uses existin
 
 // --- Gap 2: untyped promoted constructor param ---
 
-it('semantic: untyped promoted constructor param with PHPDoc registers property but resolveParams fails', function (): void {
-    // Untyped promoted params are registered as properties via docTextForPromotedParam,
-    // but resolveParams invariant-fails on null type. PHPStan-max target code always has types.
+it('semantic: untyped promoted constructor param with PHPDoc emits warning and treats as mixed', function (): void {
     $src = <<<'PHP'
 <?php
 
@@ -414,7 +412,17 @@ final class UntypedPromoted
 }
 
 PHP;
-    expect(fn () => picohpRunSemanticOnly($src))->toThrow(\App\PicoHP\CompilerInvariantException::class);
+    $warnings = [];
+    picohpRunSemanticOnly($src, static function (string $msg) use (&$warnings): void {
+        $warnings[] = $msg;
+    });
+    $hasUntypedWarning = false;
+    foreach ($warnings as $w) {
+        if (str_contains($w, 'untyped parameter')) {
+            $hasUntypedWarning = true;
+        }
+    }
+    expect($hasUntypedWarning)->toBeTrue();
 });
 
 it('semantic: untyped promoted constructor param without PHPDoc fails', function (): void {

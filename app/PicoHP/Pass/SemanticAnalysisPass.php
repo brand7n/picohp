@@ -1338,8 +1338,11 @@ class SemanticAnalysisPass implements PassInterface
                 }
                 return $type->getElementType();
             }
-            // string indexing
-            \App\PicoHP\CompilerInvariant::check($type->isEqualTo(PicoType::fromString('string')), "{$type->toString()} is not a string or array"); // @codeCoverageIgnore
+            // string indexing — or unrecognized type (e.g. int class constant used as array)
+            if (!$type->isEqualTo(PicoType::fromString('string'))) {
+                $this->emitSemanticWarning('ArrayDimFetch on ' . $type->toString() . ' (expected string or array) — treating as mixed', $expr);
+                return PicoType::fromString('mixed');
+            }
             \App\PicoHP\CompilerInvariant::check($expr->dim !== null); // @codeCoverageIgnore
             $dimType = $this->resolveExpr($expr->dim); // @codeCoverageIgnore
             \App\PicoHP\CompilerInvariant::check($dimType->isEqualTo(PicoType::fromString('int')), "{$dimType->toString()} is not an int"); // @codeCoverageIgnore
@@ -1606,14 +1609,18 @@ class SemanticAnalysisPass implements PassInterface
             }
             \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
             $rawClass = $expr->class->toString();
-            if ($rawClass === 'self') {
-                \App\PicoHP\CompilerInvariant::check($this->currentClass !== null); // @codeCoverageIgnore
-                $className = $this->currentClass->name; // @codeCoverageIgnore
+            if ($rawClass === 'self' || $rawClass === 'static') {
+                if ($this->currentClass === null) {
+                    $this->emitSemanticWarning('new self/static outside class context (hoisted method?) — treating as mixed', $expr);
+                    $this->resolveArgs($expr->args);
+                    return PicoType::fromString('mixed');
+                }
+                $className = $this->currentClass->name;
             } else {
                 $className = ClassSymbol::fqcnFromResolvedName($expr->class, $this->currentNamespace());
             }
             $this->ensureExternalClassReference($className);
-            \App\PicoHP\CompilerInvariant::check(isset($this->classRegistry[$className]), "class {$className} not found");
+            \App\PicoHP\CompilerInvariant::check(isset($this->classRegistry[$className]), AstContextFormatter::location($expr) . ", class {$className} not found");
             $this->resolveArgs($expr->args);
             return PicoType::object($className);
         } elseif ($expr instanceof \PhpParser\Node\Expr\PropertyFetch) {
@@ -1802,18 +1809,28 @@ class SemanticAnalysisPass implements PassInterface
             $pData = $this->getPicoData($param);
             \App\PicoHP\CompilerInvariant::check($param->var instanceof \PhpParser\Node\Expr\Variable);
             \App\PicoHP\CompilerInvariant::check(is_string($param->var->name));
-            \App\PicoHP\CompilerInvariant::check($param->type instanceof \PhpParser\Node\Identifier || $param->type instanceof \PhpParser\Node\NullableType || $param->type instanceof \PhpParser\Node\Name || $param->type instanceof \PhpParser\Node\UnionType);
-            $paramType = $this->typeFromNode($param->type);
+            if ($param->type === null) {
+                $this->emitSemanticWarning('untyped parameter $' . $param->var->name . ' — treating as mixed', $param);
+                $paramType = PicoType::fromString('mixed');
+            } elseif ($param->type instanceof \PhpParser\Node\IntersectionType) {
+                $this->emitSemanticWarning('intersection type parameter $' . $param->var->name . ' — treating as mixed', $param);
+                $paramType = PicoType::fromString('mixed');
+            } else {
+                \App\PicoHP\CompilerInvariant::check($param->type instanceof \PhpParser\Node\Identifier || $param->type instanceof \PhpParser\Node\NullableType || $param->type instanceof \PhpParser\Node\Name || $param->type instanceof \PhpParser\Node\UnionType, AstContextFormatter::location($param) . ', unsupported param type node: ' . get_class($param->type));
+                $paramType = $this->typeFromNode($param->type);
+            }
+            \App\PicoHP\CompilerInvariant::check($param->var instanceof \PhpParser\Node\Expr\Variable && is_string($param->var->name));
+            $varName = $param->var->name;
             if ($methodDocBlock !== null && $param->type instanceof \PhpParser\Node\Identifier && $param->type->name === 'array') {
-                $fromDoc = $this->docTypeParser->parseParamTypeByName($methodDocBlock, $param->var->name);
+                $fromDoc = $this->docTypeParser->parseParamTypeByName($methodDocBlock, $varName);
                 if ($fromDoc !== null) {
                     $paramType = $fromDoc;
                 }
             }
-            $pData->symbol = $this->symbolTable->addSymbol($param->var->name, $paramType);
+            $pData->symbol = $this->symbolTable->addSymbol($varName, $paramType);
             $paramTypes[] = $paramType;
             $defaults[$index] = $param->default;
-            $paramNames[$index] = $param->var->name;
+            $paramNames[$index] = $varName;
             $index++;
         }
         return [$paramTypes, $defaults, $paramNames];
