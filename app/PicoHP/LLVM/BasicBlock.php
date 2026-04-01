@@ -40,6 +40,16 @@ class BasicBlock implements NodeInterface
         return $this->lines;
     }
 
+    public function hasTerminator(): bool
+    {
+        $lastLine = end($this->lines);
+        $trimmed = $lastLine !== false ? trim($lastLine->toString()) : '';
+        return str_starts_with($trimmed, 'ret')
+            || str_starts_with($trimmed, 'br')
+            || str_starts_with($trimmed, 'unreachable')
+            || str_starts_with($trimmed, 'switch');
+    }
+
     public function verify(): void
     {
         $lastLine = end($this->lines);

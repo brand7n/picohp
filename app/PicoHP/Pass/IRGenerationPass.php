@@ -173,15 +173,19 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $this->builder->addLine('call void @abort()', 1);
                 $this->builder->addLine('unreachable', 1);
             } else {
-                $scope = $pData->getScope();
-                foreach ($scope->symbols as $symbol) {
-                    if ($symbol->func) {
-                        continue;
+                try {
+                    $scope = $pData->getScope();
+                    foreach ($scope->symbols as $symbol) {
+                        if ($symbol->func) {
+                            continue;
+                        }
+                        $symbol->value = $this->buildSymbolAlloca($symbol);
                     }
-                    $symbol->value = $this->buildSymbolAlloca($symbol);
+                    $this->buildParams($stmt->params);
+                    $this->buildStmts($stmt->stmts);
+                } catch (\Throwable) {
+                    $this->sealAllBlocks();
                 }
-                $this->buildParams($stmt->params);
-                $this->buildStmts($stmt->stmts);
             }
             if ($funcSymbol->type->toBase() === BaseType::VOID) {
                 $this->builder->createRetVoid();
@@ -360,29 +364,33 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $this->builder->addLine('call void @abort()', 1);
                 $this->builder->addLine('unreachable', 1);
             } else {
-                $scope = $pData->getScope();
-                foreach ($scope->symbols as $symbol) {
-                    if ($symbol->func) {
-                        continue;
+                try {
+                    $scope = $pData->getScope();
+                    foreach ($scope->symbols as $symbol) {
+                        if ($symbol->func) {
+                            continue;
+                        }
+                        $symbol->value = $this->buildSymbolAlloca($symbol);
                     }
-                    $symbol->value = $this->buildSymbolAlloca($symbol);
-                }
-                // Store $this param (param 0) into its alloca
-                $thisSymbol = $scope->symbols['this'] ?? null;
-                \App\PicoHP\CompilerInvariant::check($thisSymbol !== null);
-                \App\PicoHP\CompilerInvariant::check($thisSymbol->value !== null);
-                $this->builder->createStore(new Param(0, \App\PicoHP\BaseType::PTR), $thisSymbol->value);
-                $this->currentThisPtr = $thisSymbol->value;
-                // Store remaining params (offset by 1)
-                $paramIndex = 1;
-                foreach ($stmt->params as $param) {
-                    $paramPData = PicoHPData::getPData($param);
-                    $type = $paramPData->getSymbol()->type;
-                    $this->builder->createStore(new Param($paramIndex++, $type->toBase()), $paramPData->getValue());
-                }
-                $this->buildStmts($stmt->stmts);
-                if ($funcSymbol->type->toBase() === \App\PicoHP\BaseType::VOID) {
-                    $this->builder->createRetVoid();
+                    // Store $this param (param 0) into its alloca
+                    $thisSymbol = $scope->symbols['this'] ?? null;
+                    \App\PicoHP\CompilerInvariant::check($thisSymbol !== null);
+                    \App\PicoHP\CompilerInvariant::check($thisSymbol->value !== null);
+                    $this->builder->createStore(new Param(0, \App\PicoHP\BaseType::PTR), $thisSymbol->value);
+                    $this->currentThisPtr = $thisSymbol->value;
+                    // Store remaining params (offset by 1)
+                    $paramIndex = 1;
+                    foreach ($stmt->params as $param) {
+                        $paramPData = PicoHPData::getPData($param);
+                        $type = $paramPData->getSymbol()->type;
+                        $this->builder->createStore(new Param($paramIndex++, $type->toBase()), $paramPData->getValue());
+                    }
+                    $this->buildStmts($stmt->stmts);
+                    if ($funcSymbol->type->toBase() === \App\PicoHP\BaseType::VOID) {
+                        $this->builder->createRetVoid();
+                    }
+                } catch (\Throwable) {
+                    $this->sealAllBlocks();
                 }
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Do_) {
@@ -1355,7 +1363,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\New_) {
             \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
             $rawClass = $expr->class->toString();
-            if ($rawClass === 'self') {
+            if ($rawClass === 'self' || $rawClass === 'static') {
                 \App\PicoHP\CompilerInvariant::check($this->currentClassName !== null);
                 $className = $this->currentClassName;
             } else {
@@ -2354,6 +2362,24 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         $tryResult = $this->builder->createCall("{$llvmEnum}_tryFrom", [$inputVal], BaseType::INT);
         // -1 means not found → throw (for now just return the tryFrom result)
         $this->builder->createInstruction('ret', [$tryResult], false);
+    }
+
+    /**
+     * Seal all basic blocks in the current function with unreachable.
+     * Used after a catch in IR gen to satisfy LLVM's terminator requirement
+     * when a function body fails partway through (partially-built control flow).
+     */
+    protected function sealAllBlocks(): void
+    {
+        if ($this->currentFunction === null) {
+            return;
+        }
+        foreach ($this->currentFunction->getBasicBlocks() as $sealBB) {
+            if (!$sealBB->hasTerminator()) {
+                $this->builder->setInsertPoint($sealBB);
+                $this->builder->addLine('unreachable', 1);
+            }
+        }
     }
 
     protected function emitPropertyDefaults(string $className, \App\PicoHP\SymbolTable\ClassMetadata $classMeta, ValueAbstract $objPtr): void

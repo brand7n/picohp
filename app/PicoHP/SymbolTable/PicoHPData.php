@@ -55,7 +55,9 @@ class PicoHPData
     public static function getPData(\PhpParser\Node $node): PicoHPData
     {
         $pData = $node->getAttribute("picoHP");
-        \App\PicoHP\CompilerInvariant::check($pData instanceof PicoHPData);
+        $file = $node->getAttribute('pico_source_file', '?');
+        $fileStr = is_string($file) ? $file : '?';
+        \App\PicoHP\CompilerInvariant::check($pData instanceof PicoHPData, 'picoHP attribute missing on ' . get_class($node) . ' at ' . $fileStr . ':' . $node->getStartLine());
         return $pData;
     }
 }

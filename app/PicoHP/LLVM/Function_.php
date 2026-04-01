@@ -47,6 +47,20 @@ class Function_ implements NodeInterface
     }
 
     /**
+     * @return array<BasicBlock>
+     */
+    public function getBasicBlocks(): array
+    {
+        $blocks = [];
+        foreach ($this->getChildren() as $child) {
+            if ($child instanceof BasicBlock) {
+                $blocks[] = $child;
+            }
+        }
+        return $blocks;
+    }
+
+    /**
      * @return array<IRLine>
      */
     public function getLines(): array
