@@ -112,6 +112,11 @@ class Builder
         $this->currentBasicBlock = $bb;
     }
 
+    public function getCurrentBasicBlock(): ?BasicBlock
+    {
+        return $this->currentBasicBlock;
+    }
+
     /**
      * @param array<ValueAbstract> $operands
      */

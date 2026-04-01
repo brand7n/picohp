@@ -722,6 +722,13 @@ class SemanticAnalysisPass implements PassInterface
                         $enumClassMeta->methods[$methodName] = $methodSymbol;
                         $enumClassMeta->methodOwner[$methodName] = $enumName;
                     }
+                    if ($enumStmt instanceof \PhpParser\Node\Stmt\ClassConst) {
+                        foreach ($enumStmt->consts as $const) {
+                            if ($const->value instanceof \PhpParser\Node\Scalar\Int_) {
+                                $enumClassMeta->constants[$const->name->toString()] = $const->value->value;
+                            }
+                        }
+                    }
                     if ($enumStmt instanceof \PhpParser\Node\Stmt\EnumCase) {
                         $caseName = $enumStmt->name->toString();
                         $backingValue = null;
@@ -732,6 +739,25 @@ class SemanticAnalysisPass implements PassInterface
                         }
                         $enumMeta->addCase($caseName, $backingValue);
                     }
+                }
+                // Auto-register tryFrom/from for backed enums
+                if ($scalarTypeName !== null) {
+                    $paramType = $scalarTypeName === 'string' ? PicoType::fromString('string') : PicoType::fromString('int');
+                    $tryFromSym = new \App\PicoHP\SymbolTable\Symbol('tryFrom', PicoType::enum($enumName), [$paramType], func: true);
+                    $tryFromSym->paramNames = [0 => 'value'];
+                    $enumClassMeta->methods['tryFrom'] = $tryFromSym;
+                    $enumClassMeta->methodOwner['tryFrom'] = $enumName;
+                    $fromSym = new \App\PicoHP\SymbolTable\Symbol('from', PicoType::enum($enumName), [$paramType], func: true);
+                    $fromSym->paramNames = [0 => 'value'];
+                    $enumClassMeta->methods['from'] = $fromSym;
+                    $enumClassMeta->methodOwner['from'] = $enumName;
+                    // Also register mangled names as global functions (ClassToFunctionVisitor
+                    // transforms Color::tryFrom() → Color_tryFrom())
+                    $mangledName = ClassSymbol::mangle($enumName);
+                    $globalTryFrom = new \App\PicoHP\SymbolTable\Symbol("{$mangledName}_tryFrom", PicoType::enum($enumName), [$paramType], func: true);
+                    $globalTryFrom->paramNames = [0 => 'value'];
+                    $this->symbolTable->addSymbol("{$mangledName}_tryFrom", PicoType::enum($enumName), func: true);
+                    $this->symbolTable->addSymbol("{$mangledName}_from", PicoType::enum($enumName), func: true);
                 }
             }
         }
@@ -1278,6 +1304,10 @@ class SemanticAnalysisPass implements PassInterface
 
             if (!is_null($doc) && is_null($s)) {
                 $type = $this->docTypeParser->parseType($doc->getText());
+                // @var Enum types are parsed as object(Name) — promote to enum if in registry
+                if ($type->isObject() && isset($this->enumRegistry[$type->getClassName()])) {
+                    $type = PicoType::enum($type->getClassName());
+                }
                 $pData->symbol = $this->symbolTable->addSymbol($expr->name, $type);
                 return $type;
             } elseif (!is_null($rType) && is_null($s)) {

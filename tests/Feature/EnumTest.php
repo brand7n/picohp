@@ -44,6 +44,20 @@ it('handles enum methods without explicit return types (defaults to void)', func
     expect($compiled_output)->toBe($php_output);
 });
 
+it('handles tryFrom and from on string-backed enums', function () {
+    $file = 'tests/programs/classes/enum_tryfrom.php';
+
+    /** @phpstan-ignore-next-line */
+    $this->assertPicohpExitCode("build --debug {$file}");
+
+    $buildPath = config('app.build_path');
+    assert(is_string($buildPath));
+    $compiled_output = shell_exec("{$buildPath}/a.out");
+    $php_output = shell_exec("php {$file}");
+
+    expect($compiled_output)->toBe($php_output);
+});
+
 it('registers enum methods with explicit return types (without calling bodies)', function () {
     $file = 'tests/programs/classes/enum_int_explicit_return_signature.php';
 
