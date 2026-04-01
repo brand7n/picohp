@@ -69,3 +69,42 @@ it('parses single-type generic array @return', function () {
     expect($t)->not->toBeNull();
     expect($t->isArray())->toBeTrue();
 });
+
+it('parses @param type by name', function () {
+    $parser = new DocTypeParser();
+    $doc = '/**
+     * @param list<int> $items
+     * @param string $label
+     */';
+    $list = $parser->parseParamTypeByName($doc, 'items');
+    expect($list)->not->toBeNull();
+    expect($list->isArray())->toBeTrue();
+
+    $label = $parser->parseParamTypeByName($doc, 'label');
+    expect($label)->not->toBeNull();
+    expect($label->toString())->toBe('string');
+
+    expect($parser->parseParamTypeByName($doc, 'missing'))->toBeNull();
+});
+
+it('parses list<> @return types', function () {
+    $parser = new DocTypeParser();
+    $t = $parser->parseReturnTypeFromPhpDoc('/** @return list<string> */');
+    expect($t)->not->toBeNull();
+    expect($t->isArray())->toBeTrue();
+});
+
+it('returns null for unsupported @return generic shapes', function () {
+    $parser = new DocTypeParser();
+    expect($parser->parseReturnTypeFromPhpDoc('/** @return array<string, string, int> */'))->toBeNull();
+});
+
+it('returns null for list<> with wrong arity in @return', function () {
+    $parser = new DocTypeParser();
+    expect($parser->parseReturnTypeFromPhpDoc('/** @return list<int, int> */'))->toBeNull();
+});
+
+it('returns null for nullable non-identifier in @return', function () {
+    $parser = new DocTypeParser();
+    expect($parser->parseReturnTypeFromPhpDoc('/** @return ?array<int> */'))->toBeNull();
+});

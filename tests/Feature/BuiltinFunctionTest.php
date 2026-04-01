@@ -86,6 +86,20 @@ it('handles fwrite() to standard streams', function () {
     expect($compiled_output)->toBe($php_output);
 });
 
+it('handles dirname, getenv, and ord', function () {
+    $file = 'tests/programs/functions/builtin_selfhost_helpers.php';
+
+    /** @phpstan-ignore-next-line */
+    $this->assertPicohpExitCode("build --debug {$file}");
+
+    $buildPath = config('app.build_path');
+    assert(is_string($buildPath));
+    $compiled_output = shell_exec("{$buildPath}/a.out");
+    $php_output = shell_exec("php {$file}");
+
+    expect($compiled_output)->toBe($php_output);
+});
+
 it('handles string utility builtins (strtoupper, strtolower, dechex, str_pad)', function () {
     $file = 'tests/programs/functions/builtins_string.php';
 

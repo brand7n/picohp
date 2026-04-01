@@ -25,3 +25,8 @@ it('runs the precompile planner on a minimal Composer project fixture', function
     /** @phpstan-ignore-next-line */
     $this->assertPicohpExitCode("build {$fixturePrecompileRoot} --precompile-plan --entry=src/main.php");
 });
+
+it('compiles the minimal Composer project fixture as a directory build', function () use ($fixturePrecompileRoot) {
+    /** @phpstan-ignore-next-line */
+    $this->assertPicohpExitCode("build {$fixturePrecompileRoot} --entry=src/main.php");
+});
