@@ -1505,7 +1505,7 @@ class SemanticAnalysisPass implements PassInterface
                 return PicoType::fromString('string');
             }
             if ($funcName === 'is_int' || $funcName === 'is_string' || $funcName === 'is_float' || $funcName === 'is_bool'
-                || $funcName === 'array_key_exists') {
+                || $funcName === 'is_array' || $funcName === 'array_key_exists') {
                 return PicoType::fromString('bool');
             }
             if ($funcName === 'array_search') {
@@ -1754,6 +1754,9 @@ class SemanticAnalysisPass implements PassInterface
             }
             return PicoType::fromString('bool');
         } elseif ($expr instanceof \PhpParser\Node\Expr\Instanceof_) {
+            $this->resolveExpr($expr->expr);
+            return PicoType::fromString('bool');
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Empty_) {
             $this->resolveExpr($expr->expr);
             return PicoType::fromString('bool');
         } elseif ($expr instanceof \PhpParser\Node\Expr\Exit_) {
