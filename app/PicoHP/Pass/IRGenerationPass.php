@@ -323,7 +323,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             foreach ($classMeta->staticProperties as $propName => $propType) {
                 $llvmType = $propType->toBase()->toLLVM();
                 $default = $classMeta->staticDefaults[$propName] ?? null;
-                $initVal = '0';
+                $initVal = $llvmType === 'ptr' ? 'null' : '0';
                 if ($default instanceof \PhpParser\Node\Scalar\Int_) {
                     $initVal = (string) $default->value;
                 } elseif ($default instanceof \PhpParser\Node\Scalar\Float_) {
