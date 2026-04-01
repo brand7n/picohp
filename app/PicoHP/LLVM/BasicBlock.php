@@ -8,10 +8,20 @@ class BasicBlock implements NodeInterface
 {
     use NodeTrait;
 
-    /** When true, verify() auto-seals unterminated blocks instead of throwing. */
-    public static bool $autoSeal = false;
-
     protected string $name;
+
+    /** @var bool When true, verify() auto-seals unterminated blocks instead of throwing. Not a compiled property. */
+    private static bool $autoSealEnabled = false;
+
+    public static function enableAutoSeal(): void
+    {
+        self::$autoSealEnabled = true;
+    }
+
+    public static function disableAutoSeal(): void
+    {
+        self::$autoSealEnabled = false;
+    }
 
     /**
      * @var array<IRLine>
@@ -61,7 +71,7 @@ class BasicBlock implements NodeInterface
             || str_starts_with($trimmed, 'br')
             || str_starts_with($trimmed, 'unreachable')
             || str_starts_with($trimmed, 'switch');
-        if (!$valid && self::$autoSeal) {
+        if (!$valid && self::$autoSealEnabled) {
             $this->lines[] = new IRLine('    unreachable ; auto-sealed: was "' . substr($trimmed, 0, 40) . '"');
         } elseif (!$valid) {
             throw new \RuntimeException("Basic block {$this->name} must end with ret, br, unreachable, or switch");

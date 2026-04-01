@@ -1305,7 +1305,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $arrPtr = $this->buildExpr($expr->var);
                 $idx = $this->buildExpr($expr->dim);
                 $elemBaseType = $varType->isMixed() ? BaseType::PTR : $varType->getElementBaseType();
-                if ($varType->isArray() && $varType->hasStringKeys()) {
+                if (($varType->isArray() && $varType->hasStringKeys()) || $idx->getType() === BaseType::STRING) {
                     $getFunc = 'pico_map_get_' . match ($elemBaseType) {
                         BaseType::INT => 'int',
                         BaseType::FLOAT => 'float',
