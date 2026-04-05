@@ -66,7 +66,8 @@ class BasicBlock implements NodeInterface
                 continue;
             }
             $truncated[] = $line;
-            if (trim($line->toString()) === 'unreachable') {
+            $trimmed = trim($line->toString());
+            if ($trimmed === 'unreachable' || str_starts_with($trimmed, 'unreachable,')) {
                 $terminated = true;
             }
         }

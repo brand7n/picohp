@@ -211,7 +211,7 @@ final class BuildCommand
                 file_put_contents($astWithSymbolOutput, json_encode($transformedAst, JSON_PRETTY_PRINT));
             }
 
-            $resolvedFile = is_file($filename) ? realpath($filename) : null;
+            $resolvedFile = realpath($filename);
             if ($resolvedFile === false) {
                 $resolvedFile = null;
             }
