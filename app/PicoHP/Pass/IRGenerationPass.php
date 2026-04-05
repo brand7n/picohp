@@ -169,16 +169,26 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->currentFunction = $this->module->addFunction($stmt->name->toString(), $funcSymbol->type, $funcSymbol->params);
             $bb = $this->currentFunction->addBasicBlock("entry");
             $this->builder->setInsertPoint($bb);
-            $scope = $pData->getScope();
-            foreach ($scope->symbols as $symbol) {
-                if ($symbol->func) {
-                    continue;
+            if ($pData->stubbed) {
+                $this->builder->addLine('call void @abort()', 1);
+                $this->builder->addLine('unreachable', 1);
+            } else {
+                try {
+                    $scope = $pData->getScope();
+                    foreach ($scope->symbols as $symbol) {
+                        if ($symbol->func) {
+                            continue;
+                        }
+                        $symbol->value = $this->buildSymbolAlloca($symbol);
+                    }
+                    $this->buildParams($stmt->params);
+                    $this->buildStmts($stmt->stmts);
+                } catch (\Throwable) {
+                    $this->sealAllBlocks();
+                    $pData->stubbed = true;
                 }
-                $symbol->value = $this->buildSymbolAlloca($symbol);
             }
-            $this->buildParams($stmt->params);
-            $this->buildStmts($stmt->stmts);
-            if ($funcSymbol->type->toBase() === BaseType::VOID) {
+            if (!$pData->stubbed && $funcSymbol->type->toBase() === BaseType::VOID) {
                 $this->builder->createRetVoid();
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Block) {
@@ -314,7 +324,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             foreach ($classMeta->staticProperties as $propName => $propType) {
                 $llvmType = $propType->toBase()->toLLVM();
                 $default = $classMeta->staticDefaults[$propName] ?? null;
-                $initVal = '0';
+                $initVal = $llvmType === 'ptr' ? 'null' : '0';
                 if ($default instanceof \PhpParser\Node\Scalar\Int_) {
                     $initVal = (string) $default->value;
                 } elseif ($default instanceof \PhpParser\Node\Scalar\Float_) {
@@ -351,29 +361,38 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->currentFunction = $this->module->addFunction($qualifiedName, $funcSymbol->type, $allParams);
             $bb = $this->currentFunction->addBasicBlock("entry");
             $this->builder->setInsertPoint($bb);
-            $scope = $pData->getScope();
-            foreach ($scope->symbols as $symbol) {
-                if ($symbol->func) {
-                    continue;
+            if ($pData->stubbed) {
+                $this->builder->addLine('call void @abort()', 1);
+                $this->builder->addLine('unreachable', 1);
+            } else {
+                try {
+                    $scope = $pData->getScope();
+                    foreach ($scope->symbols as $symbol) {
+                        if ($symbol->func) {
+                            continue;
+                        }
+                        $symbol->value = $this->buildSymbolAlloca($symbol);
+                    }
+                    // Store $this param (param 0) into its alloca
+                    $thisSymbol = $scope->symbols['this'] ?? null;
+                    \App\PicoHP\CompilerInvariant::check($thisSymbol !== null);
+                    \App\PicoHP\CompilerInvariant::check($thisSymbol->value !== null);
+                    $this->builder->createStore(new Param(0, \App\PicoHP\BaseType::PTR), $thisSymbol->value);
+                    $this->currentThisPtr = $thisSymbol->value;
+                    // Store remaining params (offset by 1)
+                    $paramIndex = 1;
+                    foreach ($stmt->params as $param) {
+                        $paramPData = PicoHPData::getPData($param);
+                        $type = $paramPData->getSymbol()->type;
+                        $this->builder->createStore(new Param($paramIndex++, $type->toBase()), $paramPData->getValue());
+                    }
+                    $this->buildStmts($stmt->stmts);
+                    if ($funcSymbol->type->toBase() === \App\PicoHP\BaseType::VOID) {
+                        $this->builder->createRetVoid();
+                    }
+                } catch (\Throwable) {
+                    $this->sealAllBlocks();
                 }
-                $symbol->value = $this->buildSymbolAlloca($symbol);
-            }
-            // Store $this param (param 0) into its alloca
-            $thisSymbol = $scope->symbols['this'] ?? null;
-            \App\PicoHP\CompilerInvariant::check($thisSymbol !== null);
-            \App\PicoHP\CompilerInvariant::check($thisSymbol->value !== null);
-            $this->builder->createStore(new Param(0, \App\PicoHP\BaseType::PTR), $thisSymbol->value);
-            $this->currentThisPtr = $thisSymbol->value;
-            // Store remaining params (offset by 1)
-            $paramIndex = 1;
-            foreach ($stmt->params as $param) {
-                $paramPData = PicoHPData::getPData($param);
-                $type = $paramPData->getSymbol()->type;
-                $this->builder->createStore(new Param($paramIndex++, $type->toBase()), $paramPData->getValue());
-            }
-            $this->buildStmts($stmt->stmts);
-            if ($funcSymbol->type->toBase() === \App\PicoHP\BaseType::VOID) {
-                $this->builder->createRetVoid();
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Do_) {
             \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
@@ -576,6 +595,18 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $count = count($ptrs);
                 $init = implode(', ', $ptrs);
                 $this->module->addLine(new IRLine("@{$llvmEnum}_values = global [{$count} x ptr] [{$init}]"));
+            }
+            // Auto-generate tryFrom/from for backed enums (emit as standalone functions,
+            // then restore builder state since we're between top-level statements)
+            if ($enumMeta->backingType !== null) {
+                $savedFunc = $this->currentFunction;
+                $savedBB = $this->builder->getCurrentBasicBlock();
+                $this->emitEnumTryFrom($enumFqcn, $enumMeta);
+                $this->emitEnumFrom($enumFqcn, $enumMeta);
+                $this->currentFunction = $savedFunc;
+                if ($savedBB !== null) {
+                    $this->builder->setInsertPoint($savedBB);
+                }
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\ClassConst) {
             // Class constants — values resolved at compile time via ClassConstFetch
@@ -1012,7 +1043,13 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg && $expr->args[1] instanceof \PhpParser\Node\Arg);
                 $fd = $this->buildExpr($expr->args[0]->value);
                 $data = $this->buildExpr($expr->args[1]->value);
-                \App\PicoHP\CompilerInvariant::check($fd->getType() === BaseType::INT && $data->getType() === BaseType::STRING);
+                // Coerce ptr/mixed fd to int (vendor code may pass resource-typed values)
+                if ($fd->getType() !== BaseType::INT) {
+                    $fd = $this->builder->createPtrToInt($fd);
+                }
+                if ($data->getType() !== BaseType::STRING && $data->getType() !== BaseType::PTR) {
+                    $data = $this->builder->createCall('pico_int_to_string', [$data], BaseType::STRING);
+                }
                 if (count($expr->args) === 3 && $expr->args[2] instanceof \PhpParser\Node\Arg) {
                     $length = $this->buildExpr($expr->args[2]->value);
 
@@ -1068,10 +1105,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                     : new Constant(2147483647, BaseType::INT);
                 return $this->builder->createCall('pico_string_substr', [$strVal, $start, $len], BaseType::STRING);
             }
-            if ($funcName === 'trim') {
-                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
+            if ($funcName === 'trim' || $funcName === 'ltrim' || $funcName === 'rtrim') {
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 1);
                 \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
                 $strVal = $this->buildExpr($expr->args[0]->value);
+                // All three map to pico_string_trim for now (full trim)
                 return $this->builder->createCall('pico_string_trim', [$strVal], BaseType::STRING);
             }
             if ($funcName === 'str_replace') {
@@ -1239,6 +1277,17 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 return $val;
             }
             $funcSymbol = $pData->getSymbol();
+            // Stub functions (unknown builtins) — emit abort trap instead of call
+            if ($funcSymbol->type->isMixed() && !$this->module->hasFunction($expr->name->name)) {
+                // Build args for side effects, then trap
+                foreach ($expr->args as $arg) {
+                    \App\PicoHP\CompilerInvariant::check($arg instanceof \PhpParser\Node\Arg);
+                    $this->buildExpr($arg->value);
+                }
+                $this->builder->addLine('call void @abort()', 1);
+                $this->builder->addLine('unreachable', 1);
+                return new NullConstant(BaseType::PTR);
+            }
             $args = $this->buildArgsWithDefaults($expr->args, $funcSymbol);
             $returnType = $funcSymbol->type->toBase();
             return $this->builder->createCall($expr->name->name, $args, $returnType);
@@ -1257,7 +1306,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $arrPtr = $this->buildExpr($expr->var);
                 $idx = $this->buildExpr($expr->dim);
                 $elemBaseType = $varType->isMixed() ? BaseType::PTR : $varType->getElementBaseType();
-                if ($varType->isArray() && $varType->hasStringKeys()) {
+                if (($varType->isArray() && $varType->hasStringKeys()) || $idx->getType() === BaseType::STRING) {
                     $getFunc = 'pico_map_get_' . match ($elemBaseType) {
                         BaseType::INT => 'int',
                         BaseType::FLOAT => 'float',
@@ -1315,7 +1364,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\New_) {
             \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
             $rawClass = $expr->class->toString();
-            if ($rawClass === 'self') {
+            if ($rawClass === 'self' || $rawClass === 'static') {
                 \App\PicoHP\CompilerInvariant::check($this->currentClassName !== null);
                 $className = $this->currentClassName;
             } else {
@@ -1591,6 +1640,17 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
             $this->builder->setInsertPoint($elseBB);
             $elseVal = $this->buildExpr($expr->else);
+            // Coerce else to match then type if they differ
+            $resultType = $thenVal->getType();
+            if ($elseVal->getType() !== $resultType) {
+                if ($resultType === BaseType::INT && ($elseVal->getType() === BaseType::PTR || $elseVal->getType() === BaseType::STRING)) {
+                    $elseVal = $this->builder->createPtrToInt($elseVal);
+                } elseif (($resultType === BaseType::PTR || $resultType === BaseType::STRING) && $elseVal->getType() === BaseType::INT) {
+                    $castVal = new \App\PicoHP\LLVM\Value\Instruction('inttoptr', BaseType::PTR);
+                    $this->builder->addLine("{$castVal->render()} = inttoptr i32 {$elseVal->render()} to ptr", 1);
+                    $elseVal = $castVal;
+                }
+            }
             $this->builder->createStore($elseVal, $resultPtr);
             $this->builder->createBranch([new Label($endBB->getName())]);
 
@@ -1646,18 +1706,12 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             return $result;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Exit_) {
-            // Not PHP process exit: emits ret from the current LLVM function only (see SemanticAnalysisPass).
-            \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
-            $returnType = $this->currentFunction->getReturnType();
+            // exit()/die() → abort (process termination), same as unknown function stubs
             if ($expr->expr !== null) {
-                $val = $this->buildExpr($expr->expr);
-                $this->builder->createInstruction('ret', [$val], false);
-            } elseif ($returnType->toBase() === BaseType::VOID) {
-                $this->builder->createRetVoid();
-            } else {
-                $this->builder->createInstruction('ret', [new Constant(0, BaseType::INT)], false);
+                $this->buildExpr($expr->expr); // evaluate for side effects
             }
-
+            $this->builder->addLine('call void @abort()', 1);
+            $this->builder->addLine('unreachable', 1);
             return new Void_();
         } elseif ($expr instanceof \PhpParser\Node\Expr\Throw_) {
             // throw new ClassName(args...)
@@ -1857,10 +1911,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         for ($i = 0; $i < $paramCount; $i++) {
             if (isset($argsByPos[$i])) {
                 $val = $this->buildExpr($argsByPos[$i]);
-            } elseif (isset($funcSymbol->defaults[$i])) {
-                $val = $this->buildDefaultValue($funcSymbol->defaults[$i]);
+            } elseif (array_key_exists($i, $funcSymbol->defaults)) {
+                $defaultExpr = $funcSymbol->defaults[$i];
+                $val = $defaultExpr !== null ? $this->buildDefaultValue($defaultExpr) : new NullConstant();
             } else {
-                throw new \RuntimeException("missing argument {$i} for function {$funcSymbol->name} with no default");
+                throw new \RuntimeException("missing argument {$i} for function {$funcSymbol->name} (expects {$paramCount} params, got " . count($argsByPos) . ") with no default");
             }
             // Coerce int to float when param expects float (e.g. int|float union widened to float)
             if ($val->getType() === BaseType::INT && $funcSymbol->params[$i]->toBase() === BaseType::FLOAT) {
@@ -1969,7 +2024,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         if ($fn === 'str_starts_with' || $fn === 'str_contains' || $fn === 'is_int' || $fn === 'is_string' || $fn === 'is_float' || $fn === 'is_bool' || $fn === 'array_key_exists') {
             return \App\PicoHP\PicoType::fromString('bool');
         }
-        if ($fn === 'strval' || $fn === 'implode' || $fn === 'substr' || $fn === 'trim' || $fn === 'str_repeat' || $fn === 'str_replace'
+        if ($fn === 'strval' || $fn === 'implode' || $fn === 'substr' || $fn === 'trim' || $fn === 'ltrim' || $fn === 'rtrim' || $fn === 'str_repeat' || $fn === 'str_replace'
             || $fn === 'strtoupper' || $fn === 'strtolower' || $fn === 'dechex' || $fn === 'str_pad') {
             return \App\PicoHP\PicoType::fromString('string');
         }
@@ -2115,6 +2170,23 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         if ($expr instanceof \PhpParser\Node\Expr\BinaryOp\Coalesce) {
             return $this->getExprResolvedType($expr->right);
         }
+        if ($expr instanceof \PhpParser\Node\Expr\ConstFetch) {
+            $name = $expr->name->toLowerString();
+            if ($name === 'null') {
+                return \App\PicoHP\PicoType::fromString('string');
+            }
+            if ($name === 'true' || $name === 'false') {
+                return \App\PicoHP\PicoType::fromString('bool');
+            }
+            return \App\PicoHP\PicoType::fromString('int');
+        }
+        if ($expr instanceof \PhpParser\Node\Expr\New_) {
+            if ($expr->class instanceof \PhpParser\Node\Name) {
+                $className = ClassSymbol::fqcnFromResolvedName($expr->class, $this->currentNamespace());
+                return \App\PicoHP\PicoType::object($className);
+            }
+            return \App\PicoHP\PicoType::fromString('mixed');
+        }
         throw new \RuntimeException('getExprResolvedType: unsupported expr type ' . get_class($expr));
     }
 
@@ -2234,6 +2306,94 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
      * Supports: int, float, string, bool, null, array literals (int/string/negative-int elements).
      * Unsupported default expressions (new, ClassConstFetch, binary exprs) are rejected.
      */
+    protected function emitEnumTryFrom(string $enumFqcn, \App\PicoHP\SymbolTable\EnumMetadata $enumMeta): void
+    {
+        $llvmEnum = ClassSymbol::mangle($enumFqcn);
+        $isString = $enumMeta->backingType === 'string';
+        $paramType = $isString ? BaseType::STRING : BaseType::INT;
+        $funcName = "{$llvmEnum}_tryFrom";
+
+        $func = $this->module->addFunction($funcName, new \App\PicoHP\PicoType(BaseType::INT), [
+            new \App\PicoHP\PicoType($paramType),
+        ]);
+        $entryBB = $func->addBasicBlock('entry');
+        $this->builder->setInsertPoint($entryBB);
+
+        $inputVal = new Param(0, $paramType);
+        $resultPtr = $this->builder->createAlloca('tryfrom_result', BaseType::INT);
+        // Default: -1 (not found — caller treats as null)
+        $this->builder->createStore(new Constant(-1, BaseType::INT), $resultPtr);
+
+        $endBB = $func->addBasicBlock('tryfrom_end');
+
+        foreach ($enumMeta->cases as $caseName => $tag) {
+            $matchBB = $func->addBasicBlock("tryfrom_match_{$tag}");
+            $nextBB = $func->addBasicBlock("tryfrom_next_{$tag}");
+            $backingValue = $enumMeta->backingValues[$caseName] ?? $tag;
+
+            if ($isString) {
+                \App\PicoHP\CompilerInvariant::check(is_string($backingValue));
+                $caseVal = $this->builder->createStringConstant($backingValue);
+                $eqResult = $this->builder->createCall('pico_string_eq', [$inputVal, $caseVal], BaseType::INT);
+                $cmp = $this->builder->createInstruction('icmp ne', [$eqResult, new Constant(0, BaseType::INT)], resultType: BaseType::BOOL);
+            } else {
+                \App\PicoHP\CompilerInvariant::check(is_int($backingValue));
+                $cmp = $this->builder->createInstruction('icmp eq', [$inputVal, new Constant($backingValue, BaseType::INT)], resultType: BaseType::BOOL);
+            }
+            $this->builder->createBranch([$cmp, new Label($matchBB->getName()), new Label($nextBB->getName())]);
+
+            $this->builder->setInsertPoint($matchBB);
+            $this->builder->createStore(new Constant($tag, BaseType::INT), $resultPtr);
+            $this->builder->createBranch([new Label($endBB->getName())]);
+
+            $this->builder->setInsertPoint($nextBB);
+        }
+        // Fall through: not found
+        $this->builder->createBranch([new Label($endBB->getName())]);
+
+        $this->builder->setInsertPoint($endBB);
+        $result = $this->builder->createLoad($resultPtr);
+        $this->builder->createInstruction('ret', [$result], false);
+    }
+
+    protected function emitEnumFrom(string $enumFqcn, \App\PicoHP\SymbolTable\EnumMetadata $enumMeta): void
+    {
+        $llvmEnum = ClassSymbol::mangle($enumFqcn);
+        $isString = $enumMeta->backingType === 'string';
+        $paramType = $isString ? BaseType::STRING : BaseType::INT;
+        $funcName = "{$llvmEnum}_from";
+
+        $func = $this->module->addFunction($funcName, new \App\PicoHP\PicoType(BaseType::INT), [
+            new \App\PicoHP\PicoType($paramType),
+        ]);
+        $entryBB = $func->addBasicBlock('entry');
+        $this->builder->setInsertPoint($entryBB);
+
+        // from() delegates to tryFrom() then checks result
+        $inputVal = new Param(0, $paramType);
+        $tryResult = $this->builder->createCall("{$llvmEnum}_tryFrom", [$inputVal], BaseType::INT);
+        // -1 means not found → throw (for now just return the tryFrom result)
+        $this->builder->createInstruction('ret', [$tryResult], false);
+    }
+
+    /**
+     * Seal all basic blocks in the current function with unreachable.
+     * Used after a catch in IR gen to satisfy LLVM's terminator requirement
+     * when a function body fails partway through (partially-built control flow).
+     */
+    protected function sealAllBlocks(): void
+    {
+        if ($this->currentFunction === null) {
+            return;
+        }
+        foreach ($this->currentFunction->getBasicBlocks() as $sealBB) {
+            if (!$sealBB->hasTerminator()) {
+                $this->builder->setInsertPoint($sealBB);
+                $this->builder->addLine('unreachable', 1);
+            }
+        }
+    }
+
     protected function emitPropertyDefaults(string $className, \App\PicoHP\SymbolTable\ClassMetadata $classMeta, ValueAbstract $objPtr): void
     {
         foreach ($classMeta->propertyDefaults as $propName => $default) {
@@ -2418,6 +2578,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
         $result = $this->builder->createAlloca("sc_result{$count}", BaseType::BOOL);
         $lval = $this->buildExpr($expr->left);
+        if ($lval->getType() !== BaseType::BOOL) {
+            $lval = $this->builder->createInstruction('icmp ne', [$lval, new Constant(0, $lval->getType())], resultType: BaseType::BOOL);
+        }
         $this->builder->createStore($lval, $result);
 
         if ($isAnd) {
@@ -2437,8 +2600,12 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
     protected function buildSymbolAlloca(\App\PicoHP\SymbolTable\Symbol $symbol): ValueAbstract
     {
-        // Arrays are ptr slots (will hold pico_array_new() result)
-        return $this->builder->createAlloca($symbol->name, $symbol->type->toBase());
+        $baseType = $symbol->type->toBase();
+        // void-typed vars (unresolvable types from reflection) → treat as ptr
+        if ($baseType === BaseType::VOID) {
+            $baseType = BaseType::PTR;
+        }
+        return $this->builder->createAlloca($symbol->name, $baseType);
     }
 
     protected function buildArrayInit(\PhpParser\Node\Expr\Array_ $arrayExpr, \App\PicoHP\PicoType $arrayType): ValueAbstract

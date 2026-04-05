@@ -25,25 +25,6 @@ final class CompilerInvariant
 
         // Frame 0 is this function; its file/line are the call site of check() in the
         // caller's source file (not the line inside CompilerInvariant.php).
-        $bt = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1);
-        $frame = $bt[0] ?? [];
-        $fileRaw = $frame['file'] ?? null;
-        $file = is_string($fileRaw) ? $fileRaw : 'unknown';
-        $line = $frame['line'] ?? 0;
-
-        $where = self::relativeToProjectRoot($file) . ':' . $line;
-        throw new CompilerInvariantException("{$message} (at {$where})");
-    }
-
-    private static function relativeToProjectRoot(string $absolutePath): string
-    {
-        // Use dirname only — picohp has no faithful realpath(false) yet; canonical resolution is unnecessary for messages.
-        $root = dirname(__DIR__, 2);
-        $prefix = $root . DIRECTORY_SEPARATOR;
-        if (str_starts_with($absolutePath, $prefix)) {
-            return substr($absolutePath, strlen($prefix));
-        }
-
-        return $absolutePath;
+        throw new CompilerInvariantException($message);
     }
 }

@@ -10,6 +10,8 @@ class PicoHPData
     public ?Symbol $symbol = null;
     public bool $lVal = false;
     public int $mycount = 0;
+    /** When true, IR gen emits abort() instead of compiling the body. */
+    public bool $stubbed = false;
     public static int $count = 1;
 
     public function __construct(Scope $scope)
@@ -30,16 +32,9 @@ class PicoHPData
 
     public function getValue(): ValueAbstract
     {
-        $caller = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1] ?? [];
-        $callerFuncRaw = $caller['function'] ?? null;
-        $callerFileRaw = $caller['file'] ?? null;
-        $callerLineRaw = $caller['line'] ?? null;
-        $callerFunc = is_string($callerFuncRaw) ? $callerFuncRaw : 'unknown';
-        $callerFile = is_string($callerFileRaw) ? basename($callerFileRaw) : 'unknown';
-        $callerLine = is_int($callerLineRaw) ? $callerLineRaw : 0;
         \App\PicoHP\CompilerInvariant::check(
             $this->symbol !== null && $this->symbol->value !== null,
-            "symbol/value missing in getValue() (caller: {$callerFunc} @ {$callerFile}:{$callerLine})"
+            'symbol/value missing in getValue()'
         );
         return $this->symbol->value;
     }
@@ -53,7 +48,9 @@ class PicoHPData
     public static function getPData(\PhpParser\Node $node): PicoHPData
     {
         $pData = $node->getAttribute("picoHP");
-        \App\PicoHP\CompilerInvariant::check($pData instanceof PicoHPData);
+        $file = $node->getAttribute('pico_source_file', '?');
+        $fileStr = is_string($file) ? $file : '?';
+        \App\PicoHP\CompilerInvariant::check($pData instanceof PicoHPData, 'picoHP attribute missing on ' . get_class($node) . ' at ' . $fileStr . ':' . $node->getStartLine());
         return $pData;
     }
 }

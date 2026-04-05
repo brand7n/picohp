@@ -144,7 +144,18 @@ final class ReachabilityAnalyzer
         $unresolvedList = array_keys($unresolved);
         sort($unresolvedList);
 
-        return new ReachabilityResult($reachable, $unresolvedList);
+        // Phase 2: build call graph over reachable files to determine reachable classes
+        $callGraph = $this->buildCallGraphForFiles($reachable);
+        $entryRoots = $this->determineCallGraphRoots($entrypointPaths, $callGraph);
+        $reachableSet = $callGraph->reachableFrom($entryRoots);
+        $reachableClasses = [];
+        foreach ($reachableSet as $cls => $methods) {
+            if ($cls !== '__global__') {
+                $reachableClasses[$cls] = true;
+            }
+        }
+
+        return new ReachabilityResult($reachable, $unresolvedList, $reachableClasses);
     }
 
     /**
@@ -201,6 +212,73 @@ final class ReachabilityAnalyzer
         }
 
         return false;
+    }
+
+    /**
+     * Build a call graph over all reachable files.
+     *
+     * @param list<string> $files
+     */
+    private function buildCallGraphForFiles(array $files): CallGraphResult
+    {
+        $builder = new CallGraphBuilder();
+        $merged = new CallGraphResult();
+
+        foreach ($files as $file) {
+            $code = @file_get_contents($file);
+            if ($code === false) {
+                continue;
+            }
+            try {
+                $ast = $this->parser->parse($code);
+            } catch (\PhpParser\Error) {
+                continue;
+            }
+            if ($ast === null) {
+                continue;
+            }
+            $traverser = new NodeTraverser();
+            $traverser->addVisitor(new NameResolver());
+            $ast = $traverser->traverse($ast);
+
+            $result = $builder->extractFromAst($ast, $file);
+            $merged->merge($result);
+        }
+
+        return $merged;
+    }
+
+    /**
+     * Determine call graph roots from entrypoint files (top-level code + declared functions).
+     *
+     * @param list<string> $entrypointPaths
+     * @return list<array{string, string}>
+     */
+    private function determineCallGraphRoots(array $entrypointPaths, CallGraphResult $callGraph): array
+    {
+        $roots = [['__global__', '__main__']];
+
+        // All functions declared in entrypoint files are roots
+        foreach ($callGraph->functionFiles as $funcName => $file) {
+            foreach ($entrypointPaths as $entry) {
+                $entryReal = realpath($entry);
+                if ($entryReal !== false && $file === $entryReal) {
+                    $roots[] = ['__global__', $funcName];
+                }
+            }
+        }
+
+        // All classes declared in entrypoint files are roots
+        foreach ($callGraph->classFiles as $fqcn => $file) {
+            foreach ($entrypointPaths as $entry) {
+                $entryReal = realpath($entry);
+                if ($entryReal !== false && $file === $entryReal) {
+                    $roots[] = [$fqcn, '__class__'];
+                }
+            }
+        }
+
+        return $roots;
     }
 
     /**

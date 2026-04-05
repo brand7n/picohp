@@ -197,9 +197,13 @@ final class BuildCommand
         }
 
         try {
+            $isDirectoryBuild = is_dir($filename);
+            if ($isDirectoryBuild) {
+                \App\PicoHP\LLVM\BasicBlock::enableAutoSeal();
+            }
             $semanticPass = new SemanticAnalysisPass($transformedAst, static function (string $message) use ($io): void {
                 $io->warning($message);
-            });
+            }, allowStubbing: $isDirectoryBuild);
             $semanticPass->exec();
 
             if ($debug) {
@@ -261,6 +265,8 @@ final class BuildCommand
             $io->error($e->getMessage());
 
             return 1;
+        } finally {
+            \App\PicoHP\LLVM\BasicBlock::disableAutoSeal();
         }
 
         return 0;

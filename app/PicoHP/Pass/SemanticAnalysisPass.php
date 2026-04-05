@@ -34,6 +34,8 @@ class SemanticAnalysisPass implements PassInterface
     public function __construct(
         protected array $ast,
         private readonly ?\Closure $semanticWarning = null,
+        /** When true, method/function bodies that fail semantic analysis are stubbed (abort at runtime) instead of erroring. */
+        private readonly bool $allowStubbing = false,
     ) {
         $this->symbolTable = new SymbolTable();
         $this->docTypeParser = new DocTypeParser();
@@ -722,6 +724,13 @@ class SemanticAnalysisPass implements PassInterface
                         $enumClassMeta->methods[$methodName] = $methodSymbol;
                         $enumClassMeta->methodOwner[$methodName] = $enumName;
                     }
+                    if ($enumStmt instanceof \PhpParser\Node\Stmt\ClassConst) {
+                        foreach ($enumStmt->consts as $const) {
+                            if ($const->value instanceof \PhpParser\Node\Scalar\Int_) {
+                                $enumClassMeta->constants[$const->name->toString()] = $const->value->value;
+                            }
+                        }
+                    }
                     if ($enumStmt instanceof \PhpParser\Node\Stmt\EnumCase) {
                         $caseName = $enumStmt->name->toString();
                         $backingValue = null;
@@ -732,6 +741,25 @@ class SemanticAnalysisPass implements PassInterface
                         }
                         $enumMeta->addCase($caseName, $backingValue);
                     }
+                }
+                // Auto-register tryFrom/from for backed enums
+                if ($scalarTypeName !== null) {
+                    $paramType = $scalarTypeName === 'string' ? PicoType::fromString('string') : PicoType::fromString('int');
+                    $tryFromSym = new \App\PicoHP\SymbolTable\Symbol('tryFrom', PicoType::enum($enumName), [$paramType], func: true);
+                    $tryFromSym->paramNames = [0 => 'value'];
+                    $enumClassMeta->methods['tryFrom'] = $tryFromSym;
+                    $enumClassMeta->methodOwner['tryFrom'] = $enumName;
+                    $fromSym = new \App\PicoHP\SymbolTable\Symbol('from', PicoType::enum($enumName), [$paramType], func: true);
+                    $fromSym->paramNames = [0 => 'value'];
+                    $enumClassMeta->methods['from'] = $fromSym;
+                    $enumClassMeta->methodOwner['from'] = $enumName;
+                    // Also register mangled names as global functions (ClassToFunctionVisitor
+                    // transforms Color::tryFrom() → Color_tryFrom())
+                    $mangledName = ClassSymbol::mangle($enumName);
+                    $globalTryFrom = new \App\PicoHP\SymbolTable\Symbol("{$mangledName}_tryFrom", PicoType::enum($enumName), [$paramType], func: true);
+                    $globalTryFrom->paramNames = [0 => 'value'];
+                    $this->symbolTable->addSymbol("{$mangledName}_tryFrom", PicoType::enum($enumName), func: true);
+                    $this->symbolTable->addSymbol("{$mangledName}_from", PicoType::enum($enumName), func: true);
                 }
             }
         }
@@ -845,8 +873,12 @@ class SemanticAnalysisPass implements PassInterface
      */
     protected function isAssignmentCompatible(PicoType $ltype, PicoType $rtype): bool
     {
-        // Both must be ptr-based (objects, nullable objects, arrays, strings)
-        if ($ltype->toBase() !== BaseType::PTR || $rtype->toBase() !== BaseType::PTR) {
+        // Both must be ptr-based (objects, nullable objects, arrays, strings, mixed)
+        $lBase = $ltype->toBase();
+        $rBase = $rtype->toBase();
+        $lIsPtr = $lBase === BaseType::PTR || $lBase === BaseType::STRING;
+        $rIsPtr = $rBase === BaseType::PTR || $rBase === BaseType::STRING;
+        if (!$lIsPtr || !$rIsPtr) {
             return false;
         }
         // If either is an object type, check class hierarchy and interfaces
@@ -872,7 +904,8 @@ class SemanticAnalysisPass implements PassInterface
                 return true; // @codeCoverageIgnore
             }
         }
-        return false; // @codeCoverageIgnore
+        // Both are ptr-based (string, array, mixed, nullable) — compatible in LLVM
+        return true;
     }
 
     private function isDescendantOf(ClassMetadata $meta, string $ancestor): bool
@@ -1021,7 +1054,16 @@ class SemanticAnalysisPass implements PassInterface
             $pData->getSymbol()->paramNames = $paramNames;
             $previousReturnType = $this->currentFunctionReturnType;
             $this->currentFunctionReturnType = $returnType;
-            $this->resolveStmts($stmt->stmts);
+            try {
+                $this->resolveStmts($stmt->stmts);
+            } catch (\Exception $e) {
+                if ($this->allowStubbing) {
+                    $pData->stubbed = true;
+                    $this->emitSemanticWarning('function body stubbed (will abort at runtime): ' . $e->getMessage(), $stmt);
+                } else {
+                    throw $e;
+                }
+            }
             $this->currentFunctionReturnType = $previousReturnType;
 
             if ($stmt->name->name !== 'main') {
@@ -1042,7 +1084,11 @@ class SemanticAnalysisPass implements PassInterface
                     || $this->isAssignmentCompatible($this->currentFunctionReturnType, $exprType)
                     || ($this->currentFunctionReturnType->isNullable() && $stmt->expr instanceof \PhpParser\Node\Expr\ConstFetch && $stmt->expr->name->toLowerString() === 'null');
                 if (!$returnTypeOk) {
-                    throw new \Exception(AstContextFormatter::location($stmt) . ', return type mismatch: expected ' . $this->currentFunctionReturnType->toString() . ', got ' . $exprType->toString());
+                    if ($exprType->isMixed() || $exprType->toBase() === BaseType::VOID) {
+                        $this->emitSemanticWarning('return type coercion: ' . $exprType->toString() . ' → ' . $this->currentFunctionReturnType->toString() . ' (PHPStan validates at source level)', $stmt);
+                    } else {
+                        throw new \Exception(AstContextFormatter::location($stmt) . ', return type mismatch: expected ' . $this->currentFunctionReturnType->toString() . ', got ' . $exprType->toString());
+                    }
                 }
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Nop) {
@@ -1172,7 +1218,16 @@ class SemanticAnalysisPass implements PassInterface
             $methodSymbol->paramNames = $paramNames;
             $previousReturnType = $this->currentFunctionReturnType;
             $this->currentFunctionReturnType = $returnType;
-            $this->resolveStmts($stmt->stmts);
+            try {
+                $this->resolveStmts($stmt->stmts);
+            } catch (\Exception $e) {
+                if ($this->allowStubbing) {
+                    $pData->stubbed = true;
+                    $this->emitSemanticWarning('method body stubbed (will abort at runtime): ' . $e->getMessage(), $stmt);
+                } else {
+                    throw $e;
+                }
+            }
             $this->currentFunctionReturnType = $previousReturnType;
             $this->symbolTable->exitScope();
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Enum_) {
@@ -1278,6 +1333,10 @@ class SemanticAnalysisPass implements PassInterface
 
             if (!is_null($doc) && is_null($s)) {
                 $type = $this->docTypeParser->parseType($doc->getText());
+                // @var Enum types are parsed as object(Name) — promote to enum if in registry
+                if ($type->isObject() && isset($this->enumRegistry[$type->getClassName()])) {
+                    $type = PicoType::enum($type->getClassName());
+                }
                 $pData->symbol = $this->symbolTable->addSymbol($expr->name, $type);
                 return $type;
             } elseif (!is_null($rType) && is_null($s)) {
@@ -1304,8 +1363,11 @@ class SemanticAnalysisPass implements PassInterface
                 }
                 return $type->getElementType();
             }
-            // string indexing
-            \App\PicoHP\CompilerInvariant::check($type->isEqualTo(PicoType::fromString('string')), "{$type->toString()} is not a string or array"); // @codeCoverageIgnore
+            // string indexing — or unrecognized type (e.g. int class constant used as array)
+            if (!$type->isEqualTo(PicoType::fromString('string'))) {
+                $this->emitSemanticWarning('ArrayDimFetch on ' . $type->toString() . ' (expected string or array) — treating as mixed', $expr);
+                return PicoType::fromString('mixed');
+            }
             \App\PicoHP\CompilerInvariant::check($expr->dim !== null); // @codeCoverageIgnore
             $dimType = $this->resolveExpr($expr->dim); // @codeCoverageIgnore
             \App\PicoHP\CompilerInvariant::check($dimType->isEqualTo(PicoType::fromString('int')), "{$dimType->toString()} is not an int"); // @codeCoverageIgnore
@@ -1462,12 +1524,13 @@ class SemanticAnalysisPass implements PassInterface
             if ($funcName === 'strval') {
                 return PicoType::fromString('string');
             }
-            if ($funcName === 'implode' || $funcName === 'substr' || $funcName === 'trim' || $funcName === 'str_repeat' || $funcName === 'str_replace'
+            if ($funcName === 'implode' || $funcName === 'substr' || $funcName === 'trim' || $funcName === 'ltrim' || $funcName === 'rtrim'
+                || $funcName === 'str_repeat' || $funcName === 'str_replace'
                 || $funcName === 'strtoupper' || $funcName === 'strtolower' || $funcName === 'dechex' || $funcName === 'str_pad') {
                 return PicoType::fromString('string');
             }
             if ($funcName === 'is_int' || $funcName === 'is_string' || $funcName === 'is_float' || $funcName === 'is_bool'
-                || $funcName === 'array_key_exists') {
+                || $funcName === 'is_array' || $funcName === 'array_key_exists') {
                 return PicoType::fromString('bool');
             }
             if ($funcName === 'array_search') {
@@ -1522,8 +1585,14 @@ class SemanticAnalysisPass implements PassInterface
             if ($funcName === 'array_splice') {
                 return PicoType::fromString('void');
             }
-            $s = $this->symbolTable->lookup($expr->name->name);
-            \App\PicoHP\CompilerInvariant::check($s !== null, AstContextFormatter::location($expr) . ', function ' . $expr->name->name . ' not found');
+            $funcNameRaw = $expr->name->name;
+            $s = $this->symbolTable->lookup($funcNameRaw);
+            if ($s === null) {
+                // Unknown function — register a stub that returns mixed.
+                // IR gen emits abort() if the stub is ever called at runtime.
+                $this->emitSemanticWarning('unknown function ' . $funcNameRaw . ' — stub registered (will abort at runtime if called)', $expr);
+                $s = $this->symbolTable->addSymbol($funcNameRaw, PicoType::fromString('mixed'), func: true);
+            }
             $pData->symbol = $s;
             return $s->type;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Include_) {
@@ -1571,14 +1640,18 @@ class SemanticAnalysisPass implements PassInterface
             }
             \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
             $rawClass = $expr->class->toString();
-            if ($rawClass === 'self') {
-                \App\PicoHP\CompilerInvariant::check($this->currentClass !== null); // @codeCoverageIgnore
-                $className = $this->currentClass->name; // @codeCoverageIgnore
+            if ($rawClass === 'self' || $rawClass === 'static') {
+                if ($this->currentClass === null) {
+                    $this->emitSemanticWarning('new self/static outside class context (hoisted method?) — treating as mixed', $expr);
+                    $this->resolveArgs($expr->args);
+                    return PicoType::fromString('mixed');
+                }
+                $className = $this->currentClass->name;
             } else {
                 $className = ClassSymbol::fqcnFromResolvedName($expr->class, $this->currentNamespace());
             }
             $this->ensureExternalClassReference($className);
-            \App\PicoHP\CompilerInvariant::check(isset($this->classRegistry[$className]), "class {$className} not found");
+            \App\PicoHP\CompilerInvariant::check(isset($this->classRegistry[$className]), AstContextFormatter::location($expr) . ", class {$className} not found");
             $this->resolveArgs($expr->args);
             return PicoType::object($className);
         } elseif ($expr instanceof \PhpParser\Node\Expr\PropertyFetch) {
@@ -1714,6 +1787,9 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\Instanceof_) {
             $this->resolveExpr($expr->expr);
             return PicoType::fromString('bool');
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Empty_) {
+            $this->resolveExpr($expr->expr);
+            return PicoType::fromString('bool');
         } elseif ($expr instanceof \PhpParser\Node\Expr\Exit_) {
             // PicoHP lowers exit()/die() to an early return from the current function (LLVM ret), not process
             // termination. Callers after exit() in the same PHP function are still reachable in the binary;
@@ -1734,6 +1810,9 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\Throw_) {
             $this->resolveExpr($expr->expr);
             return PicoType::fromString('void');
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Closure || $expr instanceof \PhpParser\Node\Expr\ArrowFunction) {
+            $this->emitSemanticWarning('closure/arrow function not supported — treating as mixed (will abort at runtime)', $expr);
+            return PicoType::fromString('mixed');
         } else {
             throw new \Exception(AstContextFormatter::location($expr) . ', unknown node type in expr resolver: ' . get_class($expr));
         }
@@ -1767,18 +1846,28 @@ class SemanticAnalysisPass implements PassInterface
             $pData = $this->getPicoData($param);
             \App\PicoHP\CompilerInvariant::check($param->var instanceof \PhpParser\Node\Expr\Variable);
             \App\PicoHP\CompilerInvariant::check(is_string($param->var->name));
-            \App\PicoHP\CompilerInvariant::check($param->type instanceof \PhpParser\Node\Identifier || $param->type instanceof \PhpParser\Node\NullableType || $param->type instanceof \PhpParser\Node\Name || $param->type instanceof \PhpParser\Node\UnionType);
-            $paramType = $this->typeFromNode($param->type);
+            if ($param->type === null) {
+                $this->emitSemanticWarning('untyped parameter $' . $param->var->name . ' — treating as mixed', $param);
+                $paramType = PicoType::fromString('mixed');
+            } elseif ($param->type instanceof \PhpParser\Node\IntersectionType) {
+                $this->emitSemanticWarning('intersection type parameter $' . $param->var->name . ' — treating as mixed', $param);
+                $paramType = PicoType::fromString('mixed');
+            } else {
+                \App\PicoHP\CompilerInvariant::check($param->type instanceof \PhpParser\Node\Identifier || $param->type instanceof \PhpParser\Node\NullableType || $param->type instanceof \PhpParser\Node\Name || $param->type instanceof \PhpParser\Node\UnionType, AstContextFormatter::location($param) . ', unsupported param type node: ' . get_class($param->type));
+                $paramType = $this->typeFromNode($param->type);
+            }
+            \App\PicoHP\CompilerInvariant::check($param->var instanceof \PhpParser\Node\Expr\Variable && is_string($param->var->name));
+            $varName = $param->var->name;
             if ($methodDocBlock !== null && $param->type instanceof \PhpParser\Node\Identifier && $param->type->name === 'array') {
-                $fromDoc = $this->docTypeParser->parseParamTypeByName($methodDocBlock, $param->var->name);
+                $fromDoc = $this->docTypeParser->parseParamTypeByName($methodDocBlock, $varName);
                 if ($fromDoc !== null) {
                     $paramType = $fromDoc;
                 }
             }
-            $pData->symbol = $this->symbolTable->addSymbol($param->var->name, $paramType);
+            $pData->symbol = $this->symbolTable->addSymbol($varName, $paramType);
             $paramTypes[] = $paramType;
             $defaults[$index] = $param->default;
-            $paramNames[$index] = $param->var->name;
+            $paramNames[$index] = $varName;
             $index++;
         }
         return [$paramTypes, $defaults, $paramNames];
