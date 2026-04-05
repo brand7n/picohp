@@ -41,6 +41,11 @@ class Function_ implements NodeInterface
         return $this->name;
     }
 
+    public function getReturnType(): PicoType
+    {
+        return $this->returnType;
+    }
+
     /**
      * @return array<IRLine>
      */

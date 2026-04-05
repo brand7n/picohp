@@ -20,6 +20,16 @@ it('parses flags and positionals', function () {
     expect($o->filename)->toBe('file.php');
 });
 
+it('parses --override-class with two arguments', function () {
+    $o = BuildOptions::parse(['--override-class', 'Foo\\Bar', 'stubs/Bar.php', 'src/']);
+    expect($o->classPathOverrides)->toBe(['Foo\\Bar' => 'stubs/Bar.php']);
+    expect($o->filename)->toBe('src/');
+});
+
+it('rejects --override-class without path', function () {
+    BuildOptions::parse(['--override-class', 'Foo\\Bar']);
+})->throws(\InvalidArgumentException::class);
+
 it('parses --out=value and --out value', function () {
     expect(BuildOptions::parse(['--out=x.out'])->out)->toBe('x.out');
     expect(BuildOptions::parse(['--out', 'y.out'])->out)->toBe('y.out');

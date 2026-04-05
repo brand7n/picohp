@@ -1,4 +1,6 @@
 use std::ffi::{c_char, c_int, CStr, CString};
+use std::io::{self, Write};
+use std::path::Path;
 use regex::Regex;
 
 /// Returns the runtime version as an integer.
@@ -70,6 +72,89 @@ pub extern "C" fn pico_float_to_hex(val: f64) -> *mut c_char {
 pub extern "C" fn pico_string_len(s: *const c_char) -> i32 {
     let s = unsafe { CStr::from_ptr(s) };
     s.to_bytes().len() as i32
+}
+
+/// Read process environment variable; returns empty string if unset (picohp models getenv as string-only).
+#[no_mangle]
+pub extern "C" fn pico_getenv(name: *const c_char) -> *mut c_char {
+    if name.is_null() {
+        return CString::new("").unwrap().into_raw();
+    }
+    let name = match unsafe { CStr::from_ptr(name) }.to_str() {
+        Ok(s) => s,
+        Err(_) => return CString::new("").unwrap().into_raw(),
+    };
+    match std::env::var(name) {
+        Ok(val) => CString::new(val).unwrap().into_raw(),
+        Err(_) => CString::new("").unwrap().into_raw(),
+    }
+}
+
+/// First byte of the UTF-8 string (PHP `ord` on a one-code-unit substring).
+#[no_mangle]
+pub extern "C" fn pico_ord(s: *const c_char) -> i32 {
+    if s.is_null() {
+        return 0;
+    }
+    let s = unsafe { CStr::from_ptr(s) };
+    let b = s.to_bytes();
+    if b.is_empty() {
+        return 0;
+    }
+    i32::from(b[0])
+}
+
+/// PHP-compatible `dirname($path, $levels)` (parent chain). `levels` < 1 is treated as 1.
+#[no_mangle]
+pub extern "C" fn pico_dirname(path: *const c_char, levels: i32) -> *mut c_char {
+    let s = unsafe { CStr::from_ptr(path) }.to_str().unwrap();
+    let mut p = Path::new(s);
+    let n = if levels < 1 { 1 } else { levels as usize };
+    for _ in 0..n {
+        match p.parent() {
+            Some(parent) => p = parent,
+            None => break,
+        }
+    }
+    let out = p.to_string_lossy();
+    CString::new(out.as_ref()).unwrap().into_raw()
+}
+
+/// Write bytes to a standard stream. `fd` matches Unix FDs: 0 stdin (writes ignored), 1 stdout, 2 stderr.
+/// `length` is the maximum number of bytes to write; negative means full string content (PHP `fwrite` without length).
+#[no_mangle]
+pub extern "C" fn pico_fwrite(fd: i32, data: *const c_char, length: i32) -> i32 {
+    let bytes = unsafe { CStr::from_ptr(data) }.to_bytes();
+    let n = if length < 0 {
+        bytes.len()
+    } else {
+        (length as usize).min(bytes.len())
+    };
+    let slice = &bytes[..n];
+    match fd {
+        0 => 0,
+        1 => {
+            let mut out = io::stdout();
+            match out.write_all(slice) {
+                Ok(()) => match out.flush() {
+                    Ok(()) => n as i32,
+                    Err(_) => -1,
+                },
+                Err(_) => -1,
+            }
+        }
+        2 => {
+            let mut err = io::stderr();
+            match err.write_all(slice) {
+                Ok(()) => match err.flush() {
+                    Ok(()) => n as i32,
+                    Err(_) => -1,
+                },
+                Err(_) => -1,
+            }
+        }
+        _ => -1,
+    }
 }
 
 #[no_mangle]
@@ -431,6 +516,7 @@ pub extern "C" fn pico_string_pad(s: *const c_char, length: i32, pad: *const c_c
 // Dynamic arrays
 // ---------------------------------------------------------------------------
 
+#[derive(Clone, Copy)]
 enum PicoValue {
     Int(i32),
     Float(f64),
@@ -453,6 +539,29 @@ pub extern "C" fn pico_array_new() -> *mut PicoArray {
 pub extern "C" fn pico_array_len(arr: *const PicoArray) -> i32 {
     let arr = unsafe { &*arr };
     arr.data.len() as i32
+}
+
+/// Copy a range into a new array. `length < 0` means "to end" (PHP `array_slice` with omitted length).
+#[no_mangle]
+pub extern "C" fn pico_array_slice(arr: *const PicoArray, offset: i32, length: i32) -> *mut PicoArray {
+    let arr = unsafe { &*arr };
+    let n = arr.data.len() as i32;
+    let start = if offset < 0 {
+        (n + offset).max(0) as usize
+    } else {
+        (offset as usize).min(arr.data.len())
+    };
+    let end = if length < 0 {
+        arr.data.len()
+    } else {
+        start.saturating_add(length as usize).min(arr.data.len())
+    };
+    let new_data = if start <= end {
+        arr.data[start..end].to_vec()
+    } else {
+        Vec::new()
+    };
+    Box::into_raw(Box::new(PicoArray { data: new_data }))
 }
 
 // -- push -------------------------------------------------------------------
@@ -876,6 +985,12 @@ mod tests {
     #[test]
     fn test_version() {
         assert_eq!(pico_rt_version(), 1);
+    }
+
+    #[test]
+    fn test_pico_fwrite_stdin_is_noop() {
+        let s = CString::new("ab").unwrap();
+        assert_eq!(pico_fwrite(0, s.as_ptr(), -1), 0);
     }
 
     #[test]

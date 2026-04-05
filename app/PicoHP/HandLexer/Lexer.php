@@ -20,11 +20,11 @@ final class Lexer
     }
 
     /**
-     * @return array<int, Token>
+     * @return array<int, \App\PicoHP\HandLexer\Token>
      */
     public function tokenize(): array
     {
-        /** @var array<int, Token> $tokens */
+        /** @var array<int, \App\PicoHP\HandLexer\Token> $tokens */
         $tokens = [];
         $running = true;
         while ($running) {
@@ -224,6 +224,7 @@ final class Lexer
             '[' => TokenType::LeftBracket,
             ']' => TokenType::RightBracket,
             ',' => TokenType::Comma,
+            '?' => TokenType::QuestionMark,
             '"' => TokenType::DoubleQuote,
             "'" => TokenType::SingleQuote,
             '/' => TokenType::Slash,

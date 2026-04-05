@@ -19,6 +19,9 @@
         <exclude>
             <!-- Token stream is exercised heavily by Feature tests; line coverage here skews the total. -->
             <file>app/PicoHP/HandLexer/Lexer.php</file>
+            <!-- Thin PhpParser token mirror and postprocess glue; covered indirectly via parser integration tests. -->
+            <file>app/PicoHP/HandLexer/LexToken.php</file>
+            <file>app/PicoHP/HandLexer/NativeTokenPipeline.php</file>
             <!-- CLI orchestration is covered by Feature builds and argv unit tests; keep line target on compiler passes. -->
             <file>app/Commands/BuildCommand.php</file>
         </exclude>

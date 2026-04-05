@@ -22,5 +22,6 @@ it('exports a stable array shape from toArray', function () {
         'pruned_files' => ['/z.php'],
         'unresolved_class_references' => ['X\\Y'],
         'notes' => ['n1'],
+        'class_path_overrides' => [],
     ]);
 });

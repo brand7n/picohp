@@ -37,11 +37,8 @@ final class CompilerInvariant
 
     private static function relativeToProjectRoot(string $absolutePath): string
     {
+        // Use dirname only — picohp has no faithful realpath(false) yet; canonical resolution is unnecessary for messages.
         $root = dirname(__DIR__, 2);
-        $realRoot = realpath($root);
-        if ($realRoot !== false) {
-            $root = $realRoot;
-        }
         $prefix = $root . DIRECTORY_SEPARATOR;
         if (str_starts_with($absolutePath, $prefix)) {
             return substr($absolutePath, strlen($prefix));

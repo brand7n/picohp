@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\PicoHP;
 
 use PhpParser\Node;
+use PhpParser\Node\Name\FullyQualified;
 use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitor;
 use PhpParser\NodeVisitorAbstract;
@@ -41,10 +42,10 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
         return $this->namespaceStack[array_key_last($this->namespaceStack)];
     }
 
-    /** @return Node\Name Name with correct parts for a FQCN. */
+    /** @return Node\Name Fully-qualified name for a known FQCN. */
     protected function nameFromFqcn(string $fqcn): Node\Name
     {
-        return new Node\Name(explode('\\', $fqcn));
+        return new FullyQualified($fqcn);
     }
 
     /** @return null|int|Node|Node[] */
@@ -98,13 +99,29 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
             }
             \App\PicoHP\CompilerInvariant::check($this->classFqcn !== null);
             $funcName = ClassSymbol::llvmMethodSymbol($this->classFqcn, $methodName);
+            $docAttributes = [];
+            if ($node->hasAttribute('comments')) {
+                $docAttributes['comments'] = $node->getAttribute('comments');
+            }
+            $returnType = $node->returnType;
+            if ($returnType instanceof Node\Identifier && $returnType->name === 'self') {
+                $returnType = $this->nameFromFqcn($this->classFqcn);
+            } elseif ($returnType instanceof Node\Name && $returnType->toString() === 'self') {
+                $returnType = $this->nameFromFqcn($this->classFqcn);
+            } elseif ($returnType instanceof Node\NullableType && $returnType->type instanceof Node\Identifier && $returnType->type->name === 'self') {
+                $returnType = new Node\NullableType($this->nameFromFqcn($this->classFqcn));
+            } elseif ($returnType instanceof Node\NullableType && $returnType->type instanceof Node\Name && $returnType->type->toString() === 'self') {
+                $returnType = new Node\NullableType($this->nameFromFqcn($this->classFqcn));
+            }
             $this->globalStatements[] = new Node\Stmt\Function_(
                 $funcName,
                 [
                     'params' => $node->params,
                     'stmts' => $stmts,
-                    'returnType' => $node->returnType,
-                ]
+                    'returnType' => $returnType,
+                    'attrGroups' => $node->attrGroups,
+                ],
+                $docAttributes
             );
 
             return NodeTraverser::REMOVE_NODE;

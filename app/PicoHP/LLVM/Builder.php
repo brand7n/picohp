@@ -31,6 +31,10 @@ class Builder
         $this->addLine('declare ptr @pico_string_concat(ptr, ptr)');
         $this->addLine('declare i32 @pico_rt_version()');
         $this->addLine('declare i32 @pico_string_len(ptr)');
+        $this->addLine('declare i32 @pico_ord(ptr)');
+        $this->addLine('declare ptr @pico_getenv(ptr)');
+        $this->addLine('declare i32 @pico_fwrite(i32, ptr, i32)');
+        $this->addLine('declare ptr @pico_dirname(ptr, i32)');
         $this->addLine('declare ptr @pico_int_to_string(i32)');
         $this->addLine('declare ptr @pico_float_to_string(double)');
         $this->addLine('declare ptr @pico_float_to_hex(double)');
@@ -62,6 +66,7 @@ class Builder
         $this->addLine('; array runtime');
         $this->addLine('declare ptr @pico_array_new()');
         $this->addLine('declare i32 @pico_array_len(ptr)');
+        $this->addLine('declare ptr @pico_array_slice(ptr, i32, i32)');
         $this->addLine('declare void @pico_array_push_int(ptr, i32)');
         $this->addLine('declare void @pico_array_push_float(ptr, double)');
         $this->addLine('declare void @pico_array_push_bool(ptr, i32)');
@@ -302,6 +307,13 @@ class Builder
     {
         $resultVal = new Instruction('strlen', BaseType::INT);
         $this->addLine("{$resultVal->render()} = call i32 @pico_string_len(ptr {$str->render()})", 1);
+        return $resultVal;
+    }
+
+    public function createStringOrd(ValueAbstract $str): ValueAbstract
+    {
+        $resultVal = new Instruction('ord', BaseType::INT);
+        $this->addLine("{$resultVal->render()} = call i32 @pico_ord(ptr {$str->render()})", 1);
         return $resultVal;
     }
 

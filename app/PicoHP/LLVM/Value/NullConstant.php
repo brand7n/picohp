@@ -9,9 +9,9 @@ use App\PicoHP\LLVM\ValueAbstract;
 
 class NullConstant extends ValueAbstract
 {
-    public function __construct()
+    public function __construct(?BaseType $type = null)
     {
-        parent::__construct(BaseType::STRING);
+        parent::__construct($type ?? BaseType::STRING);
     }
 
     public function render(): string

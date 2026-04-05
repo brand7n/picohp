@@ -10,7 +10,8 @@ namespace App\PicoHP\Precompile;
  * **Pruned** = classmap file paths that never appear in the reachable closure from entrypoints.
  * Reachability is computed by parsing each visited file with php-parser, resolving names, following
  * {@see \PhpParser\Node\Name\FullyQualified} references into the Composer classmap, and enqueueing
- * literal string {@code require}/{@code include} targets.
+ * literal string {@code require}/{@code include} targets (including under {@code vendor/} when
+ * referenced).
  */
 final class CompilationPlanner
 {
@@ -22,11 +23,15 @@ final class CompilationPlanner
 
     /**
      * @param string $entryPhpAbsolute Absolute path to the project entry PHP file (e.g. {@code .../src/main.php} or {@code .../picohp})
+     * @param array<string, string> $classPathOverrides FQCN => absolute path (replaces Composer mapping for reachability)
      */
-    public function planDirectoryBuild(string $projectRoot, string $entryPhpAbsolute): CompilationPlan
+    public function planDirectoryBuild(string $projectRoot, string $entryPhpAbsolute, array $classPathOverrides = []): CompilationPlan
     {
         $projectRoot = rtrim($projectRoot, DIRECTORY_SEPARATOR);
         $graph = $this->composerGraphLoader->load($projectRoot);
+        if ($classPathOverrides !== []) {
+            $graph->classPathOverrides = $classPathOverrides;
+        }
 
         $mainReal = realpath($entryPhpAbsolute);
         if ($mainReal === false || !is_file($mainReal)) {
@@ -73,6 +78,7 @@ final class CompilationPlanner
         $notes = [
             'Reachable files = static closure from the entrypoint (BFS over FQCN references via Composer autoload and literal require/include). Directory `build` merges only these files.',
             'Entry file is chosen via --entry (default src/main.php relative to the project directory).',
+            'Use --override-class <FQCN> <path> to replace Composer’s file for a class (path absolute or relative to the project directory).',
             'Unresolved = FQCNs that could not be resolved to a file and are not known PHP classes/interfaces/traits/enums/functions/constants.',
         ];
 
@@ -84,6 +90,7 @@ final class CompilationPlanner
             $pruned,
             $reach->unresolvedClassReferences,
             $notes,
+            $classPathOverrides,
         );
     }
 }

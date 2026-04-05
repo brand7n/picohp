@@ -17,6 +17,7 @@ final class CompilationPlan
      * @param list<string> $prunedFiles Classmap paths not reachable from entrypoints
      * @param list<string> $unresolvedClassReferences FQCNs seen in code but not in Composer classmap
      * @param list<string> $notes Planner caveats
+     * @param array<string, string> $classPathOverrides FQCN => absolute path from {@code --override-class}
      */
     public function __construct(
         public array $entrypoints = [],
@@ -26,6 +27,7 @@ final class CompilationPlan
         public array $prunedFiles = [],
         public array $unresolvedClassReferences = [],
         public array $notes = [],
+        public array $classPathOverrides = [],
     ) {
     }
 
@@ -42,6 +44,7 @@ final class CompilationPlan
             'pruned_files' => $this->prunedFiles,
             'unresolved_class_references' => $this->unresolvedClassReferences,
             'notes' => $this->notes,
+            'class_path_overrides' => $this->classPathOverrides,
         ];
     }
 }

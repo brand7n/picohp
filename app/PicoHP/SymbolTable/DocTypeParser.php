@@ -90,8 +90,37 @@ class DocTypeParser
         return $this->phpDocTypeNodeToPicoType($returns[0]->type);
     }
 
+    /**
+     * Resolve {@code @param} type for a parameter name from a method/function PHPDoc block.
+     */
+    public function parseParamTypeByName(string $docString, string $paramName): ?PicoType
+    {
+        $tokens = new TokenIterator($this->lexer->tokenize($docString));
+        $phpDocNode = $this->phpDocParser->parse($tokens);
+        $bare = ltrim($paramName, '$');
+        foreach ($phpDocNode->getParamTagValues() as $paramTag) {
+            $tagName = ltrim($paramTag->parameterName, '$');
+            if ($tagName !== $bare) {
+                continue;
+            }
+
+            return $this->phpDocTypeNodeToPicoType($paramTag->type);
+        }
+
+        return null;
+    }
+
     private function phpDocTypeNodeToPicoType(TypeNode $typeNode): ?PicoType
     {
+        if ($typeNode instanceof GenericTypeNode && $typeNode->type->name === 'list') {
+            if (count($typeNode->genericTypes) === 1) {
+                $inner = $this->phpDocTypeNodeToPicoType($typeNode->genericTypes[0]);
+
+                return $inner !== null ? PicoType::array($inner) : null;
+            }
+
+            return null;
+        }
         if ($typeNode instanceof GenericTypeNode && $typeNode->type->name === 'array') {
             if (count($typeNode->genericTypes) === 2
                 && $typeNode->genericTypes[1] instanceof IdentifierTypeNode

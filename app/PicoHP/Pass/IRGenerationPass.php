@@ -51,8 +51,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         return false;
     }
 
-    /** @var array<string> stack of break target block names */
+    /** @var array<string> stack of break target block names (switch end or innermost loop end) */
     protected array $breakTargets = [];
+
+    /** @var array<string> stack of continue target block names (loop increment / cond) */
+    protected array $continueTargets = [];
 
     /**
      * @param array<\PhpParser\Node> $stmts
@@ -91,8 +94,26 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
     public function exec(): void
     {
+        $this->emitStructDefinitionsForRegistry();
         $this->emitBuiltinExceptionClass();
         $this->buildStmts($this->stmts);
+    }
+
+    /**
+     * Emit {@code %struct.FQCN_mangled = type { ... }} for every class in the registry.
+     *
+     * Reflection-registered classes (e.g. SPL exceptions) never appear as {@see \PhpParser\Node\Stmt\Class_}
+     * in the merged AST, so {@see buildStmt} would not emit their LLVM type otherwise — but {@see createObjectAlloc}
+     * and {@see createStructGEP} still reference {@code %struct.*}. User-defined classes use the same path so
+     * struct layout stays single-sourced from {@see ClassMetadata::toLLVMStructFields()}.
+     */
+    protected function emitStructDefinitionsForRegistry(): void
+    {
+        foreach ($this->classRegistry as $fqcn => $meta) {
+            $llvmClass = ClassSymbol::mangle($fqcn);
+            $fields = $meta->toLLVMStructFields();
+            $this->module->addLine(new IRLine("%struct.{$llvmClass} = type { {$fields} }"));
+        }
     }
 
     protected function emitBuiltinExceptionClass(): void
@@ -100,8 +121,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         if (!isset($this->classRegistry['Exception'])) {
             return;
         }
-        // Exception struct: { ptr message }
-        $this->module->addLine(new \App\PicoHP\LLVM\IRLine('%struct.Exception = type { ptr }'));
+        // Struct type is emitted by emitStructDefinitionsForRegistry() — field 0 is type_id (i32), field 1 is message (ptr).
 
         // Exception___construct(ptr %this, ptr %message)
         $ctorFunc = $this->module->addFunction('Exception___construct', new \App\PicoHP\PicoType(BaseType::VOID), [
@@ -112,7 +132,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         $this->builder->setInsertPoint($bb);
         $thisParam = new Param(0, BaseType::PTR);
         $msgParam = new Param(1, BaseType::STRING);
-        $fieldPtr = $this->builder->createStructGEP('Exception', $thisParam, 0, BaseType::STRING);
+        $fieldPtr = $this->builder->createStructGEP('Exception', $thisParam, 1, BaseType::STRING);
         $this->builder->createStore($msgParam, $fieldPtr);
         $this->builder->createRetVoid();
 
@@ -123,7 +143,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         $bb = $getMessageFunc->addBasicBlock('entry');
         $this->builder->setInsertPoint($bb);
         $thisParam = new Param(0, BaseType::PTR);
-        $fieldPtr = $this->builder->createStructGEP('Exception', $thisParam, 0, BaseType::STRING);
+        $fieldPtr = $this->builder->createStructGEP('Exception', $thisParam, 1, BaseType::STRING);
         $msgVal = $this->builder->createLoad($fieldPtr);
         $this->builder->createInstruction('ret', [$msgVal], false);
     }
@@ -271,6 +291,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $condLabel = new Label($condBB->getName());
             $bodyLabel = new Label($bodyBB->getName());
             $endLabel = new Label($endBB->getName());
+            $this->continueTargets[] = $condBB->getName();
+            $this->breakTargets[] = $endBB->getName();
             $this->builder->createBranch([$condLabel]);
             $this->builder->setInsertPoint($condBB);
             $cond = $this->buildExpr($stmt->cond);
@@ -278,6 +300,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->builder->setInsertPoint($bodyBB);
             $this->buildStmts($stmt->stmts);
             $this->builder->createBranch([$condLabel]);
+            array_pop($this->continueTargets);
+            array_pop($this->breakTargets);
             $this->builder->setInsertPoint($endBB);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Class_) {
             \App\PicoHP\CompilerInvariant::check($stmt->name instanceof \PhpParser\Node\Identifier);
@@ -285,12 +309,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             \App\PicoHP\CompilerInvariant::check(isset($this->classRegistry[$fqcn]));
             $classMeta = $this->classRegistry[$fqcn];
             $llvmClass = ClassSymbol::mangle($fqcn);
-            $fields = $classMeta->toLLVMStructFields();
-            if ($fields !== '') {
-                $this->module->addLine(new IRLine("%struct.{$llvmClass} = type { {$fields} }"));
-            } else {
-                $this->module->addLine(new IRLine("%struct.{$llvmClass} = type {}"));
-            }
+            // Instance struct layout is emitted once in emitStructDefinitionsForRegistry() for all registry classes.
             // Emit static properties as globals
             foreach ($classMeta->staticProperties as $propName => $propType) {
                 $llvmType = $propType->toBase()->toLLVM();
@@ -364,6 +383,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $condLabel = new Label($condBB->getName());
             $bodyLabel = new Label($bodyBB->getName());
             $endLabel = new Label($endBB->getName());
+            $this->continueTargets[] = $condBB->getName();
+            $this->breakTargets[] = $endBB->getName();
             $this->builder->createBranch([$bodyLabel]);
             $this->builder->setInsertPoint($bodyBB);
             $this->buildStmts($stmt->stmts);
@@ -371,15 +392,21 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->builder->setInsertPoint($condBB);
             $cond = $this->buildExpr($stmt->cond);
             $this->builder->createBranch([$cond, $bodyLabel, $endLabel]);
+            array_pop($this->continueTargets);
+            array_pop($this->breakTargets);
             $this->builder->setInsertPoint($endBB);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\For_) {
             \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
             $condBB = $this->currentFunction->addBasicBlock("cond{$pData->mycount}");
             $bodyBB = $this->currentFunction->addBasicBlock("body{$pData->mycount}");
+            $forContinueBB = $this->currentFunction->addBasicBlock("for_continue{$pData->mycount}");
             $endBB = $this->currentFunction->addBasicBlock("end{$pData->mycount}");
             $condLabel = new Label($condBB->getName());
             $bodyLabel = new Label($bodyBB->getName());
+            $forContinueLabel = new Label($forContinueBB->getName());
             $endLabel = new Label($endBB->getName());
+            $this->continueTargets[] = $forContinueBB->getName();
+            $this->breakTargets[] = $endBB->getName();
             foreach ($stmt->init as $init) {
                 $this->buildExpr($init);
             }
@@ -393,10 +420,14 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->builder->createBranch([$conds[0], $bodyLabel, $endLabel]);
             $this->builder->setInsertPoint($bodyBB);
             $this->buildStmts($stmt->stmts);
+            $this->builder->createBranch([$forContinueLabel]);
+            $this->builder->setInsertPoint($forContinueBB);
             foreach ($stmt->loop as $loop) {
                 $this->buildExpr($loop);
             }
             $this->builder->createBranch([$condLabel]);
+            array_pop($this->continueTargets);
+            array_pop($this->breakTargets);
             $this->builder->setInsertPoint($endBB);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Switch_) {
             \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
@@ -444,8 +475,12 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             array_pop($this->breakTargets);
             $this->builder->setInsertPoint($endBB);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Break_) {
-            \App\PicoHP\CompilerInvariant::check(count($this->breakTargets) > 0, 'break outside of switch/loop');
+            \App\PicoHP\CompilerInvariant::check(count($this->breakTargets) > 0, 'break outside of switch or loop');
             $target = end($this->breakTargets);
+            $this->builder->createBranch([new Label($target)]);
+        } elseif ($stmt instanceof \PhpParser\Node\Stmt\Continue_) {
+            \App\PicoHP\CompilerInvariant::check(count($this->continueTargets) > 0, 'continue outside of loop');
+            $target = end($this->continueTargets);
             $this->builder->createBranch([new Label($target)]);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Foreach_) {
             \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
@@ -464,10 +499,15 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
             $condBB = $this->currentFunction->addBasicBlock("foreach_cond{$count}");
             $bodyBB = $this->currentFunction->addBasicBlock("foreach_body{$count}");
+            $foreachContinueBB = $this->currentFunction->addBasicBlock("foreach_continue{$count}");
             $endBB = $this->currentFunction->addBasicBlock("foreach_end{$count}");
             $condLabel = new Label($condBB->getName());
             $bodyLabel = new Label($bodyBB->getName());
+            $foreachContinueLabel = new Label($foreachContinueBB->getName());
             $endLabel = new Label($endBB->getName());
+
+            $this->continueTargets[] = $foreachContinueBB->getName();
+            $this->breakTargets[] = $endBB->getName();
 
             $this->builder->createBranch([$condLabel]);
 
@@ -505,9 +545,15 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 }
             }
             $this->buildStmts($stmt->stmts);
+            $this->builder->createBranch([$foreachContinueLabel]);
+            $this->builder->setInsertPoint($foreachContinueBB);
+            $idx = $this->builder->createLoad($counterPtr);
             $idxNext = $this->builder->createInstruction('add', [$idx, new Constant(1, BaseType::INT)]);
             $this->builder->createStore($idxNext, $counterPtr);
             $this->builder->createBranch([$condLabel]);
+
+            array_pop($this->continueTargets);
+            array_pop($this->breakTargets);
 
             $this->builder->setInsertPoint($endBB);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Interface_) {
@@ -633,6 +679,14 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\AssignOp\Minus) {
             return $this->buildCompoundAssign($expr, 'sub', 'fsub');
         } elseif ($expr instanceof \PhpParser\Node\Expr\Variable) {
+            if (is_string($expr->name) && $expr->name === '_SERVER') {
+                \App\PicoHP\CompilerInvariant::check(
+                    !$pData->lVal,
+                    "line {$expr->getStartLine()}, \$_SERVER cannot be assigned"
+                );
+
+                return $this->builder->createCall('pico_map_new', [], BaseType::PTR);
+            }
             if (is_string($expr->name) && $expr->name === 'this') {
                 \App\PicoHP\CompilerInvariant::check(
                     $this->currentThisPtr !== null,
@@ -666,12 +720,15 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 return $this->buildShortCircuit($expr, $pData);
             }
 
-            $lval = $this->buildExpr($expr->left);
-            $rval = $this->buildExpr($expr->right);
-
             if ($sigil === '.') {
+                $lval = $this->coerceExprToStringForConcat($expr->left);
+                $rval = $this->coerceExprToStringForConcat($expr->right);
+
                 return $this->builder->createStringConcat($lval, $rval);
             }
+
+            $lval = $this->buildExpr($expr->left);
+            $rval = $this->buildExpr($expr->right);
 
             // For mixed-backed boxed-int values, treat ptr/string as integer bits before integer ops.
             $intOpSigils = ['|', '&', '^', '<<', '>>', '+', '-', '*', '/', '%', '<', '>', '<=', '>='];
@@ -815,6 +872,30 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             if ($constName === 'null') {
                 return new NullConstant();
             }
+            if ($constName === 'true') {
+                return new Constant(1, BaseType::BOOL);
+            }
+            if ($constName === 'false') {
+                return new Constant(0, BaseType::BOOL);
+            }
+            if ($constName === 'stdin') {
+                return new Constant(0, BaseType::INT);
+            }
+            if ($constName === 'stdout') {
+                return new Constant(1, BaseType::INT);
+            }
+            if ($constName === 'stderr') {
+                return new Constant(2, BaseType::INT);
+            }
+            if ($constName === 'debug_backtrace_ignore_args') {
+                return new Constant(2, BaseType::INT);
+            }
+            if ($constName === 'debug_backtrace_provide_object') {
+                return new Constant(1, BaseType::INT);
+            }
+            if ($constName === 'directory_separator') {
+                return $this->builder->createStringConstant(DIRECTORY_SEPARATOR);
+            }
             return new Constant($constName === 'true' ? 1 : 0, BaseType::BOOL);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Int_) {
             $val = $this->buildExpr($expr->expr);
@@ -876,6 +957,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 // Compile assert as no-op (assertions stripped in compiled code)
                 return new Void_();
             }
+            if ($funcName === 'class_alias') {
+                return new Void_();
+            }
             if ($funcName === 'count') {
                 \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
                 \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
@@ -896,6 +980,64 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
                 $strVal = $this->buildExpr($expr->args[0]->value);
                 return $this->builder->createStringLen($strVal);
+            }
+            if ($funcName === 'ord') {
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                $strVal = $this->buildExpr($expr->args[0]->value);
+                \App\PicoHP\CompilerInvariant::check($strVal->getType() === BaseType::STRING);
+
+                return $this->builder->createStringOrd($strVal);
+            }
+            if ($funcName === 'getenv') {
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                $nameVal = $this->buildExpr($expr->args[0]->value);
+                \App\PicoHP\CompilerInvariant::check($nameVal->getType() === BaseType::STRING);
+
+                return $this->builder->createCall('pico_getenv', [$nameVal], BaseType::STRING);
+            }
+            if ($funcName === 'max') {
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 2);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg && $expr->args[1] instanceof \PhpParser\Node\Arg);
+                $a = $this->buildExpr($expr->args[0]->value);
+                $b = $this->buildExpr($expr->args[1]->value);
+                \App\PicoHP\CompilerInvariant::check($a->getType() === BaseType::INT && $b->getType() === BaseType::INT);
+                $cmp = $this->builder->createInstruction('icmp sgt', [$a, $b], resultType: BaseType::BOOL);
+
+                return $this->builder->createSelect($cmp, $a, $b);
+            }
+            if ($funcName === 'fwrite') {
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 2 && count($expr->args) <= 3);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg && $expr->args[1] instanceof \PhpParser\Node\Arg);
+                $fd = $this->buildExpr($expr->args[0]->value);
+                $data = $this->buildExpr($expr->args[1]->value);
+                \App\PicoHP\CompilerInvariant::check($fd->getType() === BaseType::INT && $data->getType() === BaseType::STRING);
+                if (count($expr->args) === 3 && $expr->args[2] instanceof \PhpParser\Node\Arg) {
+                    $length = $this->buildExpr($expr->args[2]->value);
+
+                    return $this->builder->createCall('pico_fwrite', [$fd, $data, $length], BaseType::INT);
+                }
+
+                return $this->builder->createCall('pico_fwrite', [$fd, $data, new Constant(-1, BaseType::INT)], BaseType::INT);
+            }
+            if ($funcName === 'debug_backtrace') {
+                foreach ($expr->args as $arg) {
+                    \App\PicoHP\CompilerInvariant::check($arg instanceof \PhpParser\Node\Arg);
+                    $this->buildExpr($arg->value);
+                }
+
+                return $this->builder->createArrayNew();
+            }
+            if ($funcName === 'dirname') {
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 1 && count($expr->args) <= 2);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                $path = $this->buildExpr($expr->args[0]->value);
+                $levels = count($expr->args) === 2 && $expr->args[1] instanceof \PhpParser\Node\Arg
+                    ? $this->buildExpr($expr->args[1]->value)
+                    : new Constant(1, BaseType::INT);
+
+                return $this->builder->createCall('pico_dirname', [$path, $levels], BaseType::STRING);
             }
             if ($funcName === 'str_starts_with') {
                 \App\PicoHP\CompilerInvariant::check(count($expr->args) === 2);
@@ -1018,6 +1160,18 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
                 return $this->buildExpr($expr->args[0]->value);
             }
+            if ($funcName === 'array_slice') {
+                \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 2 && count($expr->args) <= 4);
+                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                \App\PicoHP\CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
+                $arrPtr = $this->buildExpr($expr->args[0]->value);
+                $offset = $this->buildExpr($expr->args[1]->value);
+                $length = count($expr->args) >= 3 && $expr->args[2] instanceof \PhpParser\Node\Arg
+                    ? $this->buildExpr($expr->args[2]->value)
+                    : new Constant(-1, BaseType::INT);
+
+                return $this->builder->createCall('pico_array_slice', [$arrPtr, $offset, $length], BaseType::PTR);
+            }
             if ($funcName === 'array_search') {
                 \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 2);
                 \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
@@ -1089,6 +1243,14 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $returnType = $funcSymbol->type->toBase();
             return $this->builder->createCall($expr->name->name, $args, $returnType);
         } elseif ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
+            if ($expr->var instanceof \PhpParser\Node\Expr\Variable
+                && is_string($expr->var->name)
+                && $expr->var->name === '_SERVER'
+            ) {
+                \App\PicoHP\CompilerInvariant::check($expr->dim !== null, "line {$expr->getStartLine()}, \$_SERVER[...] requires index");
+
+                return new NullConstant(BaseType::PTR);
+            }
             $varType = $this->getExprResolvedType($expr->var);
             if ($varType->isArray() || $varType->isMixed()) {
                 \App\PicoHP\CompilerInvariant::check($expr->dim !== null, "array read requires index");
@@ -1483,6 +1645,20 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $result = $this->builder->createInstruction('or', [$result, $cmp], resultType: BaseType::BOOL);
             }
             return $result;
+        } elseif ($expr instanceof \PhpParser\Node\Expr\Exit_) {
+            // Not PHP process exit: emits ret from the current LLVM function only (see SemanticAnalysisPass).
+            \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
+            $returnType = $this->currentFunction->getReturnType();
+            if ($expr->expr !== null) {
+                $val = $this->buildExpr($expr->expr);
+                $this->builder->createInstruction('ret', [$val], false);
+            } elseif ($returnType->toBase() === BaseType::VOID) {
+                $this->builder->createRetVoid();
+            } else {
+                $this->builder->createInstruction('ret', [new Constant(0, BaseType::INT)], false);
+            }
+
+            return new Void_();
         } elseif ($expr instanceof \PhpParser\Node\Expr\Throw_) {
             // throw new ClassName(args...)
             \App\PicoHP\CompilerInvariant::check($expr->expr instanceof \PhpParser\Node\Expr\New_);
@@ -1741,10 +1917,77 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         throw new \RuntimeException('unsupported default value type: ' . get_class($expr));
     }
 
+    /**
+     * PHP string concatenation (`a . b`) coerces each operand to string.
+     */
+    protected function coerceExprToStringForConcat(\PhpParser\Node\Expr $expr): ValueAbstract
+    {
+        $val = $this->buildExpr($expr);
+        $picoType = $this->getExprResolvedType($expr);
+        if ($picoType->isArray()) {
+            return $this->builder->createStringConstant('Array');
+        }
+
+        return match ($picoType->toBase()) {
+            BaseType::STRING => $val,
+            BaseType::INT => $this->builder->createCall('pico_int_to_string', [$val], BaseType::STRING),
+            BaseType::FLOAT => $this->builder->createCall('pico_float_to_string', [$val], BaseType::STRING),
+            BaseType::BOOL => $this->builder->createSelect(
+                $val,
+                $this->builder->createStringConstant('1'),
+                $this->builder->createStringConstant(''),
+            ),
+            BaseType::VOID => $this->builder->createStringConstant(''),
+            BaseType::PTR => $val,
+            BaseType::LABEL => throw new \RuntimeException('string concat on label value'),
+        };
+    }
+
     protected function getExprType(\PhpParser\Node\Expr $expr): \App\PicoHP\PicoType
     {
         $pData = PicoHPData::getPData($expr);
         return $pData->getSymbol()->type;
+    }
+
+    /**
+     * Built-in {@see \PhpParser\Node\Expr\FuncCall} nodes often have no {@see Symbol} on picoHP data;
+     * mirror {@see SemanticAnalysisPass} return types so {@see coerceExprToStringForConcat} can classify values.
+     */
+    protected function inferBuiltinFuncCallReturnType(\PhpParser\Node\Expr\FuncCall $expr): \App\PicoHP\PicoType
+    {
+        \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Name);
+        $fn = $expr->name->toLowerString();
+        if ($fn === 'count' || $fn === 'strlen' || $fn === 'ord' || $fn === 'getenv' || $fn === 'max' || $fn === 'fwrite' || $fn === 'intval' || $fn === 'array_search' || $fn === 'preg_match') {
+            return \App\PicoHP\PicoType::fromString('int');
+        }
+        if ($fn === 'debug_backtrace') {
+            return \App\PicoHP\PicoType::array(\App\PicoHP\PicoType::fromString('mixed'));
+        }
+        if ($fn === 'dirname') {
+            return \App\PicoHP\PicoType::fromString('string');
+        }
+        if ($fn === 'str_starts_with' || $fn === 'str_contains' || $fn === 'is_int' || $fn === 'is_string' || $fn === 'is_float' || $fn === 'is_bool' || $fn === 'array_key_exists') {
+            return \App\PicoHP\PicoType::fromString('bool');
+        }
+        if ($fn === 'strval' || $fn === 'implode' || $fn === 'substr' || $fn === 'trim' || $fn === 'str_repeat' || $fn === 'str_replace'
+            || $fn === 'strtoupper' || $fn === 'strtolower' || $fn === 'dechex' || $fn === 'str_pad') {
+            return \App\PicoHP\PicoType::fromString('string');
+        }
+        if ($fn === 'array_pop' || $fn === 'array_shift' || $fn === 'assert' || $fn === 'class_alias' || $fn === 'array_splice') {
+            return \App\PicoHP\PicoType::fromString('void');
+        }
+        if ($fn === 'array_slice') {
+            \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+
+            return $this->getExprResolvedType($expr->args[0]->value);
+        }
+        if ($fn === 'end') {
+            \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1 && $expr->args[0] instanceof \PhpParser\Node\Arg);
+
+            return $this->getExprResolvedType($expr->args[0]->value)->getElementType();
+        }
+
+        return \App\PicoHP\PicoType::fromString('mixed');
     }
 
     protected function getExprResolvedType(\PhpParser\Node\Expr $expr): \App\PicoHP\PicoType
@@ -1753,6 +1996,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             if (is_string($expr->name) && $expr->name === 'this' && $this->currentClassName !== null) {
                 return \App\PicoHP\PicoType::object($this->currentClassName);
             }
+            if (is_string($expr->name) && $expr->name === '_SERVER') {
+                return \App\PicoHP\PicoType::serverSuperglobalEmptyArray();
+            }
             return PicoHPData::getPData($expr)->getSymbol()->type;
         }
         if ($expr instanceof \PhpParser\Node\Expr\PropertyFetch) {
@@ -1760,6 +2006,15 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $objType = $this->getExprResolvedType($expr->var);
             if ($objType->isMixed()) {
                 return \App\PicoHP\PicoType::fromString('mixed');
+            }
+            // Enum ->value access (must match SemanticAnalysisPass; enum ClassMetadata has no "value" property)
+            if ($objType->isEnum() && $expr->name->toString() === 'value') {
+                $enumMeta = $this->enumRegistry[$objType->getClassName()];
+                if ($enumMeta->backingType === 'string') {
+                    return \App\PicoHP\PicoType::fromString('string');
+                }
+
+                return \App\PicoHP\PicoType::fromString('int');
             }
             $className = $objType->getClassName();
             $classMeta = $this->classRegistry[$className];
@@ -1776,6 +2031,12 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             return $classMeta->getPropertyType($propName);
         }
         if ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
+            if ($expr->var instanceof \PhpParser\Node\Expr\Variable
+                && is_string($expr->var->name)
+                && $expr->var->name === '_SERVER'
+            ) {
+                return \App\PicoHP\PicoType::fromString('mixed');
+            }
             $arrType = $this->getExprResolvedType($expr->var);
             if ($arrType->isMixed()) {
                 return \App\PicoHP\PicoType::fromString('mixed');
@@ -1814,7 +2075,45 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 1 && $expr->args[0] instanceof \PhpParser\Node\Arg);
                 return $this->getExprResolvedType($expr->args[0]->value);
             }
-            return PicoHPData::getPData($expr)->getSymbol()->type;
+            $pData = $expr->getAttribute('picoHP');
+            if ($pData instanceof PicoHPData && $pData->symbol !== null) {
+                return $pData->getSymbol()->type;
+            }
+
+            return $this->inferBuiltinFuncCallReturnType($expr);
+        }
+        if ($expr instanceof \PhpParser\Node\Expr\Exit_) {
+            return \App\PicoHP\PicoType::fromString('void');
+        }
+        if ($expr instanceof \PhpParser\Node\Scalar\String_) {
+            return \App\PicoHP\PicoType::fromString('string');
+        }
+        if ($expr instanceof \PhpParser\Node\Scalar\Int_) {
+            return \App\PicoHP\PicoType::fromString('int');
+        }
+        if ($expr instanceof \PhpParser\Node\Scalar\Float_) {
+            return \App\PicoHP\PicoType::fromString('float');
+        }
+        if ($expr instanceof \PhpParser\Node\Expr\BinaryOp) {
+            $sigil = $expr->getOperatorSigil();
+            if ($sigil === '.') {
+                return \App\PicoHP\PicoType::fromString('string');
+            }
+        }
+        if ($expr instanceof \PhpParser\Node\Expr\Ternary) {
+            if ($expr->if === null) {
+                return $this->getExprResolvedType($expr->else);
+            }
+            $t = $this->getExprResolvedType($expr->if);
+            $f = $this->getExprResolvedType($expr->else);
+            if ($t->isEqualTo($f)) {
+                return $t;
+            }
+
+            return \App\PicoHP\PicoType::fromString('mixed');
+        }
+        if ($expr instanceof \PhpParser\Node\Expr\BinaryOp\Coalesce) {
+            return $this->getExprResolvedType($expr->right);
         }
         throw new \RuntimeException('getExprResolvedType: unsupported expr type ' . get_class($expr));
     }

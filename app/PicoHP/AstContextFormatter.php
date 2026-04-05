@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\PicoHP;
 
 use PhpParser\Node;
-use PhpParser\PrettyPrinter\Standard;
 
 /**
  * Formats a node for error messages (file + line + snippet when {@code pico_source_file} is set).
@@ -24,7 +23,7 @@ final class AstContextFormatter
             return $file . ':' . $line;
         }
         if (is_string($file) && $file !== '') {
-            return $file;
+            return $file . '';
         }
         if ($line > 0) {
             return 'line ' . $line;
@@ -44,16 +43,9 @@ final class AstContextFormatter
         if ($line > 0) {
             $parts[] = 'line: ' . $line;
         }
-        $printer = new Standard();
-        try {
-            if ($node instanceof Node\Expr) {
-                $parts[] = 'code: ' . $printer->prettyPrintExpr($node);
-            } else {
-                $parts[] = 'code: ' . $printer->prettyPrint([$node]);
-            }
-        } catch (\Throwable) {
-            $parts[] = 'code: (could not pretty-print)';
-        }
+        // Use node kind only — avoids depending on PrettyPrinter methods in the compiler registry
+        // for self-compilation (external class methods are not fully reflected into ClassMetadata).
+        $parts[] = 'code: ' . $node->getType();
 
         return implode(', ', $parts);
     }

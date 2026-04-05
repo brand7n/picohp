@@ -153,6 +153,13 @@ final class ReachabilityAnalyzer
      */
     private function resolveClassToPath(string $fqcn, ComposerAutoloadGraph $graph, ?ClassLoader $composerLoader): ?string
     {
+        if (isset($graph->classPathOverrides[$fqcn])) {
+            $p = $graph->classPathOverrides[$fqcn];
+            if (is_file($p)) {
+                return $p;
+            }
+        }
+
         if ($composerLoader instanceof ClassLoader) {
             $path = $composerLoader->findFile($fqcn);
             if ($path !== false && is_file($path)) {

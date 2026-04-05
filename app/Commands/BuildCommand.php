@@ -8,7 +8,7 @@ use App\Cli\BuildOptions;
 use App\Cli\ConsoleIo;
 use App\PicoHP\ClassToFunctionVisitor;
 use App\PicoHP\GlobalToMainVisitor;
-use App\PicoHP\HandLexer\HandLexerAdapter;
+use App\PicoHP\HandLexer\{HandLexerAdapter, TokenAdapter};
 use App\PicoHP\Pass\{IRGenerationPass, SemanticAnalysisPass};
 use App\PicoHP\Precompile\CompilationPlan;
 use App\PicoHP\Precompile\CompilationPlanner;
@@ -27,6 +27,7 @@ final class BuildCommand
     {
         if (count($argv) < 2) {
             fwrite(STDERR, "Usage: picohp build <file|directory> [options]\n");
+            fwrite(STDERR, "  --override-class <FQCN> <path>   map a class to a PHP file (directory builds; repeat for multiple)\n");
 
             return 1;
         }
@@ -44,7 +45,11 @@ final class BuildCommand
             return 1;
         }
         if ($options->filename === null || $options->filename === '') {
-            fwrite(STDERR, "Missing argument: PHP file or project directory\n");
+            fwrite(STDERR, "picohp build: pass a PHP file or directory to compile.\n\n");
+            fwrite(STDERR, "Usage: picohp build <file|directory> [options]\n");
+            fwrite(STDERR, "Example: picohp build tests/programs/smoke/word_scan_smoke.php\n");
+            fwrite(STDERR, "Example: picohp build . --entry=picoHP\n");
+            fwrite(STDERR, "Example: picohp build . --entry=src/main.php --override-class 'PhpParser\\\\Token' stubs/Token.php\n");
 
             return 1;
         }
@@ -59,12 +64,20 @@ final class BuildCommand
         $filename = $options->filename;
         \App\PicoHP\CompilerInvariant::check(is_string($filename));
 
+        // Directory builds load the target project's vendor/autoload.php during reachability analysis.
+        // That prepends a Composer autoloader, so the first load of App\PicoHP\HandLexer\TokenAdapter
+        // would otherwise resolve to the target's app/ tree. Pin the compiler's class first.
+        if (is_dir($filename)) {
+            class_exists(TokenAdapter::class, true);
+        }
+
         $ast = [];
 
         if ($options->precompilePlan && is_dir($filename)) {
             $entryFile = $this->resolveDirectoryEntryFile($filename, $options->entry);
+            $classPathOverrides = $this->resolveClassPathOverrides($filename, $options->classPathOverrides);
             $planner = new CompilationPlanner();
-            $plan = $planner->planDirectoryBuild($filename, $entryFile);
+            $plan = $planner->planDirectoryBuild($filename, $entryFile, $classPathOverrides);
             $this->printPrecompilePlan($io, $plan);
 
             if ($options->debug === true) {
@@ -84,7 +97,8 @@ final class BuildCommand
         try {
             if (is_dir($filename)) {
                 $entryFile = $this->resolveDirectoryEntryFile($filename, $options->entry);
-                $ast = $this->walkClassMap($filename, $entryFile, $io);
+                $classPathOverrides = $this->resolveClassPathOverrides($filename, $options->classPathOverrides);
+                $ast = $this->walkClassMap($filename, $entryFile, $io, $classPathOverrides);
             } else {
                 if (!file_exists($filename)) {
                     $io->error("Unable to open input file: {$filename}");
@@ -100,7 +114,13 @@ final class BuildCommand
                 }
                 // @codeCoverageIgnoreEnd
 
-                $ast = $parser->parse($code);
+                try {
+                    $ast = $parser->parse($code);
+                } catch (\PhpParser\Error $e) {
+                    $e->setRawMessage($filename . ': ' . $e->getRawMessage());
+
+                    throw $e;
+                }
                 // @codeCoverageIgnoreStart
                 if (is_null($ast)) {
                     $io->error("Failed to parse input file: {$filename}");
@@ -137,9 +157,16 @@ final class BuildCommand
         $debug = $options->debug === true;
 
         try {
-            $traverser = new NodeTraverser();
-            $traverser->addVisitor(new NameResolver(options: ['replaceNodes' => false]));
-            $ast = $traverser->traverse($ast);
+            // Single-file builds: resolve names on the whole AST. Directory builds merge many files;
+            // {@see getNodes()} already runs {@see NameResolver} per file — running it again on the
+            // merged tree would leave {@see NameContext} stuck in the last {@code namespace} block
+            // (nikic/php-parser does not pop namespace on leave), so global code from a later file
+            // would resolve relative to that namespace (e.g. {@code App\\…} → {@code PhpParser\\App\\…}).
+            if (!is_dir($filename)) {
+                $traverser = new NodeTraverser();
+                $traverser->addVisitor(new NameResolver(options: ['replaceNodes' => false]));
+                $ast = $traverser->traverse($ast);
+            }
 
             if ($debug) {
                 file_put_contents($astOutput, json_encode($ast, JSON_PRETTY_PRINT));
@@ -242,9 +269,11 @@ final class BuildCommand
     /**
      * Merges ASTs only for files reachable from {@code --entry} (same graph as {@see CompilationPlanner}).
      *
+     * @param array<string, string> $classPathOverrides FQCN => absolute path
+     *
      * @return array<\PhpParser\Node>
      */
-    protected function walkClassMap(string $path, string $entryFileAbsolute, ConsoleIo $io): array
+    protected function walkClassMap(string $path, string $entryFileAbsolute, ConsoleIo $io, array $classPathOverrides = []): array
     {
         $main = realpath($entryFileAbsolute);
         if ($main === false || !is_file($main)) {
@@ -256,7 +285,7 @@ final class BuildCommand
         }
 
         $planner = new CompilationPlanner();
-        $plan = $planner->planDirectoryBuild($path, $entryFileAbsolute);
+        $plan = $planner->planDirectoryBuild($path, $entryFileAbsolute, $classPathOverrides);
 
         $nodes = [];
         foreach ($plan->reachableFiles as $file) {
@@ -285,7 +314,13 @@ final class BuildCommand
             throw new \RuntimeException("Unable to open input file: {$filename}");
         }
         // @codeCoverageIgnoreEnd
-        $ast = $parser->parse($code);
+        try {
+            $ast = $parser->parse($code);
+        } catch (\PhpParser\Error $e) {
+            $e->setRawMessage($filename . ': ' . $e->getRawMessage());
+
+            throw $e;
+        }
         // @codeCoverageIgnoreStart
         if (is_null($ast)) {
             throw new \RuntimeException("Failed to parse input file: {$filename}");
@@ -294,8 +329,12 @@ final class BuildCommand
 
         // TODO: filter out everything except classes and functions
         $resolved = realpath($filename);
+        $annotated = $this->annotateAstWithSourceFile($ast, $resolved !== false ? $resolved : $filename);
 
-        return $this->annotateAstWithSourceFile($ast, $resolved !== false ? $resolved : $filename);
+        $traverser = new NodeTraverser();
+        $traverser->addVisitor(new NameResolver(options: ['replaceNodes' => false]));
+
+        return $traverser->traverse($annotated);
     }
 
     /**
@@ -315,6 +354,58 @@ final class BuildCommand
     /**
      * Resolves {@code --entry} for a directory build: relative paths are taken relative to the project directory.
      */
+    /**
+     * @param array<string, string> $overrides FQCN => path from CLI (absolute or project-relative)
+     *
+     * @return array<string, string> FQCN => absolute existing file path
+     */
+    private function resolveClassPathOverrides(string $projectRoot, array $overrides): array
+    {
+        if ($overrides === []) {
+            return [];
+        }
+        $out = [];
+        foreach ($overrides as $fqcn => $path) {
+            $fqcn = trim($fqcn);
+            if ($fqcn === '') {
+                throw new \RuntimeException('Empty class name in --override-class');
+            }
+            $resolved = $this->resolveExistingPhpFileUnderProject($projectRoot, $path);
+            $out[$fqcn] = $resolved;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Resolve {@code path} to an existing file: absolute paths as-is, otherwise relative to {@code $projectRoot}.
+     */
+    private function resolveExistingPhpFileUnderProject(string $projectRoot, string $path): string
+    {
+        $path = trim($path);
+        if ($path === '') {
+            throw new \RuntimeException('Empty path in --override-class');
+        }
+
+        if ($this->isAbsoluteFilesystemPath($path)) {
+            $real = realpath($path);
+            if ($real === false || !is_file($real)) {
+                throw new \RuntimeException("Class override path is not a file: {$path}");
+            }
+
+            return $real;
+        }
+
+        $norm = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
+        $candidate = rtrim($projectRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $norm;
+        $real = realpath($candidate);
+        if ($real === false || !is_file($real)) {
+            throw new \RuntimeException("Class override path is not a file: {$candidate}");
+        }
+
+        return $real;
+    }
+
     private function resolveDirectoryEntryFile(string $projectRoot, string $entry): string
     {
         $entry = trim($entry);
@@ -356,6 +447,13 @@ final class BuildCommand
             $io->writeln('  ' . $p);
         }
         $io->newLine();
+        if ($plan->classPathOverrides !== []) {
+            $io->writeln('class_path_overrides');
+            foreach ($plan->classPathOverrides as $fqcn => $p) {
+                $io->writeln('  ' . $fqcn . ' => ' . $p);
+            }
+            $io->newLine();
+        }
         $io->writeln('reachable');
         if ($plan->reachableFiles === []) {
             $io->writeln('  (none)');
