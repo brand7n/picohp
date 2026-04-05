@@ -28,6 +28,7 @@ class Builder
         $this->addLine('@.str.s = private constant [3 x i8] c"%s\00", align 1');
         $this->addLine();
         $this->addLine('declare i32 @printf(ptr, ...)');
+        $this->addLine('declare void @abort() noreturn');
         $this->addLine('declare ptr @pico_string_concat(ptr, ptr)');
         $this->addLine('declare i32 @pico_rt_version()');
         $this->addLine('declare i32 @pico_string_len(ptr)');
@@ -110,6 +111,11 @@ class Builder
     public function setInsertPoint(BasicBlock $bb): void
     {
         $this->currentBasicBlock = $bb;
+    }
+
+    public function getCurrentBasicBlock(): ?BasicBlock
+    {
+        return $this->currentBasicBlock;
     }
 
     /**

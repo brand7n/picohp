@@ -38,6 +38,16 @@ class Module implements NodeInterface
         return $f;
     }
 
+    public function hasFunction(string $name): bool
+    {
+        foreach ($this->getChildren() as $child) {
+            if ($child instanceof Function_ && $child->getName() === $name) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public function getBuilder(): Builder
     {
         return $this->builder;
