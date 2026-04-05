@@ -18,6 +18,9 @@ class DebugInfo
     private ?int $compileUnitId = null;
     private ?int $fileId = null;
 
+    /** @var array<string, int> absolute path → DIFile id */
+    private array $fileCache = [];
+
     /** @var array<string, int> function name → DISubprogram id */
     private array $subprograms = [];
 
@@ -44,6 +47,21 @@ class DebugInfo
     public function getFileId(): ?int
     {
         return $this->fileId;
+    }
+
+    /**
+     * Get or create a DIFile node for the given absolute source path.
+     */
+    public function getOrCreateFileId(string $absolutePath): int
+    {
+        if (isset($this->fileCache[$absolutePath])) {
+            return $this->fileCache[$absolutePath];
+        }
+        $filename = basename($absolutePath);
+        $directory = dirname($absolutePath);
+        $id = $this->addNode("!DIFile(filename: \"{$filename}\", directory: \"{$directory}\")");
+        $this->fileCache[$absolutePath] = $id;
+        return $id;
     }
 
     public function getCompileUnitId(): ?int

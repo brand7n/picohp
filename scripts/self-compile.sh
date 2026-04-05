@@ -2,12 +2,14 @@
 # Self-compile picoHP using the picoHP compiler itself.
 # Usage: ./scripts/self-compile.sh [extra-args...]
 #
-# This uses the directory build mode with the picoHP entry point.
-# Extra args (e.g. -d for debug, -vv for verbose) are passed through.
+# Overrides PhpParser\Token with our compat stub (avoids token_get_all).
+# Extra args (e.g. -vv for verbose) are passed through.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
-exec "$PROJECT_DIR/picoHP" build --debug --entry=picoHP "$@" "$PROJECT_DIR"
+exec php -d memory_limit=1G "$PROJECT_DIR/picoHP" build --debug --entry=picoHP \
+  --override-class 'PhpParser\Token' compat/PhpParser/Token.php \
+  "$@" "$PROJECT_DIR"

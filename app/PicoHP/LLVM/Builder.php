@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\PicoHP\LLVM;
 
 use App\PicoHP\{BaseType};
-use App\PicoHP\LLVM\Value\{Instruction, Void_, AllocaInst, Global_, Label};
+use App\PicoHP\LLVM\Value\{Constant, Instruction, Void_, AllocaInst, Global_, Label};
 
 class Builder
 {
@@ -344,6 +344,10 @@ class Builder
 
     public function createNullCheck(ValueAbstract $val): ValueAbstract
     {
+        // Non-pointer types can never be null
+        if ($val->getType() !== BaseType::PTR && $val->getType() !== BaseType::STRING) {
+            return new Constant(0, BaseType::BOOL);
+        }
         $resultVal = new Instruction('null_check', BaseType::BOOL);
         $this->addLine("{$resultVal->render()} = icmp eq ptr {$val->render()}, null", 1);
         return $resultVal;

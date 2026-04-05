@@ -112,8 +112,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     public function exec(): void
     {
         if ($this->sourceFile !== null) {
-            $dir = dirname($this->sourceFile);
-            $file = basename($this->sourceFile);
+            // For single-file builds, use the file directly.
+            // For directory builds, initCompileUnit with a placeholder —
+            // per-function DISubprograms use the actual source file from AST attributes.
+            $dir = is_dir($this->sourceFile) ? $this->sourceFile : dirname($this->sourceFile);
+            $file = is_dir($this->sourceFile) ? 'picoHP' : basename($this->sourceFile);
             $this->module->getDebugInfo()->initCompileUnit($file, $dir);
         }
         $this->emitStructDefinitionsForRegistry();
@@ -196,7 +199,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $debugInfo = $this->module->getDebugInfo();
             if ($debugInfo->getCompileUnitId() !== null) {
                 $line = $stmt->getStartLine();
-                $spId = $debugInfo->addSubprogram($stmt->name->toString(), max($line, 1));
+                $sourceFile = $stmt->getAttribute('pico_source_file');
+                $fileId = is_string($sourceFile) ? $debugInfo->getOrCreateFileId($sourceFile) : null;
+                $spId = $debugInfo->addSubprogram($stmt->name->toString(), max($line, 1), $fileId);
                 $this->currentFunction->dbgSubprogramId = $spId;
                 $debugInfo->setCurrentScope($spId);
                 $this->builder->setDebugLine(max($line, 1));
@@ -798,6 +803,10 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $lval = $this->buildExpr($expr->left);
             $rval = $this->buildExpr($expr->right);
             $isNull = $this->builder->createNullCheck($lval);
+            // Coerce ptr/int mismatch for nullable value types (e.g. ?int stored as ptr)
+            if ($lval->getType() === BaseType::PTR && $rval->getType() !== BaseType::PTR && $rval->getType() !== BaseType::STRING) {
+                $lval = $this->builder->createPtrToInt($lval);
+            }
             return $this->builder->createSelect($isNull, $rval, $lval);
         } elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp) {
             $sigil = $expr->getOperatorSigil();
@@ -1333,16 +1342,14 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 return $val;
             }
             $funcSymbol = $pData->getSymbol();
-            // Stub functions (unknown builtins) — emit abort trap instead of call
+            // Stub functions (unknown builtins) — throw "unimplemented" exception
             if ($funcSymbol->type->isMixed() && !$this->module->hasFunction($expr->name->name)) {
-                // Build args for side effects, then trap
+                // Build args for side effects
                 foreach ($expr->args as $arg) {
                     \App\PicoHP\CompilerInvariant::check($arg instanceof \PhpParser\Node\Arg);
                     $this->buildExpr($arg->value);
                 }
-                $this->builder->addLine('call void @abort()', 1);
-                $this->builder->addLine('unreachable', 1);
-                return new NullConstant(BaseType::PTR);
+                return $this->emitUnimplementedThrow($expr->name->name);
             }
             $args = $this->buildArgsWithDefaults($expr->args, $funcSymbol);
             $returnType = $funcSymbol->type->toBase();
@@ -1621,10 +1628,19 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
                 if (count($arm->conds) === 1) {
                     $armCondVal = $this->buildExpr($arm->conds[0]);
-                    $isFloat = $condType === BaseType::FLOAT;
+                    $cmpLeft = $condVal;
+                    $cmpType = $condType;
+                    // Coerce type mismatches in nullable enum/ptr matches
+                    if ($cmpType === BaseType::PTR && $armCondVal->getType() === BaseType::INT) {
+                        $cmpLeft = $this->builder->createPtrToInt($condVal);
+                        $cmpType = BaseType::INT;
+                    } elseif ($cmpType === BaseType::INT && ($armCondVal->getType() === BaseType::PTR || $armCondVal->getType() === BaseType::STRING)) {
+                        $armCondVal = $this->builder->createPtrToInt($armCondVal);
+                    }
+                    $isFloat = $cmpType === BaseType::FLOAT;
                     $cmpResult = $this->builder->createInstruction(
                         $isFloat ? 'fcmp oeq' : 'icmp eq',
-                        [$condVal, $armCondVal],
+                        [$cmpLeft, $armCondVal],
                         resultType: BaseType::BOOL
                     );
                 } else {
@@ -1718,9 +1734,12 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->builder->setInsertPoint($endBB);
             return $this->builder->createLoad($resultPtr);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Isset_) {
-            // isset($x) on nullable ptr: check if not null
+            // isset($x) on nullable ptr: check if not null; non-ptr types are always set
             \App\PicoHP\CompilerInvariant::check(count($expr->vars) === 1);
             $val = $this->buildExpr($expr->vars[0]);
+            if ($val->getType() !== BaseType::PTR && $val->getType() !== BaseType::STRING) {
+                return new Constant(1, BaseType::BOOL);
+            }
             return $this->builder->createInstruction('icmp ne', [$val, new \App\PicoHP\LLVM\Value\NullConstant()], resultType: BaseType::BOOL);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Instanceof_) {
             $objVal = $this->buildExpr($expr->expr);
@@ -1950,6 +1969,12 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     protected function emitThrowingCall(string $funcName, array $args, BaseType $returnType, PicoHPData $pData): ValueAbstract
     {
         \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
+
+        // If the current block is already terminated (e.g. after abort()), this is dead code
+        $currentBB = $this->builder->getCurrentBasicBlock();
+        if ($currentBB !== null && $currentBB->hasTerminator()) {
+            return $returnType === BaseType::VOID ? new Void_() : new Constant(0, $returnType);
+        }
 
         // Call the function — returns a result struct
         $structType = Builder::resultTypeName($returnType);
@@ -2403,7 +2428,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         }
 
         // Multiple implementors: emit switch on type_id
-        $resultPtr = $this->builder->createAlloca("vd{$vd}_result", $returnType);
+        $resultPtr = $returnType !== BaseType::VOID ? $this->builder->createAlloca("vd{$vd}_result", $returnType) : null;
         $endBB = $this->currentFunction->addBasicBlock("vd{$vd}_end");
 
         $caseBBs = [];
@@ -2426,11 +2451,16 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $implMeta = $this->classRegistry[$implClass];
             $ownerClass = $implMeta->methodOwner[$methodName] ?? $implClass;
             $callResult = $this->builder->createCall(ClassSymbol::llvmMethodSymbol($ownerClass, $methodName), $allArgs, $returnType);
-            $this->builder->createStore($callResult, $resultPtr);
+            if ($resultPtr !== null) {
+                $this->builder->createStore($callResult, $resultPtr);
+            }
             $this->builder->createBranch([new Label($endBB->getName())]);
         }
 
         $this->builder->setInsertPoint($endBB);
+        if ($resultPtr === null) {
+            return new Void_();
+        }
         return $this->builder->createLoad($resultPtr);
     }
 
@@ -2709,7 +2739,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         $rhsLabel = new Label($rhsBB->getName());
         $endLabel = new Label($endBB->getName());
 
-        $result = $this->builder->createAlloca("sc_result{$count}", BaseType::BOOL);
+        $result = $this->builder->createEntryAlloca($this->currentFunction, "sc_result{$count}", BaseType::BOOL);
         $lval = $this->buildExpr($expr->left);
         if ($lval->getType() !== BaseType::BOOL) {
             $lval = $this->builder->createInstruction('icmp ne', [$lval, new Constant(0, $lval->getType())], resultType: BaseType::BOOL);
@@ -2774,6 +2804,34 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->builder->createCall($setFunc, [$mapPtr, $keyVal, $elemVal], BaseType::VOID);
         }
         return $mapPtr;
+    }
+
+    /**
+     * Emit a throw for unimplemented stub functions. Allocates an Exception with
+     * the function name as message and dispatches via value-exceptions.
+     */
+    protected function emitUnimplementedThrow(string $funcName): ValueAbstract
+    {
+        $typeId = $this->typeIdMap['Exception'] ?? 0;
+        $objPtr = $this->builder->createObjectAlloc('Exception', $typeId);
+        $typeIdPtr = $this->builder->createStructGEP('Exception', $objPtr, 0, BaseType::INT);
+        $this->builder->createStore(new Constant($typeId, BaseType::INT), $typeIdPtr);
+        $msgStr = $this->builder->createStringConstant("unimplemented: {$funcName}");
+        $this->builder->createCall('Exception___construct', [$objPtr, $msgStr], BaseType::VOID);
+
+        if ($this->tryContext !== null) {
+            $this->builder->createStore($objPtr, $this->tryContext['exceptionSlot']);
+            $this->builder->createBranch([$this->tryContext['catchLabel']]);
+        } elseif ($this->currentFunction !== null && $this->currentFunction->canThrow) {
+            $retType = $this->currentFunction->getReturnType()->toBase();
+            $errResult = $this->builder->createResultErr($objPtr, $retType);
+            $structType = Builder::resultTypeName($retType);
+            $this->builder->addLine("ret {$structType} {$errResult->render()}", 1);
+        } else {
+            $this->builder->addLine('call void @abort()', 1);
+            $this->builder->addLine('unreachable', 1);
+        }
+        return new Void_();
     }
 
     /**
