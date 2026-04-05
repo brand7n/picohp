@@ -62,12 +62,11 @@ it('emits IR for string, array, object, enum, exception, and call helpers', func
     $tag = new Constant(0, BaseType::INT);
     $b->createEnumValueLookup('CovEnum', 1, $tag);
 
-    $jmp = $b->createJmpBufAlloca();
-    $b->createSetjmp($jmp);
-    $b->createEhPop();
-    $b->createEhGetException();
-    $b->createEhMatchesType(1);
-    $b->createEhClear();
+    $okResult = $b->createResultOk($i0, BaseType::INT);
+    $errResult = $b->createResultErr($obj, BaseType::INT);
+    $b->createExtractError($okResult, BaseType::INT);
+    $b->createExtractValue($okResult, BaseType::INT);
+    $b->createExtractException($errResult, BaseType::INT);
 
     $trueB = new Constant(1, BaseType::BOOL);
     $b->createSelect($trueB, $i0, new Constant(2, BaseType::INT));
@@ -84,13 +83,14 @@ it('emits IR for string, array, object, enum, exception, and call helpers', func
     expect(count($lines))->toBeGreaterThan(5);
 });
 
-it('emits throw as block terminator', function () {
+it('emits result err as block terminator', function () {
     $module = new Module('builder_throw_cov');
     $b = $module->getBuilder();
-    $fn = $module->addFunction('throw_only', PicoType::fromString('void'));
+    $fn = $module->addFunction('throw_only', PicoType::fromString('void'), [], true);
     $bb = $fn->addBasicBlock('entry');
     $b->setInsertPoint($bb);
     $obj = $b->createObjectAlloc('ThrowT', 0);
-    $b->createThrow($obj, 1);
+    $errResult = $b->createResultErr($obj, BaseType::VOID);
+    $b->addLine("ret %result.void {$errResult->render()}", 1);
     expect(count($fn->getLines()))->toBeGreaterThan(2);
 });

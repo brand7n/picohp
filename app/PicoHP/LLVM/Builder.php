@@ -54,8 +54,6 @@ class Builder
         $this->addLine('declare ptr @pico_string_pad(ptr, i32, ptr, i32)');
         $this->addLine('declare ptr @picohp_object_alloc(i64, i32)');
         $this->addLine();
-        $this->addLine('declare void @abort()');
-        $this->addLine();
         $this->addLine('; value-based exception result types');
         $this->addLine('%result.void = type { i1, ptr }');
         $this->addLine('%result.i32 = type { i1, i32, ptr }');
