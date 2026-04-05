@@ -36,6 +36,14 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
     protected int $vdispatchCount = 0;
 
+    /**
+     * When inside a try block, this holds the exception ptr alloca and catch dispatch label.
+     * Calls to throwing functions branch here on error.
+     *
+     * @var array{exceptionSlot: ValueAbstract, catchLabel: \App\PicoHP\LLVM\Value\Label}|null
+     */
+    protected ?array $tryContext = null;
+
     protected function isDestructuringAssign(\PhpParser\Node\Expr\Assign $expr): bool
     {
         if (!($expr->var instanceof \PhpParser\Node\Expr\Array_)) {
@@ -166,7 +174,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
             $funcSymbol = $pData->getSymbol();
             \App\PicoHP\CompilerInvariant::check($funcSymbol->func === true);
-            $this->currentFunction = $this->module->addFunction($stmt->name->toString(), $funcSymbol->type, $funcSymbol->params);
+            $this->currentFunction = $this->module->addFunction($stmt->name->toString(), $funcSymbol->type, $funcSymbol->params, $funcSymbol->canThrow);
             $bb = $this->currentFunction->addBasicBlock("entry");
             $this->builder->setInsertPoint($bb);
             if ($pData->stubbed) {
@@ -189,7 +197,13 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 }
             }
             if (!$pData->stubbed && $funcSymbol->type->toBase() === BaseType::VOID) {
-                $this->builder->createRetVoid();
+                if ($funcSymbol->canThrow) {
+                    $okResult = $this->builder->createResultOk(new Void_(), BaseType::VOID);
+                    $structType = Builder::resultTypeName(BaseType::VOID);
+                    $this->builder->addLine("ret {$structType} {$okResult->render()}", 1);
+                } else {
+                    $this->builder->createRetVoid();
+                }
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Block) {
             $scope = $pData->getScope();
@@ -206,7 +220,14 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Return_) {
             if (!is_null($stmt->expr)) {
                 $val = $this->buildExpr($stmt->expr);
-                $this->builder->createInstruction('ret', [$val], false);
+                if ($this->currentFunction !== null && $this->currentFunction->canThrow) {
+                    $retType = $this->currentFunction->getReturnType()->toBase();
+                    $okResult = $this->builder->createResultOk($val, $retType);
+                    $structType = Builder::resultTypeName($retType);
+                    $this->builder->addLine("ret {$structType} {$okResult->render()}", 1);
+                } else {
+                    $this->builder->createInstruction('ret', [$val], false);
+                }
             }
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Nop) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Declare_) {
@@ -1290,6 +1311,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             $args = $this->buildArgsWithDefaults($expr->args, $funcSymbol);
             $returnType = $funcSymbol->type->toBase();
+
+            if ($funcSymbol->canThrow) {
+                return $this->emitThrowingCall($expr->name->name, $args, $returnType, $pData);
+            }
+
             return $this->builder->createCall($expr->name->name, $args, $returnType);
         } elseif ($expr instanceof \PhpParser\Node\Expr\ArrayDimFetch) {
             if ($expr->var instanceof \PhpParser\Node\Expr\Variable
@@ -1736,8 +1762,22 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $qualifiedName = ClassSymbol::llvmMethodSymbol($ctorOwner, '__construct');
                 $this->builder->createCall($qualifiedName, $allArgs, BaseType::VOID);
             }
-            $typeId = $this->typeIdMap[$className] ?? 0;
-            $this->builder->createThrow($objPtr, $typeId);
+            // Dispatch the exception
+            if ($this->tryContext !== null) {
+                // Inside a try block — store exception and branch to catch dispatch
+                $this->builder->createStore($objPtr, $this->tryContext['exceptionSlot']);
+                $this->builder->createBranch([$this->tryContext['catchLabel']]);
+            } elseif ($this->currentFunction !== null && $this->currentFunction->canThrow) {
+                // In a throwing function — return error result
+                $retType = $this->currentFunction->getReturnType()->toBase();
+                $errResult = $this->builder->createResultErr($objPtr, $retType);
+                $structType = Builder::resultTypeName($retType);
+                $this->builder->addLine("ret {$structType} {$errResult->render()}", 1);
+            } else {
+                // Uncaught — abort
+                $this->builder->addLine('call void @abort()', 1);
+                $this->builder->addLine('unreachable', 1);
+            }
             return new Void_();
         } elseif ($expr instanceof \PhpParser\Node\Expr\Array_) {
             // Array literal as standalone expression (e.g. return [])
@@ -1863,6 +1903,64 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             return new \App\PicoHP\LLVM\Value\Global_(ClassSymbol::mangle($className) . '_' . $var->name->toString(), $propType->toBase());
         }
         return PicoHPData::getPData($var)->getValue();
+    }
+
+    /**
+     * Call a function that canThrow. The call returns a result struct.
+     * Extract is_err; if true, branch to catch dispatch (try context) or propagate.
+     * Returns the extracted value on success.
+     *
+     * @param array<ValueAbstract> $args
+     */
+    protected function emitThrowingCall(string $funcName, array $args, BaseType $returnType, PicoHPData $pData): ValueAbstract
+    {
+        \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
+
+        // Call the function — returns a result struct
+        $structType = Builder::resultTypeName($returnType);
+        $paramString = implode(', ', array_map(
+            static fn (ValueAbstract $param): string => "{$param->getType()->toLLVM()} {$param->render()}",
+            $args,
+        ));
+        $resultVal = new \App\PicoHP\LLVM\Value\Instruction('call', BaseType::PTR);
+        $this->builder->addLine("{$resultVal->render()} = call {$structType} @{$funcName} ({$paramString})", 1);
+
+        // Extract is_err flag
+        $isErr = $this->builder->createExtractError($resultVal, $returnType);
+
+        // Create basic blocks for error/success paths
+        $count = $pData->mycount;
+        $errBB = $this->currentFunction->addBasicBlock("err{$count}");
+        $okBB = $this->currentFunction->addBasicBlock("ok{$count}");
+        $this->builder->createBranch([$isErr, new Label($errBB->getName()), new Label($okBB->getName())]);
+
+        // Error path
+        $this->builder->setInsertPoint($errBB);
+        $excPtr = $this->builder->createExtractException($resultVal, $returnType);
+
+        if ($this->tryContext !== null) {
+            // Inside a try block — store exception and branch to catch dispatch
+            $this->builder->createStore($excPtr, $this->tryContext['exceptionSlot']);
+            $this->builder->createBranch([$this->tryContext['catchLabel']]);
+        } elseif ($this->currentFunction->canThrow) {
+            // Caller also throws — propagate the error
+            $callerRetType = $this->currentFunction->getReturnType()->toBase();
+            $errResult = $this->builder->createResultErr($excPtr, $callerRetType);
+            $callerStructType = Builder::resultTypeName($callerRetType);
+            $this->builder->addLine("ret {$callerStructType} {$errResult->render()}", 1);
+        } else {
+            // Uncaught — abort
+            $this->builder->addLine('call void @abort()', 1);
+            $this->builder->addLine('unreachable', 1);
+        }
+
+        // Success path — extract the value
+        $this->builder->setInsertPoint($okBB);
+        if ($returnType === BaseType::VOID) {
+            return new Void_();
+        }
+
+        return $this->builder->createExtractValue($resultVal, $returnType);
     }
 
     /**
@@ -2694,35 +2792,45 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         $hasCatches = count($stmt->catches) > 0;
 
         // Create basic blocks
-        $tryBB = $currentFunction->addBasicBlock("try{$count}");
         $catchDispatchBB = $hasCatches ? $currentFunction->addBasicBlock("catch_dispatch{$count}") : null;
         $finallyBB = $stmt->finally !== null ? $currentFunction->addBasicBlock("finally{$count}") : null;
         $endBB = $currentFunction->addBasicBlock("try_end{$count}");
 
-        $tryLabel = new Label($tryBB->getName());
         $finallyLabel = $finallyBB !== null ? new Label($finallyBB->getName()) : null;
         $endLabel = new Label($endBB->getName());
-
-        // After try/catch: where to go
         $continueLabel = $finallyLabel ?? $endLabel;
 
-        // Allocate jmp_buf and call setjmp
-        $jmpBuf = $this->builder->createJmpBufAlloca();
-        $setjmpRet = $this->builder->createSetjmp($jmpBuf);
-        $isException = $this->builder->createInstruction('icmp ne', [$setjmpRet, new Constant(0, BaseType::INT)], resultType: BaseType::BOOL);
-        $exceptionTarget = $catchDispatchBB !== null ? new Label($catchDispatchBB->getName()) : $continueLabel;
-        $this->builder->createBranch([$isException, $exceptionTarget, $tryLabel]);
+        // Allocate a slot to hold the caught exception pointer
+        $exceptionSlot = $this->builder->createAlloca("exc_slot{$count}", BaseType::PTR);
+        $this->builder->createStore(new NullConstant(), $exceptionSlot);
 
-        // -- try body --
-        $this->builder->setInsertPoint($tryBB);
+        // Set up try context so emitThrowingCall branches here on error
+        $savedTryContext = $this->tryContext;
+        if ($catchDispatchBB !== null) {
+            $this->tryContext = [
+                'exceptionSlot' => $exceptionSlot,
+                'catchLabel' => new Label($catchDispatchBB->getName()),
+            ];
+        }
+
+        // -- try body (inline, no separate BB needed) --
         $this->buildStmts($stmt->stmts);
-        $this->builder->createEhPop();
         $this->builder->createBranch([$continueLabel]);
+
+        // Restore try context
+        $this->tryContext = $savedTryContext;
 
         // -- catch dispatch --
         if ($catchDispatchBB !== null) {
             $this->builder->setInsertPoint($catchDispatchBB);
-            $this->builder->createEhPop();
+
+            // Load the exception pointer from the slot
+            $excPtr = $this->builder->createLoad($exceptionSlot);
+
+            // Load type_id from field 0 of exception object
+            // All exception structs have type_id (i32) as first field
+            $typeIdPtr = $this->builder->createStructGEP('Exception', $excPtr, 0, BaseType::INT);
+            $typeIdVal = $this->builder->createLoad($typeIdPtr);
 
             $catchCount = count($stmt->catches);
             /** @var array<\App\PicoHP\LLVM\BasicBlock> $catchBodyBBs */
@@ -2731,7 +2839,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $catchBodyBBs[] = $currentFunction->addBasicBlock("catch{$count}_{$i}");
             }
 
-            // Emit type-check chain
+            // Emit type-check chain using direct icmp on the type_id
             for ($i = 0; $i < $catchCount; $i++) {
                 $catch = $stmt->catches[$i];
                 \App\PicoHP\CompilerInvariant::check(count($catch->types) > 0);
@@ -2747,14 +2855,19 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 }
 
                 $matchingIds = $this->getMatchingTypeIds($catchTypeName);
-                if (count($matchingIds) === 1) {
-                    $matches = $this->builder->createEhMatchesType($matchingIds[0]);
-                } else {
-                    $matches = $this->builder->createEhMatchesType($matchingIds[0]);
-                    for ($j = 1; $j < count($matchingIds); $j++) {
-                        $nextMatch = $this->builder->createEhMatchesType($matchingIds[$j]);
-                        $matches = $this->builder->createInstruction('or', [$matches, $nextMatch], resultType: BaseType::BOOL);
-                    }
+                // Build OR chain: type_id == id1 || type_id == id2 || ...
+                $matches = $this->builder->createInstruction(
+                    'icmp eq',
+                    [$typeIdVal, new Constant($matchingIds[0], BaseType::INT)],
+                    resultType: BaseType::BOOL,
+                );
+                for ($j = 1; $j < count($matchingIds); $j++) {
+                    $nextMatch = $this->builder->createInstruction(
+                        'icmp eq',
+                        [$typeIdVal, new Constant($matchingIds[$j], BaseType::INT)],
+                        resultType: BaseType::BOOL,
+                    );
+                    $matches = $this->builder->createInstruction('or', [$matches, $nextMatch], resultType: BaseType::BOOL);
                 }
                 $this->builder->createBranch([$matches, $catchBodyLabel, $nextCheckLabel]);
 
@@ -2768,12 +2881,10 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                 $catch = $stmt->catches[$i];
                 $this->builder->setInsertPoint($catchBodyBBs[$i]);
                 if ($catch->var !== null) {
-                    $exceptionPtr = $this->builder->createEhGetException();
                     $catchVarPData = PicoHPData::getPData($catch->var);
                     $catchVarPtr = $catchVarPData->getValue();
-                    $this->builder->createStore($exceptionPtr, $catchVarPtr);
+                    $this->builder->createStore($excPtr, $catchVarPtr);
                 }
-                $this->builder->createEhClear();
                 $this->buildStmts($catch->stmts);
                 $this->builder->createBranch([$continueLabel]);
             }

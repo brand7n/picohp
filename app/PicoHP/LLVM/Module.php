@@ -31,9 +31,9 @@ class Module implements NodeInterface
     /**
      * @param array<PicoType> $params
      */
-    public function addFunction(string $name, PicoType $returnType, array $params = []): Function_
+    public function addFunction(string $name, PicoType $returnType, array $params = [], bool $canThrow = false): Function_
     {
-        $f = new Function_($name, $returnType, $params);
+        $f = new Function_($name, $returnType, $params, $canThrow);
         $this->addChild($f);
         return $f;
     }

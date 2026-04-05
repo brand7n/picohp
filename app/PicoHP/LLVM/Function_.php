@@ -14,6 +14,9 @@ class Function_ implements NodeInterface
     protected string $name;
     protected PicoType $returnType;
 
+    /** When true, this function returns a %result struct instead of the raw type. */
+    public bool $canThrow = false;
+
     /**
      * @var array<PicoType>
      */
@@ -22,11 +25,12 @@ class Function_ implements NodeInterface
     /**
      * @param array<PicoType> $params
      */
-    public function __construct(string $name, PicoType $returnType, array $params = [])
+    public function __construct(string $name, PicoType $returnType, array $params = [], bool $canThrow = false)
     {
         $this->name = $name;
         $this->params = $params;
         $this->returnType = $returnType;
+        $this->canThrow = $canThrow;
     }
 
     public function addBasicBlock(string $name): BasicBlock
@@ -73,7 +77,10 @@ class Function_ implements NodeInterface
             $count++;
         }
         $paramString = implode(', ', $params);
-        $code[] = new IRLine("define dso_local {$this->returnType->toBase()->toLLVM()} @{$this->name}({$paramString}) {");
+        $retTypeStr = $this->canThrow
+            ? Builder::resultTypeName($this->returnType->toBase())
+            : $this->returnType->toBase()->toLLVM();
+        $code[] = new IRLine("define dso_local {$retTypeStr} @{$this->name}({$paramString}) {");
         foreach ($this->getChildren() as $bb) {
             \App\PicoHP\CompilerInvariant::check($bb instanceof BasicBlock);
             $code = array_merge($code, $bb->getLines());

@@ -54,15 +54,12 @@ class Builder
         $this->addLine('declare ptr @pico_string_pad(ptr, i32, ptr, i32)');
         $this->addLine('declare ptr @picohp_object_alloc(i64, i32)');
         $this->addLine();
-        $this->addLine('; exception handling');
-        $this->addLine('declare i32 @setjmp(ptr)');
-        $this->addLine('declare void @picohp_eh_push(ptr)');
-        $this->addLine('declare void @picohp_eh_pop()');
-        $this->addLine('declare void @picohp_throw(ptr, i32)');
-        $this->addLine('declare ptr @picohp_eh_get_exception()');
-        $this->addLine('declare i32 @picohp_eh_get_type_id()');
-        $this->addLine('declare i32 @picohp_eh_matches_type(i32)');
-        $this->addLine('declare void @picohp_eh_clear()');
+        $this->addLine('; value-based exception result types');
+        $this->addLine('%result.void = type { i1, ptr }');
+        $this->addLine('%result.i32 = type { i1, i32, ptr }');
+        $this->addLine('%result.double = type { i1, double, ptr }');
+        $this->addLine('%result.i1 = type { i1, i1, ptr }');
+        $this->addLine('%result.ptr = type { i1, ptr, ptr }');
         $this->addLine();
         $this->addLine('; array runtime');
         $this->addLine('declare ptr @pico_array_new()');
@@ -423,76 +420,104 @@ class Builder
         $this->addLine('ret void', 1);
     }
 
-    // -- exception handling --------------------------------------------------
+    // -- value-based exception handling --------------------------------------
 
     /**
-     * Allocate a jmp_buf on the stack (48 x i32 = 192 bytes on macOS arm64).
+     * Get the LLVM result struct type name for a given return base type.
+     * Throwing functions return {@code %result.<type>} instead of the raw type.
      */
-    public function createJmpBufAlloca(): ValueAbstract
+    public static function resultTypeName(BaseType $returnType): string
     {
-        $resultVal = new AllocaInst('jmpbuf', BaseType::PTR);
-        $this->addLine("{$resultVal->render()} = alloca [48 x i32], align 8", 1);
-        return $resultVal;
+        return match ($returnType) {
+            BaseType::VOID => '%result.void',
+            BaseType::INT => '%result.i32',
+            BaseType::FLOAT => '%result.double',
+            BaseType::BOOL => '%result.i1',
+            BaseType::STRING, BaseType::PTR => '%result.ptr',
+            BaseType::LABEL => throw new \LogicException('Cannot create result type for LABEL'),
+        };
     }
 
     /**
-     * Push the jmp_buf onto the exception handler stack, then call setjmp.
-     * Returns i32: 0 = normal entry, nonzero = exception caught.
+     * Build a success result struct: { i1 0, <value>, ptr null }.
      */
-    public function createSetjmp(ValueAbstract $jmpBuf): ValueAbstract
+    public function createResultOk(ValueAbstract $value, BaseType $returnType): ValueAbstract
     {
-        $this->addLine("call void @picohp_eh_push(ptr {$jmpBuf->render()})", 1);
-        $resultVal = new Instruction('setjmp', BaseType::INT);
-        $this->addLine("{$resultVal->render()} = call i32 @setjmp(ptr {$jmpBuf->render()})", 1);
-        return $resultVal;
+        $structType = self::resultTypeName($returnType);
+        if ($returnType === BaseType::VOID) {
+            // %result.void = { i1, ptr } — no value field
+            $r1 = new Instruction('result_ok', BaseType::PTR);
+            $this->addLine("{$r1->render()} = insertvalue {$structType} { i1 0, ptr null }, i1 0, 0", 1);
+            return $r1;
+        }
+        $llvmType = $returnType->toLLVM();
+        $r1 = new Instruction('result_ok', BaseType::PTR);
+        $this->addLine("{$r1->render()} = insertvalue {$structType} zeroinitializer, i1 0, 0", 1);
+        $r2 = new Instruction('result_ok_v', BaseType::PTR);
+        $this->addLine("{$r2->render()} = insertvalue {$structType} {$r1->render()}, {$llvmType} {$value->render()}, 1", 1);
+        $r3 = new Instruction('result_ok_e', BaseType::PTR);
+        $this->addLine("{$r3->render()} = insertvalue {$structType} {$r2->render()}, ptr null, 2", 1);
+
+        return $r3;
     }
 
     /**
-     * Pop the current exception handler (normal exit from try block).
+     * Build an error result struct: { i1 1, <undef>, ptr exception }.
      */
-    public function createEhPop(): void
+    public function createResultErr(ValueAbstract $exceptionPtr, BaseType $returnType): ValueAbstract
     {
-        $this->addLine('call void @picohp_eh_pop()', 1);
+        $structType = self::resultTypeName($returnType);
+        if ($returnType === BaseType::VOID) {
+            $r1 = new Instruction('result_err', BaseType::PTR);
+            $this->addLine("{$r1->render()} = insertvalue {$structType} { i1 1, ptr null }, ptr {$exceptionPtr->render()}, 1", 1);
+
+            return $r1;
+        }
+        $r1 = new Instruction('result_err', BaseType::PTR);
+        $this->addLine("{$r1->render()} = insertvalue {$structType} zeroinitializer, i1 1, 0", 1);
+        $r2 = new Instruction('result_err_e', BaseType::PTR);
+        $this->addLine("{$r2->render()} = insertvalue {$structType} {$r1->render()}, ptr {$exceptionPtr->render()}, 2", 1);
+
+        return $r2;
     }
 
     /**
-     * Throw an exception object with a given type_id.
+     * Extract the is_err flag (field 0) from a result struct.
      */
-    public function createThrow(ValueAbstract $exceptionPtr, int $typeId): void
+    public function createExtractError(ValueAbstract $resultVal, BaseType $returnType): ValueAbstract
     {
-        $this->addLine("call void @picohp_throw(ptr {$exceptionPtr->render()}, i32 {$typeId})", 1);
-        $this->addLine('unreachable', 1);
+        $structType = self::resultTypeName($returnType);
+        $r = new Instruction('is_err', BaseType::BOOL);
+        $this->addLine("{$r->render()} = extractvalue {$structType} {$resultVal->render()}, 0", 1);
+
+        return $r;
     }
 
     /**
-     * Get the current in-flight exception object pointer.
+     * Extract the value (field 1) from a result struct. Only for non-void types.
      */
-    public function createEhGetException(): ValueAbstract
+    public function createExtractValue(ValueAbstract $resultVal, BaseType $returnType): ValueAbstract
     {
-        $resultVal = new Instruction('eh_exception', BaseType::PTR);
-        $this->addLine("{$resultVal->render()} = call ptr @picohp_eh_get_exception()", 1);
-        return $resultVal;
+        \App\PicoHP\CompilerInvariant::check($returnType !== BaseType::VOID, 'Cannot extract value from void result');
+        $structType = self::resultTypeName($returnType);
+        $r = new Instruction('result_val', $returnType);
+        $this->addLine("{$r->render()} = extractvalue {$structType} {$resultVal->render()}, 1", 1);
+
+        return $r;
     }
 
     /**
-     * Check if the current exception matches a given type_id.
-     * Returns i1 (bool).
+     * Extract the exception pointer from a result struct.
+     * Field 1 for void results, field 2 for value results.
      */
-    public function createEhMatchesType(int $typeId): ValueAbstract
+    public function createExtractException(ValueAbstract $resultVal, BaseType $returnType): ValueAbstract
     {
-        $callResult = new Instruction('eh_match', BaseType::INT);
-        $this->addLine("{$callResult->render()} = call i32 @picohp_eh_matches_type(i32 {$typeId})", 1);
-        $boolResult = new Instruction('eh_match_bool', BaseType::BOOL);
-        $this->addLine("{$boolResult->render()} = icmp ne i32 {$callResult->render()}, 0", 1);
-        return $boolResult;
-    }
+        $structType = self::resultTypeName($returnType);
+        $idx = $returnType === BaseType::VOID ? 1 : 2;
+        $r = new Instruction('result_exc', BaseType::PTR);
+        $this->addLine("{$r->render()} = extractvalue {$structType} {$resultVal->render()}, {$idx}", 1);
 
-    /**
-     * Clear the current exception state (after it's been handled).
-     */
-    public function createEhClear(): void
-    {
-        $this->addLine('call void @picohp_eh_clear()', 1);
+        return $r;
     }
 
     // public function createGlobal(string $name, ValueAbstract $val): ValueAbstract

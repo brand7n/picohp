@@ -21,6 +21,9 @@ class Symbol
     public bool $func;
     public bool $isAbstract = false;
 
+    /** True if this function/method contains a throw statement or calls a function that canThrow. */
+    public bool $canThrow = false;
+
     /** @param array<PicoType> $params */
     public function __construct(string $name, PicoType $type, array $params = [], ?ValueAbstract $value = null, bool $func = false)
     {

@@ -13,6 +13,7 @@ class SemanticAnalysisPass implements PassInterface
     protected SymbolTable $symbolTable;
     protected DocTypeParser $docTypeParser;
     protected ?PicoType $currentFunctionReturnType = null;
+    protected ?\App\PicoHP\SymbolTable\Symbol $currentFunctionSymbol = null;
     protected ?ClassMetadata $currentClass = null;
 
     /** @var array<string, ClassMetadata> Keys are FQCN (e.g. {@code PhpParser\Lexer}). */
@@ -211,6 +212,59 @@ class SemanticAnalysisPass implements PassInterface
         $this->mergeMissingInstancePropertiesFromReflectionAll();
         $this->registerFunctions($this->ast);
         $this->resolveStmts($this->ast);
+        $this->propagateCanThrow($this->ast);
+    }
+
+    /**
+     * Propagate canThrow transitively: if a function calls a canThrow function
+     * (and doesn't catch it), the caller also canThrow. Runs to fixpoint.
+     *
+     * @param array<\PhpParser\Node> $stmts
+     */
+    protected function propagateCanThrow(array $stmts): void
+    {
+        $finder = new \PhpParser\NodeFinder();
+
+        // Collect all function/method symbols
+        /** @var list<\App\PicoHP\SymbolTable\Symbol> $funcSymbols */
+        $funcSymbols = [];
+        /** @var array<string, list<string>> $callGraph function name → list of callee names */
+        $callGraph = [];
+
+        foreach ($finder->findInstanceOf($stmts, \PhpParser\Node\Stmt\Function_::class) as $funcNode) {
+            $pData = PicoHPData::getPData($funcNode);
+            if ($pData->symbol === null) {
+                continue;
+            }
+            $sym = $pData->symbol;
+            $funcSymbols[$sym->name] = $sym;
+            $callGraph[$sym->name] = [];
+
+            // Find all FuncCall nodes in this function's body
+            foreach ($finder->findInstanceOf($funcNode->stmts, \PhpParser\Node\Expr\FuncCall::class) as $callNode) {
+                if ($callNode->name instanceof \PhpParser\Node\Name) {
+                    $callGraph[$sym->name][] = $callNode->name->toLowerString();
+                }
+            }
+        }
+
+        // Fixpoint: propagate canThrow
+        $changed = true;
+        while ($changed) {
+            $changed = false;
+            foreach ($callGraph as $callerName => $calleeNames) {
+                if ($funcSymbols[$callerName]->canThrow) {
+                    continue;
+                }
+                foreach ($calleeNames as $calleeName) {
+                    if (isset($funcSymbols[$calleeName]) && $funcSymbols[$calleeName]->canThrow) {
+                        $funcSymbols[$callerName]->canThrow = true;
+                        $changed = true;
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     protected function registerBuiltinClasses(): void
@@ -1053,7 +1107,9 @@ class SemanticAnalysisPass implements PassInterface
             $pData->getSymbol()->defaults = $defaults;
             $pData->getSymbol()->paramNames = $paramNames;
             $previousReturnType = $this->currentFunctionReturnType;
+            $previousFunctionSymbol = $this->currentFunctionSymbol;
             $this->currentFunctionReturnType = $returnType;
+            $this->currentFunctionSymbol = $pData->getSymbol();
             try {
                 $this->resolveStmts($stmt->stmts);
             } catch (\Exception $e) {
@@ -1065,6 +1121,7 @@ class SemanticAnalysisPass implements PassInterface
                 }
             }
             $this->currentFunctionReturnType = $previousReturnType;
+            $this->currentFunctionSymbol = $previousFunctionSymbol;
 
             if ($stmt->name->name !== 'main') {
                 $this->symbolTable->exitScope();
@@ -1217,7 +1274,9 @@ class SemanticAnalysisPass implements PassInterface
             $methodSymbol->defaults = $defaults;
             $methodSymbol->paramNames = $paramNames;
             $previousReturnType = $this->currentFunctionReturnType;
+            $previousFunctionSymbol = $this->currentFunctionSymbol;
             $this->currentFunctionReturnType = $returnType;
+            $this->currentFunctionSymbol = $methodSymbol;
             try {
                 $this->resolveStmts($stmt->stmts);
             } catch (\Exception $e) {
@@ -1229,6 +1288,7 @@ class SemanticAnalysisPass implements PassInterface
                 }
             }
             $this->currentFunctionReturnType = $previousReturnType;
+            $this->currentFunctionSymbol = $previousFunctionSymbol;
             $this->symbolTable->exitScope();
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Enum_) {
             // Enum cases already registered in registerClasses
@@ -1809,6 +1869,10 @@ class SemanticAnalysisPass implements PassInterface
             return PicoType::fromString('void'); // @codeCoverageIgnore
         } elseif ($expr instanceof \PhpParser\Node\Expr\Throw_) {
             $this->resolveExpr($expr->expr);
+            // Mark the enclosing function as throwing
+            if ($this->currentFunctionSymbol !== null) {
+                $this->currentFunctionSymbol->canThrow = true;
+            }
             return PicoType::fromString('void');
         } elseif ($expr instanceof \PhpParser\Node\Expr\Closure || $expr instanceof \PhpParser\Node\Expr\ArrowFunction) {
             $this->emitSemanticWarning('closure/arrow function not supported — treating as mixed (will abort at runtime)', $expr);
