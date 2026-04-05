@@ -45,6 +45,14 @@ class BasicBlock implements NodeInterface
     }
 
     /**
+     * Insert a line right after the block label (index 0), before any other instructions.
+     */
+    public function insertAtStart(IRLine $line): void
+    {
+        array_splice($this->lines, 1, 0, [$line]);
+    }
+
+    /**
      * @return array<IRLine>
      */
     public function getLines(): array

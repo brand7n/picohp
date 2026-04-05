@@ -190,6 +190,9 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                         $symbol->value = $this->buildSymbolAlloca($symbol);
                     }
                     $this->buildParams($stmt->params);
+                    if ($stmt->name->toString() === 'main') {
+                        $this->emitMainArgvConversion($stmt->params);
+                    }
                     $this->buildStmts($stmt->stmts);
                 } catch (\Throwable) {
                     $this->sealAllBlocks();
@@ -1660,7 +1663,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
             $this->builder->setInsertPoint($thenBB);
             $thenVal = $this->buildExpr($expr->if ?? $expr->cond);
-            $resultPtr = $this->builder->createAlloca("ternary_result{$count}", $thenVal->getType());
+            $resultPtr = $this->builder->createEntryAlloca($this->currentFunction, "ternary_result{$count}", $thenVal->getType());
             $this->builder->createStore($thenVal, $resultPtr);
             $this->builder->createBranch([new Label($endBB->getName())]);
 
@@ -2752,6 +2755,36 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $type = $pData->getSymbol()->type;
             $this->builder->createStore(new Param($count++, $type->toBase()), $pData->getValue());
         }
+    }
+
+    /**
+     * Convert raw C main(argc, argv) into a PicoArray for $argv.
+     * After buildParams stores the raw ptr, replace $argv with the converted array.
+     *
+     * @param array<\PhpParser\Node\Param> $params
+     */
+    protected function emitMainArgvConversion(array $params): void
+    {
+        // Find $argc and $argv params
+        $argcVal = null;
+        $argvPtr = null;
+        foreach ($params as $param) {
+            \App\PicoHP\CompilerInvariant::check($param->var instanceof \PhpParser\Node\Expr\Variable);
+            if ($param->var->name === 'argc') {
+                $argcVal = $this->builder->createLoad(PicoHPData::getPData($param)->getValue());
+            } elseif ($param->var->name === 'argv') {
+                $argvPtr = PicoHPData::getPData($param)->getValue();
+            }
+        }
+        if ($argcVal === null || $argvPtr === null) {
+            return;
+        }
+        // Load raw char** argv, convert to PicoArray
+        $rawArgv = $this->builder->createLoad($argvPtr);
+        $picoArray = new \App\PicoHP\LLVM\Value\Instruction('argv_arr', BaseType::PTR);
+        $this->builder->addLine("{$picoArray->render()} = call ptr @pico_argv_to_array(i32 {$argcVal->render()}, ptr {$rawArgv->render()})", 1);
+        // Store PicoArray back into $argv alloca
+        $this->builder->createStore($picoArray, $argvPtr);
     }
 
     /**
