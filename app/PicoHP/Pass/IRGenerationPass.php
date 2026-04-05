@@ -34,6 +34,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     /** @var array<string, int> class name => type_id */
     protected array $typeIdMap = [];
 
+    protected ?string $sourceFile = null;
+
     protected int $vdispatchCount = 0;
 
     /**
@@ -71,7 +73,13 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
      * @param array<string, EnumMetadata> $enumRegistry
      * @param array<string, int> $typeIdMap
      */
-    public function __construct(array $stmts, array $classRegistry = [], array $enumRegistry = [], array $typeIdMap = [])
+    /**
+     * @param array<\PhpParser\Node> $stmts
+     * @param array<string, ClassMetadata> $classRegistry
+     * @param array<string, EnumMetadata> $enumRegistry
+     * @param array<string, int> $typeIdMap
+     */
+    public function __construct(array $stmts, array $classRegistry = [], array $enumRegistry = [], array $typeIdMap = [], ?string $sourceFile = null)
     {
         $this->module = new Module("test_module");
         $this->builder = $this->module->getBuilder();
@@ -79,6 +87,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         $this->classRegistry = $classRegistry;
         $this->enumRegistry = $enumRegistry;
         $this->typeIdMap = $typeIdMap;
+        $this->sourceFile = $sourceFile;
     }
 
     protected function pushNamespace(?string $namespace): void
@@ -102,6 +111,11 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
     public function exec(): void
     {
+        if ($this->sourceFile !== null) {
+            $dir = dirname($this->sourceFile);
+            $file = basename($this->sourceFile);
+            $this->module->getDebugInfo()->initCompileUnit($file, $dir);
+        }
         $this->emitStructDefinitionsForRegistry();
         $this->emitBuiltinExceptionClass();
         $this->buildStmts($this->stmts);
@@ -170,11 +184,23 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     public function buildStmt(\PhpParser\Node\Stmt $stmt): void
     {
         $pData = PicoHPData::getPData($stmt);
+        $stmtLine = $stmt->getStartLine();
+        if ($stmtLine > 0 && $this->module->getDebugInfo()->getCurrentScope() !== null) {
+            $this->builder->setDebugLine($stmtLine);
+        }
 
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
             $funcSymbol = $pData->getSymbol();
             \App\PicoHP\CompilerInvariant::check($funcSymbol->func === true);
             $this->currentFunction = $this->module->addFunction($stmt->name->toString(), $funcSymbol->type, $funcSymbol->params, $funcSymbol->canThrow);
+            $debugInfo = $this->module->getDebugInfo();
+            if ($debugInfo->getCompileUnitId() !== null) {
+                $line = $stmt->getStartLine();
+                $spId = $debugInfo->addSubprogram($stmt->name->toString(), max($line, 1));
+                $this->currentFunction->dbgSubprogramId = $spId;
+                $debugInfo->setCurrentScope($spId);
+                $this->builder->setDebugLine(max($line, 1));
+            }
             $bb = $this->currentFunction->addBasicBlock("entry");
             $this->builder->setInsertPoint($bb);
             if ($pData->stubbed) {
@@ -208,6 +234,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                     $this->builder->createRetVoid();
                 }
             }
+            $this->module->getDebugInfo()->setCurrentScope(null);
+            $this->builder->setDebugLine(null);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Block) {
             $scope = $pData->getScope();
             foreach ($scope->symbols as $symbol) {
@@ -658,6 +686,10 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
     public function buildExpr(\PhpParser\Node\Expr $expr, ?\PhpParser\Comment\Doc $doc = null): ValueAbstract
     {
         $pData = PicoHPData::getPData($expr);
+        $exprLine = $expr->getStartLine();
+        if ($exprLine > 0 && $this->module->getDebugInfo()->getCurrentScope() !== null) {
+            $this->builder->setDebugLine($exprLine);
+        }
 
         if ($expr instanceof \PhpParser\Node\Expr\Assign) {
             // List/array destructuring: [$a, $b] = $arr

@@ -17,6 +17,9 @@ class Function_ implements NodeInterface
     /** When true, this function returns a %result struct instead of the raw type. */
     public bool $canThrow = false;
 
+    /** DWARF DISubprogram metadata node ID, if debug info is enabled. */
+    public ?int $dbgSubprogramId = null;
+
     /**
      * @var array<PicoType>
      */
@@ -80,7 +83,8 @@ class Function_ implements NodeInterface
         $retTypeStr = $this->canThrow
             ? Builder::resultTypeName($this->returnType->toBase())
             : $this->returnType->toBase()->toLLVM();
-        $code[] = new IRLine("define dso_local {$retTypeStr} @{$this->name}({$paramString}) {");
+        $dbgSuffix = $this->dbgSubprogramId !== null ? " !dbg !{$this->dbgSubprogramId}" : '';
+        $code[] = new IRLine("define dso_local {$retTypeStr} @{$this->name}({$paramString}){$dbgSuffix} {");
         foreach ($this->getChildren() as $bb) {
             \App\PicoHP\CompilerInvariant::check($bb instanceof BasicBlock);
             $code = array_merge($code, $bb->getLines());
