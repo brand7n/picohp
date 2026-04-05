@@ -416,6 +416,16 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $thisParam = new \App\PicoHP\PicoType(\App\PicoHP\BaseType::PTR);
             $allParams = array_merge([$thisParam], $funcSymbol->params);
             $this->currentFunction = $this->module->addFunction($qualifiedName, $funcSymbol->type, $allParams);
+            $debugInfo = $this->module->getDebugInfo();
+            if ($debugInfo->getCompileUnitId() !== null) {
+                $line = $stmt->getStartLine();
+                $sourceFile = $stmt->getAttribute('pico_source_file');
+                $fileId = is_string($sourceFile) ? $debugInfo->getOrCreateFileId($sourceFile) : null;
+                $spId = $debugInfo->addSubprogram($qualifiedName, max($line, 1), $fileId);
+                $this->currentFunction->dbgSubprogramId = $spId;
+                $debugInfo->setCurrentScope($spId);
+                $this->builder->setDebugLine(max($line, 1));
+            }
             $bb = $this->currentFunction->addBasicBlock("entry");
             $this->builder->setInsertPoint($bb);
             if ($pData->stubbed) {
@@ -451,6 +461,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                     $this->sealAllBlocks();
                 }
             }
+            $this->module->getDebugInfo()->setCurrentScope(null);
+            $this->builder->setDebugLine(null);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Do_) {
             \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
             $condBB = $this->currentFunction->addBasicBlock("cond{$pData->mycount}");
