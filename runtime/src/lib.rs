@@ -628,6 +628,19 @@ pub extern "C" fn pico_array_get_str(arr: *const PicoArray, index: i32) -> *cons
     }
 }
 
+// -- argv -------------------------------------------------------------------
+
+/// Convert C main(argc, argv) into a PicoArray of strings.
+#[no_mangle]
+pub extern "C" fn pico_argv_to_array(argc: c_int, argv: *const *const c_char) -> *mut PicoArray {
+    let mut data = Vec::with_capacity(argc as usize);
+    for i in 0..argc as usize {
+        let ptr = unsafe { *argv.add(i) };
+        data.push(PicoValue::Str(ptr));
+    }
+    Box::into_raw(Box::new(PicoArray { data }))
+}
+
 // -- set --------------------------------------------------------------------
 
 #[no_mangle]

@@ -95,14 +95,26 @@ class GlobalToMainVisitor extends NodeVisitorAbstract
             new Node\Scalar\LNumber(0)
         );
 
-        // Create a `main` function with the collected statements
+        // Create a `main` function with argc/argv parameters
+        /** @param list<string> $argv */
         $mainFunction = new Node\Stmt\Function_(
             'main',
             [
+                'params' => [
+                    new Node\Param(
+                        new Node\Expr\Variable('argc'),
+                        type: new Node\Identifier('int'),
+                    ),
+                    new Node\Param(
+                        new Node\Expr\Variable('argv'),
+                        type: new Node\Identifier('array'),
+                    ),
+                ],
                 'stmts' => $this->globalStatements,
                 'returnType' => new Node\Identifier('int'),
             ]
         );
+        $mainFunction->setDocComment(new \PhpParser\Comment\Doc('/** @param list<string> $argv */'));
 
         return array_merge(
             $declareNodes,

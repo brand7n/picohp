@@ -61,6 +61,9 @@ class Builder
         $this->addLine('%result.i1 = type { i1, i1, ptr }');
         $this->addLine('%result.ptr = type { i1, ptr, ptr }');
         $this->addLine();
+        $this->addLine('; argv');
+        $this->addLine('declare ptr @pico_argv_to_array(i32, ptr)');
+        $this->addLine();
         $this->addLine('; array runtime');
         $this->addLine('declare ptr @pico_array_new()');
         $this->addLine('declare i32 @pico_array_len(ptr)');
@@ -156,6 +159,18 @@ class Builder
     {
         $resultVal = new AllocaInst($name, $type);
         $this->addLine("{$resultVal->render()} = alloca {$type->toLLVM()}", 1);
+        return $resultVal;
+    }
+
+    /**
+     * Emit an alloca in the entry block of the given function, ensuring it dominates all uses.
+     */
+    public function createEntryAlloca(Function_ $function, string $name, BaseType $type): ValueAbstract
+    {
+        $resultVal = new AllocaInst($name, $type);
+        $blocks = $function->getBasicBlocks();
+        \App\PicoHP\CompilerInvariant::check(count($blocks) > 0);
+        $blocks[0]->insertAtStart(new IRLine("    {$resultVal->render()} = alloca {$type->toLLVM()}"));
         return $resultVal;
     }
 

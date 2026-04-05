@@ -7,7 +7,6 @@ $baseDir = __DIR__;
 
 require $baseDir . '/vendor/autoload.php';
 
-/** @var list<string> $cliArgv */
-$cliArgv = $_SERVER['argv'] ?? [];
+/** @var list<string> $argv */
 
-exit(App\Commands\BuildCommand::runFromArgv($cliArgv));
+exit(App\Commands\BuildCommand::runFromArgv($argv));
