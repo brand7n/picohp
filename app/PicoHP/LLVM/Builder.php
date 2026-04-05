@@ -542,10 +542,25 @@ class Builder
     //     return $resultVal;
     // }
 
+    protected ?int $currentDbgLine = null;
+
+    /**
+     * Set the current source line for debug metadata. Subsequent instructions
+     * will be annotated with !dbg for this line until changed.
+     */
+    public function setDebugLine(?int $line): void
+    {
+        $this->currentDbgLine = $line;
+    }
+
     public function addLine(string $line = '', int $indent = 0): void
     {
+        $dbgRef = null;
+        if ($indent > 0 && $this->currentDbgLine !== null && $line !== '') {
+            $dbgRef = $this->module->getDebugInfo()->getLocation($this->currentDbgLine);
+        }
         if ($this->currentBasicBlock !== null) {
-            $this->currentBasicBlock->addLine(new IRLine($line, $indent));
+            $this->currentBasicBlock->addLine(new IRLine($line, $indent, $dbgRef));
         } else {
             $this->module->addLine(new IRLine($line));
         }

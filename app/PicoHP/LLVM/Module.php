@@ -15,6 +15,7 @@ class Module implements NodeInterface
 
     protected string $name;
     protected Builder $builder;
+    protected DebugInfo $debugInfo;
 
     /**
      * @var array<IRLine>
@@ -25,6 +26,7 @@ class Module implements NodeInterface
     {
         $this->name = $name;
         $this->builder = new Builder($this, "arm64-apple-macosx14.0.0", "e-m:o-i64:64-i128:128-n32:64-S128");
+        $this->debugInfo = new DebugInfo();
         Instruction::resetCounter();
     }
 
@@ -51,6 +53,11 @@ class Module implements NodeInterface
     public function getBuilder(): Builder
     {
         return $this->builder;
+    }
+
+    public function getDebugInfo(): DebugInfo
+    {
+        return $this->debugInfo;
     }
 
     public function getName(): string
@@ -86,6 +93,9 @@ class Module implements NodeInterface
     {
         foreach ($this->getLines() as $line) {
             fwrite($file, $line->toString() . PHP_EOL);
+        }
+        foreach ($this->debugInfo->getMetadataLines() as $metaLine) {
+            fwrite($file, $metaLine . PHP_EOL);
         }
     }
 }

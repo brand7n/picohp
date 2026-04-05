@@ -148,7 +148,7 @@ final class BuildCommand
             mkdir($buildPath, 0700, true);
             // @codeCoverageIgnoreEnd
         } else {
-            exec("rm -f {$buildPath}/*");
+            exec("rm -rf {$buildPath}/*");
         }
         $astOutput = "{$buildPath}/ast.json";
         $transformedCode = "{$buildPath}/transformed_code.php";
@@ -211,7 +211,11 @@ final class BuildCommand
                 file_put_contents($astWithSymbolOutput, json_encode($transformedAst, JSON_PRETTY_PRINT));
             }
 
-            $pass = new IRGenerationPass($transformedAst, $semanticPass->getClassRegistry(), $semanticPass->getEnumRegistry(), $semanticPass->getTypeIdMap());
+            $resolvedFile = is_file($filename) ? realpath($filename) : null;
+            if ($resolvedFile === false) {
+                $resolvedFile = null;
+            }
+            $pass = new IRGenerationPass($transformedAst, $semanticPass->getClassRegistry(), $semanticPass->getEnumRegistry(), $semanticPass->getTypeIdMap(), $resolvedFile);
             $pass->exec();
 
             $f = fopen($llvmIRoutput, 'w');
@@ -253,7 +257,8 @@ final class BuildCommand
             $runtimePath = config('app.runtime_path');
             \App\PicoHP\CompilerInvariant::check(is_string($runtimePath));
             $runtimeLink = "-L{$runtimePath} -lpico_rt -Wl,-rpath,{$runtimePath}";
-            exec("{$llvmPath}/clang -Wno-override-module {$sharedLibOpts} {$runtimeLink} -o {$exe} {$optimizedIR}", result_code: $result);
+            $debugFlag = $resolvedFile !== null ? '-g' : '';
+            exec("{$llvmPath}/clang -Wno-override-module {$debugFlag} {$sharedLibOpts} {$runtimeLink} -o {$exe} {$optimizedIR}", result_code: $result);
             // @codeCoverageIgnoreStart
             if ($result !== 0) {
                 $io->error("clang failed with exit code {$result}");
