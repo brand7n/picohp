@@ -32,9 +32,8 @@ class PicoType
     /**
      * @param array<BaseType> $params
      */
-    public function __construct(BaseType|PicoType $type, PicoTypeType $typeType = PicoTypeType::VAR, array $params = [])
+    public function __construct(BaseType $type, PicoTypeType $typeType = PicoTypeType::VAR, array $params = [])
     {
-        \App\PicoHP\CompilerInvariant::check($type instanceof BaseType);
         $this->type = $type;
         $this->typeType = $typeType;
         $this->params = $params;
