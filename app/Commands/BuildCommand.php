@@ -119,6 +119,9 @@ final class BuildCommand
                     $lexer = new HandLexerAdapter();
                     $tokens = $lexer->tokenize($code);
                     foreach ($tokens as $token) {
+                        if ($token->id === 0) {
+                            break;
+                        }
                         echo $token->id . '|' . $token->line . '|' . $token->text . "\n";
                     }
 

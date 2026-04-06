@@ -68,6 +68,7 @@ final class Lexer
             $nextOrd = strlen($rest) > 5 ? ord(substr($rest, 5, 1)) : 0;
             $isWs = $nextOrd === 0 || $nextOrd === 32 || $nextOrd === 9 || $nextOrd === 13 || $nextOrd === 10;
             if ($isWs) {
+                $startLine = $this->line;
                 $tagLen = 5;
                 if ($nextOrd === 10) {
                     $tagLen = 6;
@@ -80,7 +81,7 @@ final class Lexer
                 $this->pos += $tagLen;
                 $this->state = LexerState::InScripting;
 
-                return new Token(TokenType::OpenTag, $tokenText, $this->line);
+                return new Token(TokenType::OpenTag, $tokenText, $startLine);
             }
         }
 
