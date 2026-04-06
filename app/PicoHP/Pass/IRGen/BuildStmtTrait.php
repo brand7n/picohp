@@ -560,8 +560,18 @@ trait BuildStmtTrait
             $enumFqcn = ClassSymbol::fqcn($this->currentNamespace(), $stmt->name->toString());
             $enumMeta = $this->enumRegistry[$enumFqcn];
             $llvmEnum = ClassSymbol::mangle($enumFqcn);
-            // Emit backing value lookup table as a global array of ptrs
-            if ($enumMeta->backingType === 'string') {
+            // Emit backing value lookup table
+            if ($enumMeta->backingType === 'int') {
+                $vals = [];
+                foreach ($enumMeta->cases as $caseName => $tag) {
+                    $value = $enumMeta->backingValues[$caseName];
+                    CompilerInvariant::check(is_int($value));
+                    $vals[] = "i32 {$value}";
+                }
+                $count = count($vals);
+                $init = implode(', ', $vals);
+                $this->module->addLine(new IRLine("@{$llvmEnum}_values = global [{$count} x i32] [{$init}]"));
+            } elseif ($enumMeta->backingType === 'string') {
                 $ptrs = [];
                 foreach ($enumMeta->cases as $caseName => $tag) {
                     $value = $enumMeta->backingValues[$caseName];

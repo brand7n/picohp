@@ -365,6 +365,10 @@ trait BuildExprTrait
             if ($constName === 'directory_separator') {
                 return $this->builder->createStringConstant(DIRECTORY_SEPARATOR);
             }
+            // PHP tokenizer constants — resolve at compile time
+            if (str_starts_with($constName, 't_') && defined(strtoupper($constName))) {
+                return new Constant(constant(strtoupper($constName)), BaseType::INT);
+            }
             return new Constant($constName === 'true' ? 1 : 0, BaseType::BOOL);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Int_) {
             $val = $this->buildExpr($expr->expr);
@@ -712,15 +716,20 @@ trait BuildExprTrait
             if ($varType->isMixed()) {
                 return new NullConstant();
             }
-            // Enum ->value access
+            // Enum ->value access — look up backing value from global table by tag index
             if ($varType->isEnum() && $expr->name->toString() === 'value') {
                 $enumName = $varType->getClassName();
                 $enumMeta = $this->enumRegistry[$enumName];
+                $llvmEnum = ClassSymbol::mangle($enumName);
+                $count = count($enumMeta->cases);
                 if ($enumMeta->backingType === 'string') {
-                    $elemPtr = $this->builder->createEnumValueLookup(ClassSymbol::mangle($enumName), count($enumMeta->cases), $objVal);
+                    $elemPtr = $this->builder->createEnumValueLookup($llvmEnum, $count, $objVal);
                     return $this->builder->createLoad($elemPtr);
                 }
-                return $objVal; // int-backed: tag IS the value
+                // int-backed: GEP into i32 values array
+                $elemPtr = new \App\PicoHP\LLVM\Value\Instruction('enum_val', BaseType::INT);
+                $this->builder->addLine("{$elemPtr->render()} = getelementptr inbounds [{$count} x i32], ptr @{$llvmEnum}_values, i32 0, i32 {$objVal->render()}", 1);
+                return $this->builder->createLoad($elemPtr);
             }
             $className = $varType->getClassName();
             $classMeta = $this->classRegistry[$className];

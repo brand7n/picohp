@@ -229,6 +229,17 @@ final class Lexer
             "'" => TokenType::SingleQuote,
             '/' => TokenType::Slash,
             '\\' => TokenType::Backslash,
+            '.' => TokenType::Dot,
+            '!' => TokenType::Exclamation,
+            '*' => TokenType::Asterisk,
+            '%' => TokenType::Percent,
+            '&' => TokenType::Ampersand,
+            '|' => TokenType::Pipe,
+            '~' => TokenType::Tilde,
+            '@' => TokenType::At,
+            ':' => TokenType::Colon,
+            '#' => TokenType::Hash,
+            '^' => TokenType::Caret,
             default => TokenType::BadChar,
         };
     }

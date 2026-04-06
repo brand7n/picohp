@@ -2068,6 +2068,10 @@ class SemanticAnalysisPass implements PassInterface
         if ($lower === 'directory_separator') {
             return PicoType::fromString('string'); // @codeCoverageIgnore
         }
+        // PHP tokenizer constants (T_STRING, T_VARIABLE, etc.)
+        if (str_starts_with($lower, 't_')) {
+            return PicoType::fromString('int');
+        }
 
         if ($context !== null) {
             $this->emitSemanticWarning(

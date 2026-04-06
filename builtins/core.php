@@ -337,6 +337,11 @@ function fclose(int $fd): bool
 {
 }
 
+/** @runtime-symbol pico_constant */
+function constant(string $name): int
+{
+}
+
 // ── Misc ─────────────────────────────────────────────────────────────
 
 /** @intrinsic noop */

@@ -47,6 +47,17 @@ enum TokenType: int
     case SingleQuote = 39;
     case Slash = 47;
     case Backslash = 92;
+    case Dot = 46;
+    case Exclamation = 33;
+    case Asterisk = 42;
+    case Percent = 37;
+    case Ampersand = 38;
+    case Pipe = 124;
+    case Tilde = 126;
+    case At = 64;
+    case Colon = 58;
+    case Hash = 35;
+    case Caret = 94;
 }
 
 /*
