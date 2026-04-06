@@ -1431,6 +1431,10 @@ class SemanticAnalysisPass implements PassInterface
                 || $this->isAssignmentCompatible($ltype, $rtype);
             \App\PicoHP\CompilerInvariant::check($compatible, AstContextFormatter::location($expr) . ', type mismatch in assignment: ' . $ltype->toString() . ' = ' . $rtype->toString());
             return $rtype;
+        } elseif ($expr instanceof \PhpParser\Node\Expr\AssignOp\Concat) {
+            $this->resolveExpr($expr->expr);
+            $this->resolveExpr($expr->var, $doc, lVal: true);
+            return PicoType::fromString('string');
         } elseif ($expr instanceof \PhpParser\Node\Expr\AssignOp\Plus
             || $expr instanceof \PhpParser\Node\Expr\AssignOp\Minus) {
             $rtype = $this->resolveExpr($expr->expr);

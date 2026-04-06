@@ -264,6 +264,47 @@ function debug_backtrace(int $options = 0, int $limit = 0): array
 {
 }
 
+// ── Search & compare ────────────────────────────────────────────────
+
+/** @runtime-symbol pico_in_array_int */
+function in_array(mixed $needle, array $haystack, bool $strict = false): bool
+{
+}
+
+/** @runtime-symbol pico_strpos */
+function strpos(string $haystack, string $needle, int $offset = 0): int
+{
+}
+
+/** @runtime-symbol pico_substr_compare */
+function substr_compare(string $haystack, string $needle, int $offset, int $length = 2147483647, bool $case_insensitive = false): int
+{
+}
+
+// ── Formatting ──────────────────────────────────────────────────────
+
+/** @runtime-symbol pico_sprintf */
+function sprintf(string $format, mixed ...$args): string
+{
+}
+
+/** @runtime-symbol pico_json_encode */
+function json_encode(mixed $value): string
+{
+}
+
+/** @runtime-symbol pico_preg_quote */
+function preg_quote(string $str, string $delimiter = ''): string
+{
+}
+
+// ── Class/type checks ───────────────────────────────────────────────
+
+/** @intrinsic noop */
+function class_exists(string $class, bool $autoload = true): bool
+{
+}
+
 // ── Misc ─────────────────────────────────────────────────────────────
 
 /** @intrinsic noop */

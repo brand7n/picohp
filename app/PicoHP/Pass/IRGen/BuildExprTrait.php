@@ -108,6 +108,21 @@ trait BuildExprTrait
             return $this->buildCompoundAssign($expr, 'add', 'fadd');
         } elseif ($expr instanceof \PhpParser\Node\Expr\AssignOp\Minus) {
             return $this->buildCompoundAssign($expr, 'sub', 'fsub');
+        } elseif ($expr instanceof \PhpParser\Node\Expr\AssignOp\Concat) {
+            // $x .= $y → $x = $x . $y
+            $varPtr = $this->resolveVarPtr($expr->var);
+            $lval = $this->builder->createLoad($varPtr);
+            $rval = $this->buildExpr($expr->expr);
+            // Coerce both sides to string for concat
+            if ($lval->getType() === BaseType::INT) {
+                $lval = $this->builder->createCall('pico_int_to_string', [$lval], BaseType::STRING);
+            }
+            if ($rval->getType() === BaseType::INT) {
+                $rval = $this->builder->createCall('pico_int_to_string', [$rval], BaseType::STRING);
+            }
+            $result = $this->builder->createCall('pico_string_concat', [$lval, $rval], BaseType::STRING);
+            $this->builder->createStore($result, $varPtr);
+            return $result;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Variable) {
             if (is_string($expr->name) && $expr->name === '_SERVER') {
                 CompilerInvariant::check(
@@ -416,6 +431,10 @@ trait BuildExprTrait
             }
             if ($funcName === 'class_alias') {
                 return new Void_();
+            }
+            if ($funcName === 'class_exists') {
+                // All classes are statically known at compile time
+                return new Constant(1, BaseType::BOOL);
             }
             if ($funcName === 'count') {
                 CompilerInvariant::check(count($expr->args) === 1);

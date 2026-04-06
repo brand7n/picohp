@@ -969,6 +969,107 @@ pub extern "C" fn pico_map_get_value_str(map: *const PicoMap, index: i32) -> *co
     }
 }
 
+// ---------------------------------------------------------------------------
+// Search & compare
+// ---------------------------------------------------------------------------
+
+/// in_array for integer arrays — returns 1 if needle found, else 0.
+#[no_mangle]
+pub extern "C" fn pico_in_array_int(needle: i32, arr: *const PicoArray, _strict: i32) -> i32 {
+    if arr.is_null() { return 0; }
+    let arr = unsafe { &*arr };
+    for v in &arr.data {
+        if let PicoValue::Int(i) = v {
+            if *i == needle { return 1; }
+        }
+    }
+    0
+}
+
+/// strpos — returns index of needle in haystack, or -1 if not found.
+#[no_mangle]
+pub extern "C" fn pico_strpos(haystack: *const c_char, needle: *const c_char, offset: i32) -> i32 {
+    if haystack.is_null() || needle.is_null() { return -1; }
+    let h = unsafe { CStr::from_ptr(haystack) }.to_bytes();
+    let n = unsafe { CStr::from_ptr(needle) }.to_bytes();
+    let start = offset.max(0) as usize;
+    if start >= h.len() || n.is_empty() { return -1; }
+    match h[start..].windows(n.len()).position(|w| w == n) {
+        Some(pos) => (start + pos) as i32,
+        None => -1,
+    }
+}
+
+/// substr_compare — compare two strings from offset.
+#[no_mangle]
+pub extern "C" fn pico_substr_compare(
+    haystack: *const c_char, needle: *const c_char, offset: i32, length: i32, _ci: i32,
+) -> i32 {
+    if haystack.is_null() || needle.is_null() { return -1; }
+    let h = unsafe { CStr::from_ptr(haystack) }.to_bytes();
+    let n = unsafe { CStr::from_ptr(needle) }.to_bytes();
+    let start = offset.max(0) as usize;
+    if start > h.len() { return -1; }
+    let len = if length <= 0 { n.len() } else { (length as usize).min(n.len()) };
+    let end = (start + len).min(h.len());
+    let slice = &h[start..end];
+    let cmp_n = &n[..len.min(n.len())];
+    match slice.cmp(cmp_n) {
+        std::cmp::Ordering::Less => -1,
+        std::cmp::Ordering::Equal => 0,
+        std::cmp::Ordering::Greater => 1,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Formatting
+// ---------------------------------------------------------------------------
+
+/// Minimal sprintf — supports %s and %d. Returns heap-allocated C string.
+#[no_mangle]
+pub extern "C" fn pico_sprintf(fmt: *const c_char, arg1: *const c_char) -> *mut c_char {
+    if fmt.is_null() { return std::ptr::null_mut(); }
+    let f = unsafe { CStr::from_ptr(fmt) }.to_str().unwrap_or("");
+    let a = if arg1.is_null() { "" } else { unsafe { CStr::from_ptr(arg1) }.to_str().unwrap_or("") };
+    let result = f.replacen("%s", a, 1);
+    match CString::new(result) {
+        Ok(cs) => cs.into_raw(),
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+/// Stub json_encode — returns the string representation or "null".
+#[no_mangle]
+pub extern "C" fn pico_json_encode(value: *const c_char) -> *mut c_char {
+    if value.is_null() {
+        return match CString::new("null") { Ok(cs) => cs.into_raw(), Err(_) => std::ptr::null_mut() };
+    }
+    let s = unsafe { CStr::from_ptr(value) }.to_str().unwrap_or("");
+    let quoted = format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""));
+    match CString::new(quoted) {
+        Ok(cs) => cs.into_raw(),
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+/// preg_quote — escape regex special characters.
+#[no_mangle]
+pub extern "C" fn pico_preg_quote(str: *const c_char, _delim: *const c_char) -> *mut c_char {
+    if str.is_null() { return std::ptr::null_mut(); }
+    let s = unsafe { CStr::from_ptr(str) }.to_str().unwrap_or("");
+    let mut result = String::with_capacity(s.len() * 2);
+    for c in s.chars() {
+        if ".\\/+*?[^]$(){}=!<>|:-#".contains(c) {
+            result.push('\\');
+        }
+        result.push(c);
+    }
+    match CString::new(result) {
+        Ok(cs) => cs.into_raw(),
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
