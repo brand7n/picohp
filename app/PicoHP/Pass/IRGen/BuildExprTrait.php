@@ -237,7 +237,7 @@ trait BuildExprTrait
                     break;
                 case '==':
                 case '===':
-                    if ($operandType === BaseType::STRING
+                    if (($operandType === BaseType::STRING || $operandType === BaseType::PTR)
                         && !($lval instanceof NullConstant)
                         && !($rval instanceof NullConstant)
                     ) {
@@ -253,7 +253,7 @@ trait BuildExprTrait
                     break;
                 case '!=':
                 case '!==':
-                    if ($operandType === BaseType::STRING
+                    if (($operandType === BaseType::STRING || $operandType === BaseType::PTR)
                         && !($lval instanceof NullConstant)
                         && !($rval instanceof NullConstant)
                     ) {
@@ -895,22 +895,34 @@ trait BuildExprTrait
                         $armCondVal = $this->builder->createPtrToInt($armCondVal);
                     }
                     $isFloat = $cmpType === BaseType::FLOAT;
-                    $cmpResult = $this->builder->createInstruction(
-                        $isFloat ? 'fcmp oeq' : 'icmp eq',
-                        [$cmpLeft, $armCondVal],
-                        resultType: BaseType::BOOL
-                    );
+                    $isStr = $cmpType === BaseType::STRING || $cmpType === BaseType::PTR;
+                    if ($isStr && !($cmpLeft instanceof NullConstant) && !($armCondVal instanceof NullConstant)) {
+                        $eqResult = $this->builder->createCall('pico_string_eq', [$cmpLeft, $armCondVal], BaseType::INT);
+                        $cmpResult = $this->builder->createInstruction('icmp ne', [$eqResult, new Constant(0, BaseType::INT)], resultType: BaseType::BOOL);
+                    } else {
+                        $cmpResult = $this->builder->createInstruction(
+                            $isFloat ? 'fcmp oeq' : 'icmp eq',
+                            [$cmpLeft, $armCondVal],
+                            resultType: BaseType::BOOL
+                        );
+                    }
                 } else {
                     // Multiple conditions: OR them together
                     $orResult = null;
                     foreach ($arm->conds as $armCond) {
                         $armCondVal = $this->buildExpr($armCond);
                         $isFloat = $condType === BaseType::FLOAT;
-                        $cmpResult = $this->builder->createInstruction(
-                            $isFloat ? 'fcmp oeq' : 'icmp eq',
-                            [$condVal, $armCondVal],
-                            resultType: BaseType::BOOL
-                        );
+                        $isStr = $condType === BaseType::STRING || $condType === BaseType::PTR;
+                        if ($isStr && !($condVal instanceof NullConstant) && !($armCondVal instanceof NullConstant)) {
+                            $eqResult = $this->builder->createCall('pico_string_eq', [$condVal, $armCondVal], BaseType::INT);
+                            $cmpResult = $this->builder->createInstruction('icmp ne', [$eqResult, new Constant(0, BaseType::INT)], resultType: BaseType::BOOL);
+                        } else {
+                            $cmpResult = $this->builder->createInstruction(
+                                $isFloat ? 'fcmp oeq' : 'icmp eq',
+                                [$condVal, $armCondVal],
+                                resultType: BaseType::BOOL
+                            );
+                        }
                         if ($orResult === null) {
                             $orResult = $cmpResult;
                         } else {

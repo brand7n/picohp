@@ -132,8 +132,9 @@ final class Lexer
         if (preg_match('/^\/\*.*?\*\//s', $rest, $m) === 1) {
             $this->line += $this->countNewlines($m[0]);
             $this->pos += strlen($m[0]);
-
-            return new Token(TokenType::Comment, $m[0], $line);
+            // /** is doc comment (T_DOC_COMMENT=393), /* is regular (T_COMMENT=392)
+            $isDoc = strlen($m[0]) >= 3 && ord(substr($m[0], 2, 1)) === 42; // third char is *
+            return new Token($isDoc ? 393 : 392, $m[0], $line);
         }
 
         if (preg_match('/^\?>/', $rest, $m) === 1) {
@@ -143,13 +144,24 @@ final class Lexer
             return new Token(TokenType::CloseTag, $m[0], $line);
         }
 
-        if (preg_match('/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*/', $rest, $m) === 1) {
+        // Qualified/fully-qualified names: \App\PicoHP or App\PicoHP\LLVM
+        if (preg_match('/^\\\\[a-zA-Z_][a-zA-Z0-9_]*(\\\\[a-zA-Z_][a-zA-Z0-9_]*)*/', $rest, $m) === 1) {
+            $this->pos += strlen($m[0]);
+
+            return new Token(263, $m[0], $line); // T_NAME_FULLY_QUALIFIED
+        }
+        if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\\\\[a-zA-Z_][a-zA-Z0-9_]*)+/', $rest, $m) === 1) {
+            $this->pos += strlen($m[0]);
+
+            return new Token(265, $m[0], $line); // T_NAME_QUALIFIED
+        }
+        if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*/', $rest, $m) === 1) {
             $this->pos += strlen($m[0]);
 
             return new Token($this->keywordOrIdent($m[0]), $m[0], $line);
         }
 
-        if (preg_match('/^\$[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*/', $rest, $m) === 1) {
+        if (preg_match('/^\$[a-zA-Z_][a-zA-Z0-9_]*/', $rest, $m) === 1) {
             $this->pos += strlen($m[0]);
 
             return new Token(TokenType::Variable, $m[0], $line);
@@ -214,44 +226,38 @@ final class Lexer
         return new Token($this->singleChar($char), $char, $line);
     }
 
+    /**
+     * Map keyword to token ID. Uses PHP 8.5 T_* constant values.
+     * Returns TokenType::Ident for non-keywords.
+     */
     private function keywordOrIdent(string $word): int
     {
         $lower = strtolower($word);
-        if ($lower === 'echo') {
-            return TokenType::Echo;
-        }
-        if ($lower === 'if') {
-            return TokenType::If;
-        }
-        if ($lower === 'else') {
-            return TokenType::Else;
-        }
-        if ($lower === 'while') {
-            return TokenType::While;
-        }
-        if ($lower === 'for') {
-            return TokenType::For;
-        }
-        if ($lower === 'foreach') {
-            return TokenType::Foreach;
-        }
-        if ($lower === 'function') {
-            return TokenType::Function;
-        }
-        if ($lower === 'return') {
-            return TokenType::Return;
-        }
-        if ($lower === 'class') {
-            return TokenType::ClassKeyword;
-        }
-        if ($lower === 'new') {
-            return TokenType::New;
-        }
-        if ($lower === 'declare') {
-            return 299; // T_DECLARE
-        }
 
-        return TokenType::Ident;
+        return match ($lower) {
+            'echo' => 291, 'if' => 287, 'elseif' => 288, 'else' => 289,
+            'while' => 293, 'do' => 292, 'for' => 295, 'foreach' => 297,
+            'function' => 310, 'fn' => 311, 'return' => 313,
+            'class' => 336, 'trait' => 337, 'interface' => 338, 'enum' => 339,
+            'extends' => 340, 'implements' => 341, 'new' => 284, 'clone' => 285,
+            'declare' => 299, 'namespace' => 342, 'use' => 318,
+            'public' => 326, 'protected' => 325, 'private' => 324,
+            'static' => 321, 'abstract' => 322, 'final' => 323, 'readonly' => 330,
+            'const' => 312, 'var' => 331,
+            'try' => 314, 'catch' => 315, 'finally' => 316, 'throw' => 317,
+            'switch' => 302, 'case' => 304, 'default' => 305, 'break' => 307,
+            'continue' => 308, 'match' => 306,
+            'instanceof' => 283, 'as' => 301, 'insteadof' => 319,
+            'yield' => 281, 'print' => 280, 'exit' => 286, 'die' => 286,
+            'list' => 343, 'array' => 344, 'callable' => 345,
+            'unset' => 332, 'isset' => 333, 'empty' => 334,
+            'include' => 272, 'include_once' => 273,
+            'require' => 275, 'require_once' => 276,
+            'goto' => 309, 'global' => 320,
+            'endif' => 290, 'endwhile' => 294, 'endfor' => 296,
+            'endforeach' => 298, 'endswitch' => 303, 'enddeclare' => 300,
+            default => TokenType::Ident,
+        };
     }
 
     private function singleChar(string $char): int
@@ -275,7 +281,7 @@ final class Lexer
             34 => TokenType::DoubleQuote,
             39 => TokenType::SingleQuote,
             47 => TokenType::Slash,
-            92 => TokenType::Backslash,
+            92 => 403, // T_NS_SEPARATOR in scripting mode
             46 => TokenType::Dot,
             33 => TokenType::Exclamation,
             42 => TokenType::Asterisk,
