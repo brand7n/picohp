@@ -237,6 +237,11 @@ class Builder
      * Emit a call to picohp_unimplemented(name) + unreachable.
      * Prints the function name to stderr before aborting.
      */
+    /**
+     * Emit a call to picohp_unimplemented(name) + unreachable, then throw
+     * to unwind out of the current function body compilation (caught by
+     * the try/catch in BuildStmtTrait which stubs the function).
+     */
     public function emitUnimplementedAbort(string $funcName): void
     {
         $nameConst = $this->createStringConstant($funcName);

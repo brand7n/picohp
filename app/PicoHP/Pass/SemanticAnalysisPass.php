@@ -6,12 +6,13 @@ use App\PicoHP\AstContextFormatter;
 use App\PicoHP\CompilerInvariantException;
 use App\PicoHP\{PassInterface, SymbolTable};
 use App\PicoHP\SymbolTable\{ClassMetadata, DocTypeParser, EnumMetadata, PicoHPData};
-use App\PicoHP\{BaseType, ClassSymbol, PicoType};
+use App\PicoHP\{BaseType, BuiltinRegistry, ClassSymbol, PicoType};
 
 class SemanticAnalysisPass implements PassInterface
 {
     protected SymbolTable $symbolTable;
     protected DocTypeParser $docTypeParser;
+    protected BuiltinRegistry $builtinRegistry;
     protected ?PicoType $currentFunctionReturnType = null;
     protected ?\App\PicoHP\SymbolTable\Symbol $currentFunctionSymbol = null;
     protected ?ClassMetadata $currentClass = null;
@@ -37,9 +38,11 @@ class SemanticAnalysisPass implements PassInterface
         private readonly ?\Closure $semanticWarning = null,
         /** When true, method/function bodies that fail semantic analysis are stubbed (abort at runtime) instead of erroring. */
         private readonly bool $allowStubbing = false,
+        ?BuiltinRegistry $builtinRegistry = null,
     ) {
         $this->symbolTable = new SymbolTable();
         $this->docTypeParser = new DocTypeParser();
+        $this->builtinRegistry = $builtinRegistry ?? BuiltinRegistry::createDefault();
     }
 
     private function emitSemanticWarning(string $label, \PhpParser\Node $node): void
@@ -269,27 +272,84 @@ class SemanticAnalysisPass implements PassInterface
 
     protected function registerBuiltinClasses(): void
     {
-        $exceptionMeta = new ClassMetadata('Exception');
-        $exceptionMeta->addProperty('message', PicoType::fromString('string'));
-        $getMessageSymbol = new \App\PicoHP\SymbolTable\Symbol('getMessage', PicoType::fromString('string'), func: true);
-        $exceptionMeta->methods['getMessage'] = $getMessageSymbol;
-        $exceptionMeta->methodOwner['getMessage'] = 'Exception';
-        $getTraceAsStringSymbol = new \App\PicoHP\SymbolTable\Symbol('getTraceAsString', PicoType::fromString('string'), func: true);
-        $exceptionMeta->methods['getTraceAsString'] = $getTraceAsStringSymbol;
-        $exceptionMeta->methodOwner['getTraceAsString'] = 'Exception';
-        $ctorSymbol = new \App\PicoHP\SymbolTable\Symbol('__construct', PicoType::fromString('void'), func: true);
-        $ctorSymbol->params = [PicoType::fromString('string')];
-        $ctorSymbol->paramNames = [0 => 'message'];
-        $exceptionMeta->methods['__construct'] = $ctorSymbol;
-        $exceptionMeta->methodOwner['__construct'] = 'Exception';
-        $this->classRegistry['Exception'] = $exceptionMeta;
-        $this->typeIdMap['Exception'] = $this->nextTypeId++;
+        // Register classes from builtins/ header files (Exception hierarchy, etc.)
+        // Process in dependency order: parents before children
+        $classDefs = $this->builtinRegistry->allClasses();
+        $registered = [];
+        while (count($registered) < count($classDefs)) {
+            $progress = false;
+            foreach ($classDefs as $name => $classDef) {
+                if (isset($registered[$name])) {
+                    continue;
+                }
+                if ($classDef->parentName !== null && isset($classDefs[$classDef->parentName]) && !isset($registered[$classDef->parentName])) {
+                    continue;
+                }
+                $this->registerBuiltinClassFromDef($classDef);
+                $registered[$name] = true;
+                $progress = true;
+            }
+            if (!$progress) {
+                break;
+            }
+        }
 
-        // Optional Composer types not guaranteed to be autoloadable (see ReachabilityAnalyzer) — stub so
-        // `extends` resolves when the package is absent; when installed, ensureExternalClassReference skips this.
+        // Optional Composer types not guaranteed to be autoloadable
         $symfonyEventFqcn = 'Symfony\Contracts\EventDispatcher\Event';
-        $this->classRegistry[$symfonyEventFqcn] = new ClassMetadata($symfonyEventFqcn);
-        $this->typeIdMap[$symfonyEventFqcn] = $this->nextTypeId++;
+        if (!isset($this->classRegistry[$symfonyEventFqcn])) {
+            $this->classRegistry[$symfonyEventFqcn] = new ClassMetadata($symfonyEventFqcn);
+            $this->typeIdMap[$symfonyEventFqcn] = $this->nextTypeId++;
+        }
+    }
+
+    protected function registerBuiltinClassFromDef(\App\PicoHP\BuiltinClassDef $classDef): void
+    {
+        $meta = new ClassMetadata($classDef->name);
+
+        if ($classDef->isInterface) {
+            foreach ($classDef->methods as $methodName => $methodDef) {
+                $symbol = new \App\PicoHP\SymbolTable\Symbol($methodName, $methodDef->returnType, func: true);
+                $meta->methods[$methodName] = $symbol;
+                $meta->methodOwner[$methodName] = $classDef->name;
+            }
+            $this->classRegistry[$classDef->name] = $meta;
+            $this->typeIdMap[$classDef->name] = $this->nextTypeId++;
+
+            return;
+        }
+
+        // Inherit from parent
+        if ($classDef->parentName !== null && isset($this->classRegistry[$classDef->parentName])) {
+            $meta->inheritFrom($this->classRegistry[$classDef->parentName]);
+        }
+
+        // Record implemented interfaces
+        foreach ($classDef->interfaces as $ifaceName) {
+            $meta->interfaces[] = $ifaceName;
+        }
+
+        // Add properties
+        foreach ($classDef->properties as $propName => $propType) {
+            $meta->addProperty($propName, $propType);
+        }
+
+        // Add methods
+        foreach ($classDef->methods as $methodName => $methodDef) {
+            $symbol = new \App\PicoHP\SymbolTable\Symbol($methodName, $methodDef->returnType, func: true);
+            $symbol->params = array_map(
+                static fn (array $p): PicoType => $p['type'],
+                $methodDef->params,
+            );
+            $symbol->paramNames = [];
+            foreach ($methodDef->params as $i => $p) {
+                $symbol->paramNames[$i] = $p['name'];
+            }
+            $meta->methods[$methodName] = $symbol;
+            $meta->methodOwner[$methodName] = $classDef->name;
+        }
+
+        $this->classRegistry[$classDef->name] = $meta;
+        $this->typeIdMap[$classDef->name] = $this->nextTypeId++;
     }
 
     /**
@@ -1538,117 +1598,27 @@ class SemanticAnalysisPass implements PassInterface
             \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Name);
             $funcName = $expr->name->toLowerString();
             $argTypes = $this->resolveArgs($expr->args);
-            // Built-in functions
-            if ($funcName === 'count' || $funcName === 'strlen' || $funcName === 'ord') {
-                return PicoType::fromString('int');
-            }
-            if ($funcName === 'getenv') {
-                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
-                \App\PicoHP\CompilerInvariant::check($argTypes[0]->toBase() === BaseType::STRING);
-
-                return PicoType::fromString('string');
-            }
-            if ($funcName === 'max') {
-                \App\PicoHP\CompilerInvariant::check(count($argTypes) === 2);
-                \App\PicoHP\CompilerInvariant::check($argTypes[0]->toBase() === BaseType::INT && $argTypes[1]->toBase() === BaseType::INT);
-
-                return PicoType::fromString('int');
-            }
-            if ($funcName === 'fwrite') {
-                \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 2 && count($expr->args) <= 3);
-                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg && $expr->args[1] instanceof \PhpParser\Node\Arg);
-                \App\PicoHP\CompilerInvariant::check($argTypes[0]->toBase() === BaseType::INT);
-                \App\PicoHP\CompilerInvariant::check($argTypes[1]->toBase() === BaseType::STRING);
-                if (count($expr->args) === 3) {
-                    \App\PicoHP\CompilerInvariant::check($expr->args[2] instanceof \PhpParser\Node\Arg);
-                    \App\PicoHP\CompilerInvariant::check($argTypes[2]->toBase() === BaseType::INT);
+            // Built-in functions — registry-driven lookup
+            if ($this->builtinRegistry->has($funcName)) {
+                $def = $this->builtinRegistry->get($funcName);
+                if ($def->returnMatchesArg !== null) {
+                    $argIdx = $def->returnMatchesArg;
+                    if (count($expr->args) > $argIdx && $expr->args[$argIdx] instanceof \PhpParser\Node\Arg) {
+                        return $this->resolveExpr($expr->args[$argIdx]->value);
+                    }
+                    return $def->returnType;
                 }
-
-                return PicoType::fromString('int');
-            }
-            if ($funcName === 'debug_backtrace') {
-                \App\PicoHP\CompilerInvariant::check(count($expr->args) <= 2); // @codeCoverageIgnore
-                foreach ($argTypes as $t) { // @codeCoverageIgnore
-                    \App\PicoHP\CompilerInvariant::check($t->toBase() === BaseType::INT); // @codeCoverageIgnore
+                if ($def->returnElementType !== null) {
+                    $argIdx = $def->returnElementType;
+                    if (count($expr->args) > $argIdx && $expr->args[$argIdx] instanceof \PhpParser\Node\Arg) {
+                        $arrType = $this->resolveExpr($expr->args[$argIdx]->value);
+                        if ($arrType->isArray()) {
+                            return $arrType->getElementType();
+                        }
+                    }
+                    return PicoType::fromString('mixed');
                 }
-
-                return PicoType::array(PicoType::fromString('mixed')); // @codeCoverageIgnore
-            }
-            if ($funcName === 'dirname') {
-                \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 1 && count($expr->args) <= 2);
-                \App\PicoHP\CompilerInvariant::check($argTypes[0]->toBase() === BaseType::STRING);
-                if (count($expr->args) === 2) {
-                    \App\PicoHP\CompilerInvariant::check($argTypes[1]->toBase() === BaseType::INT);
-                }
-
-                return PicoType::fromString('string');
-            }
-            if ($funcName === 'str_starts_with' || $funcName === 'str_contains') {
-                return PicoType::fromString('bool');
-            }
-            if ($funcName === 'strval') {
-                return PicoType::fromString('string');
-            }
-            if ($funcName === 'implode' || $funcName === 'substr' || $funcName === 'trim' || $funcName === 'ltrim' || $funcName === 'rtrim'
-                || $funcName === 'str_repeat' || $funcName === 'str_replace'
-                || $funcName === 'strtoupper' || $funcName === 'strtolower' || $funcName === 'dechex' || $funcName === 'str_pad') {
-                return PicoType::fromString('string');
-            }
-            if ($funcName === 'is_int' || $funcName === 'is_string' || $funcName === 'is_float' || $funcName === 'is_bool'
-                || $funcName === 'is_array' || $funcName === 'array_key_exists') {
-                return PicoType::fromString('bool');
-            }
-            if ($funcName === 'array_search') {
-                return PicoType::fromString('int'); // returns index or false, simplified to int
-            }
-            if ($funcName === 'intval') {
-                return PicoType::fromString('int');
-            }
-            if ($funcName === 'array_reverse') {
-                \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 1);
-                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
-                return $this->resolveExpr($expr->args[0]->value);
-            }
-            if ($funcName === 'array_pop' || $funcName === 'array_shift') {
-                return PicoType::fromString('void');
-            }
-            if ($funcName === 'array_merge') {
-                if (count($expr->args) >= 1 && $expr->args[0] instanceof \PhpParser\Node\Arg) { // @codeCoverageIgnore
-                    return $this->resolveExpr($expr->args[0]->value); // @codeCoverageIgnore
-                }
-                return PicoType::fromString('array'); // @codeCoverageIgnore
-            }
-            if ($funcName === 'array_slice') {
-                \App\PicoHP\CompilerInvariant::check(count($expr->args) >= 2 && count($expr->args) <= 4); // @codeCoverageIgnore
-                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg); // @codeCoverageIgnore
-                \App\PicoHP\CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg); // @codeCoverageIgnore
-                $t = $this->resolveExpr($expr->args[0]->value); // @codeCoverageIgnore
-                \App\PicoHP\CompilerInvariant::check($t->isArray()); // @codeCoverageIgnore
-                $this->resolveExpr($expr->args[1]->value); // @codeCoverageIgnore
-                if (count($expr->args) >= 3 && $expr->args[2] instanceof \PhpParser\Node\Arg) { // @codeCoverageIgnore
-                    $this->resolveExpr($expr->args[2]->value); // @codeCoverageIgnore
-                }
-
-                return $t; // @codeCoverageIgnore
-            }
-            if ($funcName === 'assert') {
-                return PicoType::fromString('void');
-            }
-            if ($funcName === 'class_alias') {
-                return PicoType::fromString('void'); // @codeCoverageIgnore
-            }
-            if ($funcName === 'preg_match') {
-                return PicoType::fromString('int');
-            }
-            if ($funcName === 'end') {
-                \App\PicoHP\CompilerInvariant::check(count($expr->args) === 1);
-                \App\PicoHP\CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
-                $arrType = $this->resolveExpr($expr->args[0]->value);
-                \App\PicoHP\CompilerInvariant::check($arrType->isArray());
-                return $arrType->getElementType();
-            }
-            if ($funcName === 'array_splice') {
-                return PicoType::fromString('void');
+                return $def->returnType;
             }
             $funcNameRaw = $expr->name->name;
             $s = $this->symbolTable->lookup($funcNameRaw);
