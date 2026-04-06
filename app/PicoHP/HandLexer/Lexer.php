@@ -69,13 +69,16 @@ final class Lexer
             $isWs = $nextOrd === 0 || $nextOrd === 32 || $nextOrd === 9 || $nextOrd === 13 || $nextOrd === 10;
             if ($isWs) {
                 $startLine = $this->line;
-                $tagLen = 5;
-                if ($nextOrd === 10) {
-                    $tagLen = 6;
+                // Include one trailing whitespace char in the open tag (matches PHP)
+                $tagLen = 6; // <?php + one ws char
+                if ($nextOrd === 13 && strlen($rest) > 6 && ord(substr($rest, 6, 1)) === 10) {
+                    $tagLen = 7; // \r\n
+                }
+                if ($nextOrd === 10 || $nextOrd === 13) {
                     $this->line += 1;
-                } elseif ($nextOrd === 13 && strlen($rest) > 6 && ord(substr($rest, 6, 1)) === 10) {
-                    $tagLen = 7;
-                    $this->line += 1;
+                }
+                if ($nextOrd === 0) {
+                    $tagLen = 5; // EOF after <?php
                 }
                 $tokenText = substr($rest, 0, $tagLen);
                 $this->pos += $tagLen;

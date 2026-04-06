@@ -18,7 +18,6 @@ it('tokenizes a small script into expected kinds', function () {
 
     expect($types)->toBe([
         TokenType::OpenTag,
-        TokenType::Whitespace,
         TokenType::Echo,
         TokenType::Whitespace,
         TokenType::LNumber,
@@ -42,7 +41,7 @@ it('records start line on open tag', function () {
     $lexer = new Lexer('<?php echo 1;');
     $tokens = $lexer->tokenize();
     expect($tokens[0]->line)->toBe(1);
-    expect($tokens[0]->value)->toBe('<?php');
+    expect($tokens[0]->value)->toBe('<?php ');
 });
 
 it('covers scripting tokens, comments, literals, keywords, close tag, and inline html', function () {

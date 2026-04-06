@@ -477,15 +477,26 @@ pub extern "C" fn pico_preg_match(
     let pattern = unsafe { CStr::from_ptr(pattern) }.to_str().unwrap();
     let subject = unsafe { CStr::from_ptr(subject) }.to_str().unwrap();
 
-    // Strip PHP PCRE delimiters: /pattern/flags -> pattern
-    let regex_pattern = if pattern.starts_with('/') {
+    // Strip PHP PCRE delimiters: /pattern/flags -> pattern, apply flags
+    let (regex_pattern, flags) = if pattern.starts_with('/') {
         let end = pattern.rfind('/').unwrap_or(pattern.len());
-        if end > 0 { &pattern[1..end] } else { pattern }
+        if end > 0 {
+            (&pattern[1..end], &pattern[end+1..])
+        } else {
+            (pattern, "")
+        }
     } else {
-        pattern
+        (pattern, "")
     };
 
-    let re = match Regex::new(regex_pattern) {
+    // Apply PCRE flags as inline Rust regex flags
+    let mut prefix = String::new();
+    if flags.contains('s') { prefix.push_str("(?s)"); }  // dotall
+    if flags.contains('i') { prefix.push_str("(?i)"); }  // case-insensitive
+    if flags.contains('m') { prefix.push_str("(?m)"); }  // multiline
+    let full_pattern = format!("{}{}", prefix, regex_pattern);
+
+    let re = match Regex::new(&full_pattern) {
         Ok(r) => r,
         Err(_) => return 0,
     };
