@@ -9,6 +9,63 @@ pub extern "C" fn pico_rt_version() -> i32 {
     1
 }
 
+// ---------------------------------------------------------------------------
+// Filesystem
+// ---------------------------------------------------------------------------
+
+#[no_mangle]
+pub extern "C" fn pico_is_file(path: *const c_char) -> i32 {
+    if path.is_null() { return 0; }
+    let Ok(s) = unsafe { CStr::from_ptr(path) }.to_str() else { return 0; };
+    Path::new(s).is_file() as i32
+}
+
+#[no_mangle]
+pub extern "C" fn pico_is_dir(path: *const c_char) -> i32 {
+    if path.is_null() { return 0; }
+    let Ok(s) = unsafe { CStr::from_ptr(path) }.to_str() else { return 0; };
+    Path::new(s).is_dir() as i32
+}
+
+#[no_mangle]
+pub extern "C" fn pico_file_exists(path: *const c_char) -> i32 {
+    if path.is_null() { return 0; }
+    let Ok(s) = unsafe { CStr::from_ptr(path) }.to_str() else { return 0; };
+    Path::new(s).exists() as i32
+}
+
+#[no_mangle]
+pub extern "C" fn pico_file_get_contents(path: *const c_char) -> *mut c_char {
+    if path.is_null() { return std::ptr::null_mut(); }
+    let Ok(s) = unsafe { CStr::from_ptr(path) }.to_str() else { return std::ptr::null_mut(); };
+    match std::fs::read(s) {
+        Ok(bytes) => {
+            let mut buf = Vec::with_capacity(bytes.len() + 1);
+            buf.extend_from_slice(&bytes);
+            buf.push(0);
+            let ptr = buf.as_mut_ptr() as *mut c_char;
+            std::mem::forget(buf);
+            ptr
+        }
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn pico_realpath(path: *const c_char) -> *mut c_char {
+    if path.is_null() { return std::ptr::null_mut(); }
+    let Ok(s) = unsafe { CStr::from_ptr(path) }.to_str() else { return std::ptr::null_mut(); };
+    match std::fs::canonicalize(s) {
+        Ok(p) => {
+            match CString::new(p.to_string_lossy().as_bytes()) {
+                Ok(cs) => cs.into_raw(),
+                Err(_) => std::ptr::null_mut(),
+            }
+        }
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
 /// Concatenate two C strings into a new heap-allocated C string.
 /// Caller receives ownership of the returned pointer.
 #[no_mangle]

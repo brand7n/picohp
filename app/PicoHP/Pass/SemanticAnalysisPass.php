@@ -1556,6 +1556,8 @@ class SemanticAnalysisPass implements PassInterface
             return PicoType::fromString('string');
         } elseif ($expr instanceof \PhpParser\Node\Scalar\MagicConst\Dir) {
             return PicoType::fromString('string');
+        } elseif ($expr instanceof \PhpParser\Node\Scalar\MagicConst\File) {
+            return PicoType::fromString('string');
         } elseif ($expr instanceof \PhpParser\Node\Scalar\InterpolatedString) {
             foreach ($expr->parts as $part) { // @codeCoverageIgnore
                 if ($part instanceof \PhpParser\Node\InterpolatedStringPart) { // @codeCoverageIgnore

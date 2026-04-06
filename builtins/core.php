@@ -205,6 +205,31 @@ function fwrite(int $fd, string $data, int $length = -1): int
 {
 }
 
+/** @runtime-symbol pico_is_file */
+function is_file(string $path): bool
+{
+}
+
+/** @runtime-symbol pico_is_dir */
+function is_dir(string $path): bool
+{
+}
+
+/** @runtime-symbol pico_file_exists */
+function file_exists(string $path): bool
+{
+}
+
+/** @runtime-symbol pico_file_get_contents */
+function file_get_contents(string $path): string
+{
+}
+
+/** @runtime-symbol pico_realpath */
+function realpath(string $path): string
+{
+}
+
 /** @runtime-symbol pico_ord */
 function ord(string $str): int
 {

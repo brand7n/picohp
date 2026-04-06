@@ -281,6 +281,11 @@ trait BuildExprTrait
             CompilerInvariant::check(is_string($path) && $path !== '', 'Scalar\\MagicConst\\Dir requires pico_source_file on the AST (from BuildCommand)');
 
             return $this->builder->createStringConstant(dirname($path));
+        } elseif ($expr instanceof \PhpParser\Node\Scalar\MagicConst\File) {
+            $path = $expr->getAttribute('pico_source_file');
+            CompilerInvariant::check(is_string($path) && $path !== '', 'Scalar\\MagicConst\\File requires pico_source_file on the AST (from BuildCommand)');
+
+            return $this->builder->createStringConstant($path);
         } elseif ($expr instanceof \PhpParser\Node\Scalar\InterpolatedString) {
             foreach ($expr->parts as $part) {
                 if ($part instanceof \PhpParser\Node\InterpolatedStringPart) {
@@ -696,6 +701,30 @@ trait BuildExprTrait
                     return $this->builder->createFpToSi($val);
                 }
                 return $val;
+            }
+            if ($funcName === 'is_file' || $funcName === 'is_dir' || $funcName === 'file_exists') {
+                CompilerInvariant::check(count($expr->args) === 1);
+                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                $pathVal = $this->buildExpr($expr->args[0]->value);
+                $runtimeFn = match ($funcName) {
+                    'is_file' => 'pico_is_file',
+                    'is_dir' => 'pico_is_dir',
+                    'file_exists' => 'pico_file_exists',
+                };
+                $result = $this->builder->createCall($runtimeFn, [$pathVal], BaseType::INT);
+                return $this->builder->createInstruction('icmp ne', [$result, new Constant(0, BaseType::INT)], resultType: BaseType::BOOL);
+            }
+            if ($funcName === 'file_get_contents') {
+                CompilerInvariant::check(count($expr->args) === 1);
+                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                $pathVal = $this->buildExpr($expr->args[0]->value);
+                return $this->builder->createCall('pico_file_get_contents', [$pathVal], BaseType::STRING);
+            }
+            if ($funcName === 'realpath') {
+                CompilerInvariant::check(count($expr->args) === 1);
+                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                $pathVal = $this->buildExpr($expr->args[0]->value);
+                return $this->builder->createCall('pico_realpath', [$pathVal], BaseType::STRING);
             }
             $funcSymbol = $pData->getSymbol();
             // Stub functions (unknown builtins) — throw "unimplemented" exception
