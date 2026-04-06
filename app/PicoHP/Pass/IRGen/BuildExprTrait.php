@@ -1498,6 +1498,10 @@ trait BuildExprTrait
             if (isset($this->enumRegistry[$className])) {
                 return PicoType::enum($className);
             }
+            // Class constants are scalar values, not object instances
+            if (isset($this->classRegistry[$className]) && isset($this->classRegistry[$className]->constants[$expr->name->toString()])) {
+                return PicoType::fromString('int');
+            }
             return PicoType::object($className);
         }
         if ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
