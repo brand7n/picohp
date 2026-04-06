@@ -115,7 +115,7 @@ class Module implements NodeInterface
             fwrite($file, $line->toString() . PHP_EOL);
         }
         // Emit abort-stub defines for any called-but-not-defined functions
-        foreach ($called as $fn => $_) {
+        foreach ($called as $fn => $_) { // @codeCoverageIgnoreStart
             if (!isset($defined[$fn])) {
                 $nameLen = strlen($fn) + 1;
                 fwrite($file, "@.stub.name.{$fn} = private constant [{$nameLen} x i8] c\"{$fn}\\00\"\n");
@@ -123,7 +123,7 @@ class Module implements NodeInterface
                 fwrite($file, "    call void @picohp_unimplemented(ptr @.stub.name.{$fn})\n");
                 fwrite($file, "    unreachable\n}\n\n");
             }
-        }
+        } // @codeCoverageIgnoreEnd
         foreach ($this->debugInfo->getMetadataLines() as $metaLine) {
             fwrite($file, $metaLine . PHP_EOL);
         }

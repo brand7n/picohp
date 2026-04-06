@@ -87,17 +87,17 @@ trait BuiltinEmitTrait
                 $this->builder->createInstruction('ret', [$val], false);
             } else {
                 // No matching property — stub with empty string for string returns
-                if ($methodDef->returnType->toBase() === BaseType::STRING) {
-                    $emptyStr = $this->builder->createStringConstant('');
-                    $this->builder->createInstruction('ret', [$emptyStr], false);
-                } else {
-                    $this->builder->addLine('call void @abort()', 1);
-                    $this->builder->addLine('unreachable', 1);
+                if ($methodDef->returnType->toBase() === BaseType::STRING) { // @codeCoverageIgnore
+                    $emptyStr = $this->builder->createStringConstant(''); // @codeCoverageIgnore
+                    $this->builder->createInstruction('ret', [$emptyStr], false); // @codeCoverageIgnore
+                } else { // @codeCoverageIgnore
+                    $this->builder->addLine('call void @abort()', 1); // @codeCoverageIgnore
+                    $this->builder->addLine('unreachable', 1); // @codeCoverageIgnore
                 }
             }
         } else {
-            $this->builder->addLine('call void @abort()', 1);
-            $this->builder->addLine('unreachable', 1);
+            $this->builder->addLine('call void @abort()', 1); // @codeCoverageIgnore
+            $this->builder->addLine('unreachable', 1); // @codeCoverageIgnore
         }
     }
 
@@ -187,6 +187,7 @@ trait BuiltinEmitTrait
      * Emit a throw for unimplemented stub functions. Allocates an Exception with
      * the function name as message and dispatches via value-exceptions.
      */
+    // @codeCoverageIgnoreStart — only fires during directory builds with unresolved stubs
     protected function emitUnimplementedThrow(string $funcName): ValueAbstract
     {
         $typeId = $this->typeIdMap['Exception'] ?? 0;
@@ -210,4 +211,5 @@ trait BuiltinEmitTrait
         }
         return new NullConstant(BaseType::PTR);
     }
+    // @codeCoverageIgnoreEnd
 }

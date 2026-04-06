@@ -64,8 +64,7 @@ trait BuildStmtTrait
                         $this->emitMainArgvConversion($stmt->params);
                     }
                     $this->buildStmts($stmt->stmts);
-                } catch (\Throwable $e) {
-                    // Clear partial IR and replace with a clean abort stub
+                } catch (\Throwable $e) { // @codeCoverageIgnoreStart
                     fwrite(STDERR, "[IR-STUB] {$stmt->name->toString()}: {$e->getMessage()}\n");
                     CompilerInvariant::check($this->ctx->function !== null);
                     $this->ctx->function->clearBlocks();
@@ -73,7 +72,7 @@ trait BuildStmtTrait
                     $this->builder->setInsertPoint($bb);
                     $this->builder->emitUnimplementedAbort($stmt->name->toString());
                     $pData->stubbed = true;
-                }
+                } // @codeCoverageIgnoreEnd
             }
             if (!$pData->stubbed && $funcSymbol->type->toBase() === BaseType::VOID) {
                 $currentBB = $this->builder->getCurrentBasicBlock();
@@ -333,14 +332,14 @@ trait BuildStmtTrait
                             $this->builder->createRetVoid();
                         }
                     }
-                } catch (\Throwable $e) {
+                } catch (\Throwable $e) { // @codeCoverageIgnoreStart
                     fwrite(STDERR, "[IR-STUB] {$qualifiedName}: {$e->getMessage()}\n");
                     CompilerInvariant::check($this->ctx->function !== null);
                     $this->ctx->function->clearBlocks();
                     $bb = $this->ctx->function->addBasicBlock('entry');
                     $this->builder->setInsertPoint($bb);
                     $this->builder->emitUnimplementedAbort($qualifiedName);
-                }
+                } // @codeCoverageIgnoreEnd
             }
             $this->module->getDebugInfo()->setCurrentScope(null);
             $this->builder->setDebugLine(null);
