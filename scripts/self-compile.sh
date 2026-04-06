@@ -12,4 +12,6 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 exec php -d memory_limit=1G "$PROJECT_DIR/picoHP" build --debug --entry=picoHP \
   --override-class 'PhpParser\Token' compat/PhpParser/Token.php \
+  --override-class 'PhpParser\Lexer' compat/PhpParser/Lexer.php \
+  --override-class 'App\PicoHP\HandLexer\TokenAdapter' compat/App/PicoHP/HandLexer/TokenAdapter.php \
   "$@" "$PROJECT_DIR"
