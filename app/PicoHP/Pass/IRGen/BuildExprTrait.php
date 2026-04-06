@@ -1467,6 +1467,27 @@ trait BuildExprTrait
             }
             throw new \RuntimeException("unsupported ClassConstFetch default: {$className}::{$caseName}");
         }
+        if ($expr instanceof \PhpParser\Node\Expr\New_) {
+            CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
+            $className = ClassSymbol::fqcnFromResolvedName($expr->class, $this->currentNamespace());
+            $classMeta = $this->classRegistry[$className] ?? null;
+            $typeId = $this->typeIdMap[$className] ?? 0;
+            $llvmStruct = ClassSymbol::mangle($className);
+            $objPtr = $this->builder->createObjectAlloc($llvmStruct, $typeId);
+            $typeIdPtr = $this->builder->createStructGEP($llvmStruct, $objPtr, 0, BaseType::INT);
+            $this->builder->createStore(new Constant($typeId, BaseType::INT), $typeIdPtr);
+            if ($classMeta !== null) {
+                $this->emitPropertyDefaults($className, $classMeta, $objPtr);
+                if (isset($classMeta->methods['__construct']) && count($expr->args) > 0) {
+                    $ctorSymbol = $classMeta->methods['__construct'];
+                    $args = $this->buildArgsWithDefaults($expr->args, $ctorSymbol);
+                    $allArgs = array_merge([$objPtr], $args);
+                    $ctorOwner = $classMeta->methodOwner['__construct'] ?? $className;
+                    $this->builder->createCall(ClassSymbol::llvmMethodSymbol($ctorOwner, '__construct'), $allArgs, BaseType::VOID);
+                }
+            }
+            return $objPtr;
+        }
         throw new \RuntimeException('unsupported default value type: ' . get_class($expr));
     }
 

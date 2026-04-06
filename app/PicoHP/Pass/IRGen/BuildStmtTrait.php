@@ -64,7 +64,7 @@ trait BuildStmtTrait
                         $this->emitMainArgvConversion($stmt->params);
                     }
                     $this->buildStmts($stmt->stmts);
-                } catch (\Throwable) {
+                } catch (\Throwable $e) {
                     // Clear partial IR and replace with a clean abort stub
                     CompilerInvariant::check($this->ctx->function !== null);
                     $this->ctx->function->clearBlocks();
@@ -332,7 +332,7 @@ trait BuildStmtTrait
                             $this->builder->createRetVoid();
                         }
                     }
-                } catch (\Throwable) {
+                } catch (\Throwable $e) {
                     CompilerInvariant::check($this->ctx->function !== null);
                     $this->ctx->function->clearBlocks();
                     $bb = $this->ctx->function->addBasicBlock('entry');
@@ -713,6 +713,27 @@ trait BuildStmtTrait
                 CompilerInvariant::check(isset($this->enumRegistry[$enumName]), "enum {$enumName} not found for property default");
                 $tag = $this->enumRegistry[$enumName]->getCaseTag($caseName);
                 $this->builder->createStore(new Constant($tag, BaseType::INT), $fieldPtr);
+            } elseif ($default instanceof \PhpParser\Node\Expr\New_) {
+                CompilerInvariant::check($default->class instanceof \PhpParser\Node\Name);
+                $newClassName = ClassSymbol::fqcnFromResolvedName($default->class, $this->currentNamespace());
+                $newMeta = $this->classRegistry[$newClassName] ?? null;
+                $newTypeId = $this->typeIdMap[$newClassName] ?? 0;
+                $newLlvm = ClassSymbol::mangle($newClassName);
+                $newObjPtr = $this->builder->createObjectAlloc($newLlvm, $newTypeId);
+                $newTypeIdPtr = $this->builder->createStructGEP($newLlvm, $newObjPtr, 0, BaseType::INT);
+                $this->builder->createStore(new Constant($newTypeId, BaseType::INT), $newTypeIdPtr);
+                if ($newMeta !== null) {
+                    $this->emitPropertyDefaults($newClassName, $newMeta, $newObjPtr);
+                    if (isset($newMeta->methods['__construct'])) {
+                        $ctorSymbol = $newMeta->methods['__construct'];
+                        $args = $this->buildArgsWithDefaults($default->args, $ctorSymbol);
+                        $allArgs = array_merge([$newObjPtr], $args);
+                        $ctorOwner = $newMeta->methodOwner['__construct'] ?? $newClassName;
+                        $qualifiedName = ClassSymbol::llvmMethodSymbol($ctorOwner, '__construct');
+                        $this->builder->createCall($qualifiedName, $allArgs, BaseType::VOID);
+                    }
+                }
+                $this->builder->createStore($newObjPtr, $fieldPtr);
             } else {
                 /** @phpstan-ignore-next-line */
                 CompilerInvariant::check(false, "unsupported property default type: " . get_class($default));

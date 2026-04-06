@@ -40,6 +40,8 @@ final class CompilationPlanner
 
         $entrypoints = [$mainReal];
 
+
+
         $seen = [];
         $fromClassmap = [];
 

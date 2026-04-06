@@ -13,6 +13,7 @@ use App\PicoHP\Pass\{IRGenerationPass, SemanticAnalysisPass};
 use App\PicoHP\Precompile\CompilationPlan;
 use App\PicoHP\Precompile\CompilationPlanner;
 use App\PicoHP\SourceFileAttributeVisitor;
+use App\Support\ProjectConfig;
 use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\PhpVersion;
@@ -81,7 +82,7 @@ final class BuildCommand
             $this->printPrecompilePlan($io, $plan);
 
             if ($options->debug === true) {
-                $buildPath = config('app.build_path');
+                $buildPath = ProjectConfig::get('app.build_path');
                 \App\PicoHP\CompilerInvariant::check(is_string($buildPath));
                 if (!is_dir($buildPath)) {
                     mkdir($buildPath, 0700, true);
@@ -141,7 +142,7 @@ final class BuildCommand
             return 1;
         }
 
-        $buildPath = config('app.build_path');
+        $buildPath = ProjectConfig::get('app.build_path');
         \App\PicoHP\CompilerInvariant::check(is_string($buildPath));
         if (!is_dir($buildPath)) {
             // @codeCoverageIgnoreStart
@@ -230,7 +231,7 @@ final class BuildCommand
 
             $exe = "{$buildPath}/{$options->out}";
 
-            $llvmPath = config('app.llvm_path');
+            $llvmPath = ProjectConfig::get('app.llvm_path');
             \App\PicoHP\CompilerInvariant::check(is_string($llvmPath));
             $llvmPath = $llvmPath . '/';
             $result = 0;
@@ -254,7 +255,7 @@ final class BuildCommand
             if ($options->sharedLib === true || !$globalToMain->hasMain) {
                 $sharedLibOpts = '-shared -undefined dynamic_lookup';
             }
-            $runtimePath = config('app.runtime_path');
+            $runtimePath = ProjectConfig::get('app.runtime_path');
             \App\PicoHP\CompilerInvariant::check(is_string($runtimePath));
             $runtimeLink = "-L{$runtimePath} -lpico_rt -Wl,-rpath,{$runtimePath}";
             $debugFlag = $resolvedFile !== null ? '-g' : '';
