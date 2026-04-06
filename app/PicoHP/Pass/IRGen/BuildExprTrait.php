@@ -451,28 +451,6 @@ trait BuildExprTrait
                 }
                 return $this->builder->createCall('pico_int_to_string', [$val], BaseType::STRING);
             }
-            if ($funcName === 'strlen') {
-                CompilerInvariant::check(count($expr->args) === 1);
-                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
-                $strVal = $this->buildExpr($expr->args[0]->value);
-                return $this->builder->createStringLen($strVal);
-            }
-            if ($funcName === 'ord') {
-                CompilerInvariant::check(count($expr->args) === 1);
-                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
-                $strVal = $this->buildExpr($expr->args[0]->value);
-                CompilerInvariant::check($strVal->getType() === BaseType::STRING);
-
-                return $this->builder->createStringOrd($strVal);
-            }
-            if ($funcName === 'getenv') {
-                CompilerInvariant::check(count($expr->args) === 1);
-                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
-                $nameVal = $this->buildExpr($expr->args[0]->value);
-                CompilerInvariant::check($nameVal->getType() === BaseType::STRING);
-
-                return $this->builder->createCall('pico_getenv', [$nameVal], BaseType::STRING);
-            }
             if ($funcName === 'max') {
                 CompilerInvariant::check(count($expr->args) === 2);
                 CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg && $expr->args[1] instanceof \PhpParser\Node\Arg);
@@ -511,111 +489,7 @@ trait BuildExprTrait
 
                 return $this->builder->createArrayNew();
             }
-            if ($funcName === 'dirname') {
-                CompilerInvariant::check(count($expr->args) >= 1 && count($expr->args) <= 2);
-                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
-                $path = $this->buildExpr($expr->args[0]->value);
-                $levels = count($expr->args) === 2 && $expr->args[1] instanceof \PhpParser\Node\Arg
-                    ? $this->buildExpr($expr->args[1]->value)
-                    : new Constant(1, BaseType::INT);
 
-                return $this->builder->createCall('pico_dirname', [$path, $levels], BaseType::STRING);
-            }
-            if ($funcName === 'str_starts_with') {
-                CompilerInvariant::check(count($expr->args) === 2);
-                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
-                CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
-                $haystack = $this->buildExpr($expr->args[0]->value);
-                $prefix = $this->buildExpr($expr->args[1]->value);
-                $result = $this->builder->createCall('pico_string_starts_with', [$haystack, $prefix], BaseType::INT);
-                return $this->builder->createInstruction('icmp ne', [$result, new Constant(0, BaseType::INT)], resultType: BaseType::BOOL);
-            }
-            if ($funcName === 'str_contains') {
-                CompilerInvariant::check(count($expr->args) === 2);
-                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
-                CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
-                $haystack = $this->buildExpr($expr->args[0]->value);
-                $needle = $this->buildExpr($expr->args[1]->value);
-                $result = $this->builder->createCall('pico_string_contains', [$haystack, $needle], BaseType::INT);
-                return $this->builder->createInstruction('icmp ne', [$result, new Constant(0, BaseType::INT)], resultType: BaseType::BOOL);
-            }
-            if ($funcName === 'substr') {
-                CompilerInvariant::check(count($expr->args) >= 2 && count($expr->args) <= 3);
-                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
-                CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
-                $strVal = $this->buildExpr($expr->args[0]->value);
-                $start = $this->buildExpr($expr->args[1]->value);
-                $len = count($expr->args) === 3 && $expr->args[2] instanceof \PhpParser\Node\Arg
-                    ? $this->buildExpr($expr->args[2]->value)
-                    : new Constant(2147483647, BaseType::INT);
-                return $this->builder->createCall('pico_string_substr', [$strVal, $start, $len], BaseType::STRING);
-            }
-            if ($funcName === 'trim' || $funcName === 'ltrim' || $funcName === 'rtrim') {
-                CompilerInvariant::check(count($expr->args) >= 1);
-                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
-                $strVal = $this->buildExpr($expr->args[0]->value);
-                // All three map to pico_string_trim for now (full trim)
-                return $this->builder->createCall('pico_string_trim', [$strVal], BaseType::STRING);
-            }
-            if ($funcName === 'str_replace') {
-                CompilerInvariant::check(count($expr->args) === 3);
-                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
-                CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
-                CompilerInvariant::check($expr->args[2] instanceof \PhpParser\Node\Arg);
-                $search = $this->buildExpr($expr->args[0]->value);
-                $replace = $this->buildExpr($expr->args[1]->value);
-                $subject = $this->buildExpr($expr->args[2]->value);
-                return $this->builder->createCall('pico_string_replace', [$search, $replace, $subject], BaseType::STRING);
-            }
-            if ($funcName === 'str_repeat') {
-                CompilerInvariant::check(count($expr->args) === 2);
-                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
-                CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
-                $strVal = $this->buildExpr($expr->args[0]->value);
-                $times = $this->buildExpr($expr->args[1]->value);
-                return $this->builder->createCall('pico_string_repeat', [$strVal, $times], BaseType::STRING);
-            }
-            if ($funcName === 'strtoupper') {
-                CompilerInvariant::check(count($expr->args) === 1);
-                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
-                $strVal = $this->buildExpr($expr->args[0]->value);
-                return $this->builder->createCall('pico_string_upper', [$strVal], BaseType::STRING);
-            }
-            if ($funcName === 'strtolower') {
-                CompilerInvariant::check(count($expr->args) === 1);
-                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
-                $strVal = $this->buildExpr($expr->args[0]->value);
-                return $this->builder->createCall('pico_string_lower', [$strVal], BaseType::STRING);
-            }
-            if ($funcName === 'dechex') {
-                CompilerInvariant::check(count($expr->args) === 1);
-                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
-                $val = $this->buildExpr($expr->args[0]->value);
-                return $this->builder->createCall('pico_dechex', [$val], BaseType::STRING);
-            }
-            if ($funcName === 'str_pad') {
-                CompilerInvariant::check(count($expr->args) >= 2);
-                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
-                CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
-                $strVal = $this->buildExpr($expr->args[0]->value);
-                $length = $this->buildExpr($expr->args[1]->value);
-                $padStr = (count($expr->args) >= 3 && $expr->args[2] instanceof \PhpParser\Node\Arg)
-                    ? $this->buildExpr($expr->args[2]->value)
-                    : $this->builder->createStringConstant(' ');
-                // STR_PAD_RIGHT = 1 (default), STR_PAD_LEFT = 0
-                $padType = (count($expr->args) >= 4 && $expr->args[3] instanceof \PhpParser\Node\Arg)
-                    ? $this->buildExpr($expr->args[3]->value)
-                    : new Constant(1, BaseType::INT);
-                return $this->builder->createCall('pico_string_pad', [$strVal, $length, $padStr, $padType], BaseType::STRING);
-            }
-            if ($funcName === 'implode') {
-                CompilerInvariant::check(count($expr->args) === 2);
-                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
-                CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
-                $glue = $this->buildExpr($expr->args[0]->value);
-                $arr = $this->buildExpr($expr->args[1]->value);
-                return $this->builder->createCall('pico_implode', [$glue, $arr], BaseType::STRING);
-            }
             if ($funcName === 'array_key_exists') {
                 CompilerInvariant::check(count($expr->args) === 2);
                 CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
@@ -623,6 +497,14 @@ trait BuildExprTrait
                 $key = $this->buildExpr($expr->args[0]->value);
                 $map = $this->buildExpr($expr->args[1]->value);
                 return $this->builder->createCall('pico_map_has_key', [$map, $key], BaseType::BOOL);
+            }
+            if ($funcName === 'array_search') {
+                CompilerInvariant::check(count($expr->args) >= 2);
+                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
+                $needle = $this->buildExpr($expr->args[0]->value);
+                $haystack = $this->buildExpr($expr->args[1]->value);
+                return $this->builder->createCall('pico_array_search_int', [$haystack, $needle], BaseType::INT);
             }
             if ($funcName === 'array_reverse') {
                 CompilerInvariant::check(count($expr->args) >= 1);
@@ -642,37 +524,6 @@ trait BuildExprTrait
                 CompilerInvariant::check(count($expr->args) >= 1);
                 CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
                 return $this->buildExpr($expr->args[0]->value);
-            }
-            if ($funcName === 'array_slice') {
-                CompilerInvariant::check(count($expr->args) >= 2 && count($expr->args) <= 4);
-                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
-                CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
-                $arrPtr = $this->buildExpr($expr->args[0]->value);
-                $offset = $this->buildExpr($expr->args[1]->value);
-                $length = count($expr->args) >= 3 && $expr->args[2] instanceof \PhpParser\Node\Arg
-                    ? $this->buildExpr($expr->args[2]->value)
-                    : new Constant(-1, BaseType::INT);
-
-                return $this->builder->createCall('pico_array_slice', [$arrPtr, $offset, $length], BaseType::PTR);
-            }
-            if ($funcName === 'array_search') {
-                CompilerInvariant::check(count($expr->args) >= 2);
-                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
-                CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
-                $needle = $this->buildExpr($expr->args[0]->value);
-                $haystack = $this->buildExpr($expr->args[1]->value);
-                return $this->builder->createCall('pico_array_search_int', [$haystack, $needle], BaseType::INT);
-            }
-            if ($funcName === 'array_splice') {
-                CompilerInvariant::check(count($expr->args) >= 3);
-                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
-                CompilerInvariant::check($expr->args[1] instanceof \PhpParser\Node\Arg);
-                CompilerInvariant::check($expr->args[2] instanceof \PhpParser\Node\Arg);
-                $arrPtr = $this->buildExpr($expr->args[0]->value);
-                $offset = $this->buildExpr($expr->args[1]->value);
-                $length = $this->buildExpr($expr->args[2]->value);
-                $this->builder->createCall('pico_array_splice', [$arrPtr, $offset, $length], BaseType::VOID);
-                return new Void_();
             }
             if ($funcName === 'end') {
                 CompilerInvariant::check(count($expr->args) === 1);
@@ -721,29 +572,20 @@ trait BuildExprTrait
                 }
                 return $val;
             }
-            if ($funcName === 'is_file' || $funcName === 'is_dir' || $funcName === 'file_exists') {
-                CompilerInvariant::check(count($expr->args) === 1);
-                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
-                $pathVal = $this->buildExpr($expr->args[0]->value);
-                $runtimeFn = match ($funcName) {
-                    'is_file' => 'pico_is_file',
-                    'is_dir' => 'pico_is_dir',
-                    'file_exists' => 'pico_file_exists',
-                };
-                $result = $this->builder->createCall($runtimeFn, [$pathVal], BaseType::INT);
-                return $this->builder->createInstruction('icmp ne', [$result, new Constant(0, BaseType::INT)], resultType: BaseType::BOOL);
-            }
-            if ($funcName === 'file_get_contents') {
-                CompilerInvariant::check(count($expr->args) === 1);
-                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
-                $pathVal = $this->buildExpr($expr->args[0]->value);
-                return $this->builder->createCall('pico_file_get_contents', [$pathVal], BaseType::STRING);
-            }
-            if ($funcName === 'realpath') {
-                CompilerInvariant::check(count($expr->args) === 1);
-                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
-                $pathVal = $this->buildExpr($expr->args[0]->value);
-                return $this->builder->createCall('pico_realpath', [$pathVal], BaseType::STRING);
+            // Registry-driven builtin codegen: call runtime symbol with args
+            if ($this->builtinRegistry->has($funcName)) {
+                $def = $this->builtinRegistry->get($funcName);
+                if ($def->runtimeSymbol !== null && $def->intrinsic === null) {
+                    $funcSymbol = $pData->getSymbol();
+                    $args = $this->buildArgsWithDefaults($expr->args, $funcSymbol);
+                    $retBase = $def->returnBaseType();
+                    // Runtime returns i32 for bool functions — coerce to i1
+                    if ($retBase === BaseType::BOOL) {
+                        $result = $this->builder->createCall($def->runtimeSymbol, $args, BaseType::INT);
+                        return $this->builder->createInstruction('icmp ne', [$result, new Constant(0, BaseType::INT)], resultType: BaseType::BOOL);
+                    }
+                    return $this->builder->createCall($def->runtimeSymbol, $args, $retBase);
+                }
             }
             $funcSymbol = $pData->getSymbol();
             // Stub functions (unknown builtins) — throw "unimplemented" exception

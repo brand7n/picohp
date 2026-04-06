@@ -1632,7 +1632,15 @@ class SemanticAnalysisPass implements PassInterface
             // Built-in functions — registry-driven lookup
             if ($this->builtinRegistry->has($funcName)) {
                 $def = $this->builtinRegistry->get($funcName);
-                $pData->symbol = new \App\PicoHP\SymbolTable\Symbol($funcName, $def->returnType, func: true);
+                $paramTypes = array_map(fn (array $p): PicoType => $p['type'], $def->params);
+                $sym = new \App\PicoHP\SymbolTable\Symbol($funcName, $def->returnType, $paramTypes, func: true);
+                foreach ($def->params as $i => $p) {
+                    $sym->paramNames[$i] = $p['name'];
+                    if ($p['hasDefault']) {
+                        $sym->defaults[$i] = $this->scalarToAstExpr($p['defaultValue']);
+                    }
+                }
+                $pData->symbol = $sym;
                 if ($def->returnMatchesArg !== null) {
                     $argIdx = $def->returnMatchesArg;
                     if (count($expr->args) > $argIdx && $expr->args[$argIdx] instanceof \PhpParser\Node\Arg) {
@@ -2035,5 +2043,23 @@ class SemanticAnalysisPass implements PassInterface
         }
 
         return PicoType::fromString('int');
+    }
+
+    /**
+     * Convert a scalar default value from BuiltinDef to a PHP-Parser AST expression.
+     */
+    private function scalarToAstExpr(int|float|string|null $value): \PhpParser\Node\Expr
+    {
+        if (is_int($value)) {
+            return new \PhpParser\Node\Scalar\Int_($value);
+        }
+        if (is_float($value)) {
+            return new \PhpParser\Node\Scalar\Float_($value);
+        }
+        if (is_string($value)) {
+            return new \PhpParser\Node\Scalar\String_($value);
+        }
+
+        return new \PhpParser\Node\Expr\ConstFetch(new \PhpParser\Node\Name('null'));
     }
 }

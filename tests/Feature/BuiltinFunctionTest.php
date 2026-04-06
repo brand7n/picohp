@@ -281,3 +281,17 @@ it('handles substr with explicit length', function () {
 
     expect($compiled_output)->toBe($php_output);
 });
+
+it('handles class_exists, realpath, is_file with __FILE__', function () {
+    $file = 'tests/programs/functions/new_builtins.php';
+
+    /** @phpstan-ignore-next-line */
+    $this->assertPicohpExitCode("build --debug {$file}");
+
+    $buildPath = config('app.build_path');
+    assert(is_string($buildPath));
+    $compiled_output = shell_exec("{$buildPath}/a.out");
+    $php_output = shell_exec("php {$file}");
+
+    expect($compiled_output)->toBe($php_output);
+});
