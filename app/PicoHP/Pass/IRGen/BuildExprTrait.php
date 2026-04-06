@@ -367,7 +367,9 @@ trait BuildExprTrait
             }
             // PHP tokenizer constants — resolve at compile time
             if (str_starts_with($constName, 't_') && defined(strtoupper($constName))) {
-                return new Constant(constant(strtoupper($constName)), BaseType::INT);
+                /** @var int $val */
+                $val = constant(strtoupper($constName));
+                return new Constant($val, BaseType::INT);
             }
             return new Constant($constName === 'true' ? 1 : 0, BaseType::BOOL);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Int_) {
@@ -1499,6 +1501,7 @@ trait BuildExprTrait
                 return PicoType::enum($className);
             }
             // Class constants are scalar values, not object instances
+            CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Identifier);
             if (isset($this->classRegistry[$className]) && isset($this->classRegistry[$className]->constants[$expr->name->toString()])) {
                 return PicoType::fromString('int');
             }
