@@ -29,7 +29,7 @@ final class NativeTokenPipeline
             if ($t->type === TokenType::Eof) {
                 break;
             }
-            $tokens[] = new Token($t->type->value, $t->value, $t->line, $pos);
+            $tokens[] = new Token($t->type, $t->value, $t->line, $pos);
             $pos += \strlen($t->value);
         }
         self::postprocessTokens($tokens, $errorHandler);

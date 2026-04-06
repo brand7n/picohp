@@ -160,7 +160,7 @@ final class Lexer
             $this->line += $this->countNewlines($m[0]);
             $this->pos += strlen($m[0]);
 
-            return new Token(TokenType::String, $m[0], $line);
+            return new Token(TokenType::ConstString, $m[0], $line);
         }
 
         // Use substr(), not $src[$i]: PicoHP string indexing yields int (byte), PHP yields string.
@@ -171,7 +171,7 @@ final class Lexer
         return new Token($this->singleChar($char), $char, $line);
     }
 
-    private function keywordOrIdent(string $word): TokenType
+    private function keywordOrIdent(string $word): int
     {
         $lower = strtolower($word);
         if ($lower === 'echo') {
@@ -208,7 +208,7 @@ final class Lexer
         return TokenType::Ident;
     }
 
-    private function singleChar(string $char): TokenType
+    private function singleChar(string $char): int
     {
         return match ($char) {
             ';' => TokenType::Semicolon,
