@@ -97,7 +97,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $this->module->getDebugInfo()->initCompileUnit($file, $dir);
         }
         $this->emitStructDefinitionsForRegistry();
-        $this->emitBuiltinExceptionClass();
+        $this->emitBuiltinClasses();
         $this->buildStmts($this->stmts);
     }
 }

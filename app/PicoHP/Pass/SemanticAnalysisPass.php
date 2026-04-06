@@ -272,27 +272,84 @@ class SemanticAnalysisPass implements PassInterface
 
     protected function registerBuiltinClasses(): void
     {
-        $exceptionMeta = new ClassMetadata('Exception');
-        $exceptionMeta->addProperty('message', PicoType::fromString('string'));
-        $getMessageSymbol = new \App\PicoHP\SymbolTable\Symbol('getMessage', PicoType::fromString('string'), func: true);
-        $exceptionMeta->methods['getMessage'] = $getMessageSymbol;
-        $exceptionMeta->methodOwner['getMessage'] = 'Exception';
-        $getTraceAsStringSymbol = new \App\PicoHP\SymbolTable\Symbol('getTraceAsString', PicoType::fromString('string'), func: true);
-        $exceptionMeta->methods['getTraceAsString'] = $getTraceAsStringSymbol;
-        $exceptionMeta->methodOwner['getTraceAsString'] = 'Exception';
-        $ctorSymbol = new \App\PicoHP\SymbolTable\Symbol('__construct', PicoType::fromString('void'), func: true);
-        $ctorSymbol->params = [PicoType::fromString('string')];
-        $ctorSymbol->paramNames = [0 => 'message'];
-        $exceptionMeta->methods['__construct'] = $ctorSymbol;
-        $exceptionMeta->methodOwner['__construct'] = 'Exception';
-        $this->classRegistry['Exception'] = $exceptionMeta;
-        $this->typeIdMap['Exception'] = $this->nextTypeId++;
+        // Register classes from builtins/ header files (Exception hierarchy, etc.)
+        // Process in dependency order: parents before children
+        $classDefs = $this->builtinRegistry->allClasses();
+        $registered = [];
+        while (count($registered) < count($classDefs)) {
+            $progress = false;
+            foreach ($classDefs as $name => $classDef) {
+                if (isset($registered[$name])) {
+                    continue;
+                }
+                if ($classDef->parentName !== null && isset($classDefs[$classDef->parentName]) && !isset($registered[$classDef->parentName])) {
+                    continue;
+                }
+                $this->registerBuiltinClassFromDef($classDef);
+                $registered[$name] = true;
+                $progress = true;
+            }
+            if (!$progress) {
+                break;
+            }
+        }
 
-        // Optional Composer types not guaranteed to be autoloadable (see ReachabilityAnalyzer) — stub so
-        // `extends` resolves when the package is absent; when installed, ensureExternalClassReference skips this.
+        // Optional Composer types not guaranteed to be autoloadable
         $symfonyEventFqcn = 'Symfony\Contracts\EventDispatcher\Event';
-        $this->classRegistry[$symfonyEventFqcn] = new ClassMetadata($symfonyEventFqcn);
-        $this->typeIdMap[$symfonyEventFqcn] = $this->nextTypeId++;
+        if (!isset($this->classRegistry[$symfonyEventFqcn])) {
+            $this->classRegistry[$symfonyEventFqcn] = new ClassMetadata($symfonyEventFqcn);
+            $this->typeIdMap[$symfonyEventFqcn] = $this->nextTypeId++;
+        }
+    }
+
+    protected function registerBuiltinClassFromDef(\App\PicoHP\BuiltinClassDef $classDef): void
+    {
+        $meta = new ClassMetadata($classDef->name);
+
+        if ($classDef->isInterface) {
+            foreach ($classDef->methods as $methodName => $methodDef) {
+                $symbol = new \App\PicoHP\SymbolTable\Symbol($methodName, $methodDef->returnType, func: true);
+                $meta->methods[$methodName] = $symbol;
+                $meta->methodOwner[$methodName] = $classDef->name;
+            }
+            $this->classRegistry[$classDef->name] = $meta;
+            $this->typeIdMap[$classDef->name] = $this->nextTypeId++;
+
+            return;
+        }
+
+        // Inherit from parent
+        if ($classDef->parentName !== null && isset($this->classRegistry[$classDef->parentName])) {
+            $meta->inheritFrom($this->classRegistry[$classDef->parentName]);
+        }
+
+        // Record implemented interfaces
+        foreach ($classDef->interfaces as $ifaceName) {
+            $meta->interfaces[] = $ifaceName;
+        }
+
+        // Add properties
+        foreach ($classDef->properties as $propName => $propType) {
+            $meta->addProperty($propName, $propType);
+        }
+
+        // Add methods
+        foreach ($classDef->methods as $methodName => $methodDef) {
+            $symbol = new \App\PicoHP\SymbolTable\Symbol($methodName, $methodDef->returnType, func: true);
+            $symbol->params = array_map(
+                static fn (array $p): PicoType => $p['type'],
+                $methodDef->params,
+            );
+            $symbol->paramNames = [];
+            foreach ($methodDef->params as $i => $p) {
+                $symbol->paramNames[$i] = $p['name'];
+            }
+            $meta->methods[$methodName] = $symbol;
+            $meta->methodOwner[$methodName] = $classDef->name;
+        }
+
+        $this->classRegistry[$classDef->name] = $meta;
+        $this->typeIdMap[$classDef->name] = $this->nextTypeId++;
     }
 
     /**

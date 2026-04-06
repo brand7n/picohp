@@ -25,6 +25,10 @@ class Exception implements Throwable
     public function getMessage(): string
     {
     }
+
+    public function getTraceAsString(): string
+    {
+    }
 }
 
 class RuntimeException extends Exception

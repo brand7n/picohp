@@ -4,52 +4,119 @@ declare(strict_types=1);
 
 namespace App\PicoHP\Pass\IRGen;
 
-use App\PicoHP\{BaseType, CompilerInvariant, PicoType};
-use App\PicoHP\LLVM\{Builder, ValueAbstract};
+use App\PicoHP\{BaseType, BuiltinMethodDef, ClassSymbol, CompilerInvariant, PicoType};
+use App\PicoHP\LLVM\{Builder, IRLine, ValueAbstract};
 use App\PicoHP\LLVM\Value\{Constant, Void_, Label, Param};
-use App\PicoHP\SymbolTable\PicoHPData;
+use App\PicoHP\SymbolTable\{ClassMetadata, PicoHPData};
 
 trait BuiltinEmitTrait
 {
-    protected function emitBuiltinExceptionClass(): void
+    /**
+     * Emit struct types and method bodies for all builtin classes from the registry
+     * (Exception hierarchy, etc.) that aren't defined in the user AST.
+     */
+    protected function emitBuiltinClasses(): void
     {
-        if (!isset($this->classRegistry['Exception'])) {
+        $userClasses = $this->collectUserClassNames($this->stmts);
+
+        foreach ($this->builtinRegistry->allClasses() as $classDef) {
+            if ($classDef->isInterface) {
+                continue;
+            }
+            $className = $classDef->name;
+            if (!isset($this->classRegistry[$className])) {
+                continue;
+            }
+            if (isset($userClasses[$className])) {
+                continue;
+            }
+            $classMeta = $this->classRegistry[$className];
+            $llvmClass = ClassSymbol::mangle($className);
+
+            // Struct type is emitted by emitStructDefinitionsForRegistry() — only emit methods here
+            foreach ($classDef->methods as $methodName => $methodDef) {
+                $this->emitBuiltinMethod($className, $classMeta, $methodName, $methodDef);
+            }
+        }
+    }
+
+    /**
+     * Emit a single builtin method body. Property accessors (getMessage, etc.)
+     * emit real field loads; constructors store params to fields; everything else
+     * is an abort stub.
+     */
+    protected function emitBuiltinMethod(string $className, ClassMetadata $classMeta, string $methodName, BuiltinMethodDef $methodDef): void
+    {
+        $llvmClass = ClassSymbol::mangle($className);
+        $qualifiedName = ClassSymbol::llvmMethodSymbol($className, $methodName);
+
+        if ($this->module->hasFunction($qualifiedName)) {
             return;
         }
-        // Struct type is emitted by emitStructDefinitionsForRegistry() — field 0 is type_id (i32), field 1 is message (ptr).
 
-        // Exception___construct(ptr %this, ptr %message)
-        $ctorFunc = $this->module->addFunction('Exception___construct', new PicoType(BaseType::VOID), [
-            new PicoType(BaseType::PTR),
-            new PicoType(BaseType::STRING),
-        ]);
-        $bb = $ctorFunc->addBasicBlock('entry');
-        $this->builder->setInsertPoint($bb);
-        $thisParam = new Param(0, BaseType::PTR);
-        $msgParam = new Param(1, BaseType::STRING);
-        $fieldPtr = $this->builder->createStructGEP('Exception', $thisParam, 1, BaseType::STRING);
-        $this->builder->createStore($msgParam, $fieldPtr);
-        $this->builder->createRetVoid();
+        $thisParam = new PicoType(BaseType::PTR);
+        $params = [$thisParam];
+        foreach ($methodDef->params as $p) {
+            $params[] = $p['type'];
+        }
 
-        // Exception_getMessage(ptr %this) -> ptr
-        $getMessageFunc = $this->module->addFunction('Exception_getMessage', new PicoType(BaseType::STRING), [
-            new PicoType(BaseType::PTR),
-        ]);
-        $bb = $getMessageFunc->addBasicBlock('entry');
+        $fn = $this->module->addFunction($qualifiedName, $methodDef->returnType, $params);
+        $bb = $fn->addBasicBlock('entry');
         $this->builder->setInsertPoint($bb);
-        $thisParam = new Param(0, BaseType::PTR);
-        $fieldPtr = $this->builder->createStructGEP('Exception', $thisParam, 1, BaseType::STRING);
-        $msgVal = $this->builder->createLoad($fieldPtr);
-        $this->builder->createInstruction('ret', [$msgVal], false);
 
-        // Exception_getTraceAsString(ptr %this) -> ptr (stub: returns empty string)
-        $getTraceFunc = $this->module->addFunction('Exception_getTraceAsString', new PicoType(BaseType::STRING), [
-            new PicoType(BaseType::PTR),
-        ]);
-        $bb = $getTraceFunc->addBasicBlock('entry');
-        $this->builder->setInsertPoint($bb);
-        $emptyStr = $this->builder->createStringConstant('');
-        $this->builder->createInstruction('ret', [$emptyStr], false);
+        if ($methodName === '__construct') {
+            // Store each param into the corresponding property field
+            $thisVal = new Param(0, BaseType::PTR);
+            foreach ($methodDef->params as $i => $p) {
+                $propName = $p['name'];
+                $offset = $classMeta->propertyOffsets[$propName] ?? null;
+                if ($offset !== null) {
+                    $fieldPtr = $this->builder->createStructGEP($llvmClass, $thisVal, $offset, $p['type']->toBase());
+                    $this->builder->createStore(new Param($i + 1, $p['type']->toBase()), $fieldPtr);
+                }
+            }
+            $this->builder->createRetVoid();
+        } elseif (str_starts_with($methodName, 'get') && $methodDef->params === []) {
+            // Getter — try to find a matching property
+            $propName = lcfirst(substr($methodName, 3));
+            $offset = $classMeta->propertyOffsets[$propName] ?? null;
+            if ($offset !== null) {
+                $thisVal = new Param(0, BaseType::PTR);
+                $fieldPtr = $this->builder->createStructGEP($llvmClass, $thisVal, $offset, $methodDef->returnType->toBase());
+                $val = $this->builder->createLoad($fieldPtr);
+                $this->builder->createInstruction('ret', [$val], false);
+            } else {
+                // No matching property — stub with empty string for string returns
+                if ($methodDef->returnType->toBase() === BaseType::STRING) {
+                    $emptyStr = $this->builder->createStringConstant('');
+                    $this->builder->createInstruction('ret', [$emptyStr], false);
+                } else {
+                    $this->builder->addLine('call void @abort()', 1);
+                    $this->builder->addLine('unreachable', 1);
+                }
+            }
+        } else {
+            $this->builder->addLine('call void @abort()', 1);
+            $this->builder->addLine('unreachable', 1);
+        }
+    }
+
+    /**
+     * Collect class names defined in the user AST (to avoid double-emitting).
+     *
+     * @param array<\PhpParser\Node> $stmts
+     * @return array<string, true>
+     */
+    private function collectUserClassNames(array $stmts): array
+    {
+        $names = [];
+        $finder = new \PhpParser\NodeFinder();
+        foreach ($finder->findInstanceOf($stmts, \PhpParser\Node\Stmt\Class_::class) as $classNode) {
+            if ($classNode->name !== null) {
+                $names[$classNode->name->toString()] = true;
+            }
+        }
+        return $names;
     }
 
     /**

@@ -230,7 +230,14 @@ trait VirtualDispatchTrait
             return true;
         }
         $meta = $this->classRegistry[$className] ?? null;
-        if ($meta === null || $meta->parentName === null) {
+        if ($meta === null) {
+            return false;
+        }
+        // Check implemented interfaces (e.g. catch(Throwable) matches Exception)
+        if (in_array($parentName, $meta->interfaces, true)) {
+            return true;
+        }
+        if ($meta->parentName === null) {
             return false;
         }
         return $this->isSubclassOf($meta->parentName, $parentName);
