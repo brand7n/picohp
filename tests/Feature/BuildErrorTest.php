@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 it('fails gracefully when input file does not exist', function () {
+    ob_start();
     /** @phpstan-ignore-next-line */
     $this->assertPicohpExitCode('build nonexistent_file.php', 1);
+    ob_get_clean();
 });
 
 it('fails gracefully on unparseable PHP', function () {
@@ -12,8 +14,10 @@ it('fails gracefully on unparseable PHP', function () {
     assert(is_string($tmp));
     file_put_contents($tmp, '<?php (');
 
+    ob_start();
     /** @phpstan-ignore-next-line */
     $this->assertPicohpExitCode("build {$tmp}", 1);
+    ob_get_clean();
 
     unlink($tmp);
 });
@@ -24,8 +28,10 @@ it('fails gracefully when directory has no entry point', function () {
     @mkdir($tmp . '/vendor/composer', 0755, true);
     file_put_contents($tmp . '/vendor/composer/autoload_classmap.php', '<?php return [];');
 
+    ob_start();
     /** @phpstan-ignore-next-line */
     $this->assertPicohpExitCode("build {$tmp}", 1);
+    ob_get_clean();
 
     unlink($tmp . '/vendor/composer/autoload_classmap.php');
     rmdir($tmp . '/vendor/composer');
