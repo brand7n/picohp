@@ -98,13 +98,21 @@ trait BuildStmtTrait
             $this->buildExpr($stmt->expr, $doc);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Return_) {
             if (is_null($stmt->expr)) {
-                // bare return; in void function
-                if ($this->ctx->function !== null && $this->ctx->function->canThrow) {
-                    $okResult = $this->builder->createResultOk(new Void_(), BaseType::VOID);
-                    $structType = Builder::resultTypeName(BaseType::VOID);
-                    $this->builder->addLine("ret {$structType} {$okResult->render()}", 1);
+                // bare return; — emit ret void for void functions, ret 0/null for others
+                $funcRetType = $this->ctx->function !== null ? $this->ctx->function->getReturnType()->toBase() : BaseType::VOID;
+                if ($funcRetType === BaseType::VOID) {
+                    if ($this->ctx->function !== null && $this->ctx->function->canThrow) {
+                        $okResult = $this->builder->createResultOk(new Void_(), BaseType::VOID);
+                        $structType = Builder::resultTypeName(BaseType::VOID);
+                        $this->builder->addLine("ret {$structType} {$okResult->render()}", 1);
+                    } else {
+                        $this->builder->createRetVoid();
+                    }
                 } else {
-                    $this->builder->createRetVoid();
+                    $zero = ($funcRetType === BaseType::PTR || $funcRetType === BaseType::STRING)
+                        ? new NullConstant($funcRetType)
+                        : new Constant(0, $funcRetType);
+                    $this->builder->createInstruction('ret', [$zero], false);
                 }
             } elseif (!is_null($stmt->expr)) {
                 $val = $this->buildExpr($stmt->expr);
