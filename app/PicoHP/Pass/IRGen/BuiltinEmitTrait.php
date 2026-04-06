@@ -25,10 +25,10 @@ trait BuiltinEmitTrait
             }
             $className = $classDef->name;
             if (!isset($this->classRegistry[$className])) {
-                continue; // @codeCoverageIgnore
+                continue;
             }
             if (isset($userClasses[$className])) {
-                continue; // @codeCoverageIgnore
+                continue;
             }
             $classMeta = $this->classRegistry[$className];
             $llvmClass = ClassSymbol::mangle($className);
@@ -51,7 +51,7 @@ trait BuiltinEmitTrait
         $qualifiedName = ClassSymbol::llvmMethodSymbol($className, $methodName);
 
         if ($this->module->hasFunction($qualifiedName)) {
-            return; // @codeCoverageIgnore
+            return;
         }
 
         $thisParam = new PicoType(BaseType::PTR);
@@ -87,17 +87,17 @@ trait BuiltinEmitTrait
                 $this->builder->createInstruction('ret', [$val], false);
             } else {
                 // No matching property — stub with empty string for string returns
-                if ($methodDef->returnType->toBase() === BaseType::STRING) { // @codeCoverageIgnore
-                    $emptyStr = $this->builder->createStringConstant(''); // @codeCoverageIgnore
-                    $this->builder->createInstruction('ret', [$emptyStr], false); // @codeCoverageIgnore
-                } else { // @codeCoverageIgnore
-                    $this->builder->addLine('call void @abort()', 1); // @codeCoverageIgnore
-                    $this->builder->addLine('unreachable', 1); // @codeCoverageIgnore
+                if ($methodDef->returnType->toBase() === BaseType::STRING) {
+                    $emptyStr = $this->builder->createStringConstant('');
+                    $this->builder->createInstruction('ret', [$emptyStr], false);
+                } else {
+                    $this->builder->addLine('call void @abort()', 1);
+                    $this->builder->addLine('unreachable', 1);
                 }
             }
         } else {
-            $this->builder->addLine('call void @abort()', 1); // @codeCoverageIgnore
-            $this->builder->addLine('unreachable', 1); // @codeCoverageIgnore
+            $this->builder->addLine('call void @abort()', 1);
+            $this->builder->addLine('unreachable', 1);
         }
     }
 
@@ -133,7 +133,7 @@ trait BuiltinEmitTrait
         // If the current block is already terminated (e.g. after abort()), this is dead code
         $currentBB = $this->builder->getCurrentBasicBlock();
         if ($currentBB !== null && $currentBB->hasTerminator()) {
-            return $returnType === BaseType::VOID ? new Void_() : new Constant(0, $returnType); // @codeCoverageIgnore
+            return $returnType === BaseType::VOID ? new Void_() : new Constant(0, $returnType);
         }
 
         // Call the function — returns a result struct
@@ -187,7 +187,6 @@ trait BuiltinEmitTrait
      * Emit a throw for unimplemented stub functions. Allocates an Exception with
      * the function name as message and dispatches via value-exceptions.
      */
-    // @codeCoverageIgnoreStart — only fires during directory builds with unresolved stubs
     protected function emitUnimplementedThrow(string $funcName): ValueAbstract
     {
         $typeId = $this->typeIdMap['Exception'] ?? 0;
@@ -211,5 +210,4 @@ trait BuiltinEmitTrait
         }
         return new NullConstant(BaseType::PTR);
     }
-    // @codeCoverageIgnoreEnd
 }

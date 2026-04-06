@@ -589,13 +589,14 @@ trait BuildExprTrait
             }
             $funcSymbol = $pData->getSymbol();
             // Stub functions (unknown builtins) — throw "unimplemented" exception
-            if ($funcSymbol->type->isMixed() && !$this->module->hasFunction($expr->name->name)) { // @codeCoverageIgnoreStart
+            if ($funcSymbol->type->isMixed() && !$this->module->hasFunction($expr->name->name)) {
+                // Build args for side effects
                 foreach ($expr->args as $arg) {
                     CompilerInvariant::check($arg instanceof \PhpParser\Node\Arg);
                     $this->buildExpr($arg->value);
                 }
                 return $this->emitUnimplementedThrow($expr->name->name);
-            } // @codeCoverageIgnoreEnd
+            }
             $args = $this->buildArgsWithDefaults($expr->args, $funcSymbol);
             $returnType = $funcSymbol->type->toBase();
 
