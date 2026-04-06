@@ -139,6 +139,7 @@ trait BuiltinEmitTrait
             $this->builder->addLine("ret {$structType} {$errResult->render()}", 1);
         } else {
             $this->builder->emitUnimplementedAbort($funcName);
+            throw new \RuntimeException("unimplemented function: {$funcName}");
         }
         return new Void_();
     }

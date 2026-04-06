@@ -1462,34 +1462,27 @@ trait BuildExprTrait
     {
         CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Name);
         $fn = $expr->name->toLowerString();
-        if ($fn === 'count' || $fn === 'strlen' || $fn === 'ord' || $fn === 'getenv' || $fn === 'max' || $fn === 'fwrite' || $fn === 'intval' || $fn === 'array_search' || $fn === 'preg_match') {
-            return PicoType::fromString('int');
-        }
-        if ($fn === 'debug_backtrace') {
-            return PicoType::array(PicoType::fromString('mixed'));
-        }
-        if ($fn === 'dirname') {
-            return PicoType::fromString('string');
-        }
-        if ($fn === 'str_starts_with' || $fn === 'str_contains' || $fn === 'is_int' || $fn === 'is_string' || $fn === 'is_float' || $fn === 'is_bool' || $fn === 'array_key_exists') {
-            return PicoType::fromString('bool');
-        }
-        if ($fn === 'strval' || $fn === 'implode' || $fn === 'substr' || $fn === 'trim' || $fn === 'ltrim' || $fn === 'rtrim' || $fn === 'str_repeat' || $fn === 'str_replace'
-            || $fn === 'strtoupper' || $fn === 'strtolower' || $fn === 'dechex' || $fn === 'str_pad') {
-            return PicoType::fromString('string');
-        }
-        if ($fn === 'array_pop' || $fn === 'array_shift' || $fn === 'assert' || $fn === 'class_alias' || $fn === 'array_splice') {
-            return PicoType::fromString('void');
-        }
-        if ($fn === 'array_slice') {
-            CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
 
-            return $this->getExprResolvedType($expr->args[0]->value);
-        }
-        if ($fn === 'end') {
-            CompilerInvariant::check(count($expr->args) === 1 && $expr->args[0] instanceof \PhpParser\Node\Arg);
-
-            return $this->getExprResolvedType($expr->args[0]->value)->getElementType();
+        if ($this->builtinRegistry->has($fn)) {
+            $def = $this->builtinRegistry->get($fn);
+            if ($def->returnMatchesArg !== null) {
+                $argIdx = $def->returnMatchesArg;
+                if (count($expr->args) > $argIdx && $expr->args[$argIdx] instanceof \PhpParser\Node\Arg) {
+                    return $this->getExprResolvedType($expr->args[$argIdx]->value);
+                }
+                return $def->returnType;
+            }
+            if ($def->returnElementType !== null) {
+                $argIdx = $def->returnElementType;
+                if (count($expr->args) > $argIdx && $expr->args[$argIdx] instanceof \PhpParser\Node\Arg) {
+                    $arrType = $this->getExprResolvedType($expr->args[$argIdx]->value);
+                    if ($arrType->isArray()) {
+                        return $arrType->getElementType();
+                    }
+                }
+                return PicoType::fromString('mixed');
+            }
+            return $def->returnType;
         }
 
         return PicoType::fromString('mixed');
@@ -1574,12 +1567,6 @@ trait BuildExprTrait
         }
         if ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
             CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Name);
-            $fn = $expr->name->toLowerString();
-            // Built-in functions that return the same type as their first array arg
-            if ($fn === 'array_reverse' || $fn === 'array_merge') {
-                CompilerInvariant::check(count($expr->args) >= 1 && $expr->args[0] instanceof \PhpParser\Node\Arg);
-                return $this->getExprResolvedType($expr->args[0]->value);
-            }
             $pData = $expr->getAttribute('picoHP');
             if ($pData instanceof PicoHPData && $pData->symbol !== null) {
                 return $pData->getSymbol()->type;

@@ -248,8 +248,10 @@ trait BuildStmtTrait
                     $name = $default->name->toLowerString();
                     if ($name === 'true') {
                         $initVal = '1';
-                    } elseif ($name === 'false' || $name === 'null') {
+                    } elseif ($name === 'false') {
                         $initVal = '0';
+                    } elseif ($name === 'null') {
+                        $initVal = $llvmType === 'ptr' ? 'null' : '0';
                     }
                 }
                 $this->module->addLine(new IRLine("@{$llvmClass}_{$propName} = global {$llvmType} {$initVal}"));

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\PicoHP\Pass;
 
+use App\PicoHP\BuiltinRegistry;
 use App\PicoHP\LLVM\{Module, Builder};
 use App\PicoHP\Pass\IRGen\{BuildExprTrait, BuildStmtTrait, BuiltinEmitTrait, VirtualDispatchTrait};
 use App\PicoHP\SymbolTable\{ClassMetadata, EnumMetadata};
@@ -17,6 +18,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
 
     public Module $module;
     protected Builder $builder;
+    protected BuiltinRegistry $builtinRegistry;
     protected CodegenContext $ctx;
 
     /** @var list<string|null> */
@@ -52,7 +54,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
      * @param array<string, EnumMetadata> $enumRegistry
      * @param array<string, int> $typeIdMap
      */
-    public function __construct(array $stmts, array $classRegistry = [], array $enumRegistry = [], array $typeIdMap = [], ?string $sourceFile = null)
+    public function __construct(array $stmts, array $classRegistry = [], array $enumRegistry = [], array $typeIdMap = [], ?string $sourceFile = null, ?BuiltinRegistry $builtinRegistry = null)
     {
         $this->module = new Module("test_module");
         $this->builder = $this->module->getBuilder();
@@ -61,6 +63,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         $this->enumRegistry = $enumRegistry;
         $this->typeIdMap = $typeIdMap;
         $this->sourceFile = $sourceFile;
+        $this->builtinRegistry = $builtinRegistry ?? BuiltinRegistry::createDefault();
         $this->ctx = new CodegenContext();
     }
 
