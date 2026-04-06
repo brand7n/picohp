@@ -1292,6 +1292,8 @@ class SemanticAnalysisPass implements PassInterface
             $this->symbolTable->exitScope();
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Enum_) {
             // Enum cases already registered in registerClasses
+            // Process enum methods
+            // Enum cases already registered in registerClasses; enum methods not yet supported
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\EnumCase) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Use_) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\GroupUse) {

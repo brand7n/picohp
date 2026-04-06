@@ -195,6 +195,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         if ($stmt instanceof \PhpParser\Node\Stmt\Function_) {
             $funcSymbol = $pData->getSymbol();
             \App\PicoHP\CompilerInvariant::check($funcSymbol->func === true);
+            $savedTryContext = $this->tryContext;
+            $this->tryContext = null;
             $this->currentFunction = $this->module->addFunction($stmt->name->toString(), $funcSymbol->type, $funcSymbol->params, $funcSymbol->canThrow);
             $debugInfo = $this->module->getDebugInfo();
             if ($debugInfo->getCompileUnitId() !== null) {
@@ -244,6 +246,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             $this->module->getDebugInfo()->setCurrentScope(null);
             $this->builder->setDebugLine(null);
+            $this->tryContext = $savedTryContext;
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Block) {
             $scope = $pData->getScope();
             foreach ($scope->symbols as $symbol) {
@@ -415,6 +418,8 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             if ($stmt->stmts === null) {
                 return;
             }
+            $savedTryContext = $this->tryContext;
+            $this->tryContext = null;
             \App\PicoHP\CompilerInvariant::check($this->currentClassName !== null);
             $methodName = $stmt->name->toString();
             $funcSymbol = $pData->getSymbol();
@@ -473,6 +478,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             $this->module->getDebugInfo()->setCurrentScope(null);
             $this->builder->setDebugLine(null);
+            $this->tryContext = $savedTryContext;
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Do_) {
             \App\PicoHP\CompilerInvariant::check($this->currentFunction !== null);
             $condBB = $this->currentFunction->addBasicBlock("cond{$pData->mycount}");
@@ -713,6 +719,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
                     $this->builder->setInsertPoint($savedBB);
                 }
             }
+            // Enum methods are handled by the missing-function stub emitter in Module::print()
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\ClassConst) {
             // Class constants — values resolved at compile time via ClassConstFetch
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\EnumCase) {

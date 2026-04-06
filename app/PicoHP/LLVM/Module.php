@@ -91,8 +91,40 @@ class Module implements NodeInterface
      */
     public function print($file = STDOUT): void
     {
-        foreach ($this->getLines() as $line) {
+        $lines = $this->getLines();
+
+        // Collect defined/declared symbols, then emit stubs for missing ones
+        $defined = [];
+        $called = [];
+        foreach ($lines as $line) {
+            $text = $line->toString();
+            if (preg_match('/^define\s.*@(\S+)\s*\(/', $text, $m) === 1) {
+                $defined[$m[1]] = true;
+            }
+            if (preg_match('/^declare\s.*@(\S+)\s*\(/', $text, $m) === 1) {
+                $defined[$m[1]] = true;
+            }
+            if (preg_match_all('/call\s+[^@]*@(\S+)\s*\(/', $text, $matches) >= 1) {
+                foreach ($matches[1] as $fn) {
+                    $called[$fn] = true;
+                }
+            }
+        }
+
+        foreach ($lines as $line) {
             fwrite($file, $line->toString() . PHP_EOL);
+        }
+        // Emit abort-stub defines for any called-but-not-defined functions
+        foreach ($called as $fn => $_) {
+            if (!isset($defined[$fn])) {
+                $msgConst = "@.stub.{$fn}";
+                $msg = "unimplemented: {$fn}\\0A\\00";
+                $len = strlen("unimplemented: {$fn}\n") + 1;
+                fwrite($file, "{$msgConst} = private constant [{$len} x i8] c\"{$msg}\"\n");
+                fwrite($file, "define void @{$fn}(...) {\nentry:\n");
+                fwrite($file, "    call i32 (ptr, ...) @printf(ptr {$msgConst})\n");
+                fwrite($file, "    call void @abort()\n    unreachable\n}\n\n");
+            }
         }
         foreach ($this->debugInfo->getMetadataLines() as $metaLine) {
             fwrite($file, $metaLine . PHP_EOL);
