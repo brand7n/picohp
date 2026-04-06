@@ -673,6 +673,18 @@ class SemanticAnalysisPass implements PassInterface
      */
     protected function registerClasses(array $stmts, ?string $namespace = null): void
     {
+        // Pre-pass: register all enums before processing classes (so enum property
+        // types resolve correctly even when the class appears before the enum in the AST)
+        foreach ($stmts as $stmt) {
+            if ($stmt instanceof \PhpParser\Node\Stmt\Namespace_) {
+                $childNs = $stmt->name !== null ? $stmt->name->toString() : '';
+                $merged = $childNs === '' ? null : $childNs;
+                $this->registerEnums($stmt->stmts, $merged);
+            } elseif ($stmt instanceof \PhpParser\Node\Stmt\Enum_) {
+                $this->registerEnum($stmt, $namespace);
+            }
+        }
+
         // Pre-pass: register all traits before processing classes
         foreach ($stmts as $stmt) {
             if ($stmt instanceof \PhpParser\Node\Stmt\Namespace_) {
@@ -839,16 +851,11 @@ class SemanticAnalysisPass implements PassInterface
             if ($stmt instanceof \PhpParser\Node\Stmt\Enum_) {
                 \App\PicoHP\CompilerInvariant::check($stmt->name instanceof \PhpParser\Node\Identifier);
                 $enumName = ClassSymbol::fqcn($namespace, $stmt->name->toString());
-                $scalarTypeName = null;
-                if ($stmt->scalarType !== null) {
-                    $scalarTypeName = $stmt->scalarType->name;
-                }
-                $enumMeta = new EnumMetadata($enumName, $scalarTypeName);
-                $this->enumRegistry[$enumName] = $enumMeta;
-                // Also register enum in classRegistry for method call resolution
-                $enumClassMeta = new ClassMetadata($enumName);
-                $this->classRegistry[$enumName] = $enumClassMeta;
-                $this->typeIdMap[$enumName] = $this->nextTypeId++;
+                // Basic registration done in pre-pass; now register cases, methods, constants
+                $this->registerEnum($stmt, $namespace);
+                $enumMeta = $this->enumRegistry[$enumName];
+                $enumClassMeta = $this->classRegistry[$enumName];
+                $scalarTypeName = $stmt->scalarType !== null ? $stmt->scalarType->name : null;
                 foreach ($stmt->stmts as $enumStmt) {
                     if ($enumStmt instanceof \PhpParser\Node\Stmt\ClassMethod) {
                         $methodName = $enumStmt->name->toString();
@@ -929,6 +936,33 @@ class SemanticAnalysisPass implements PassInterface
             }
         }
         $this->traitRegistry[$traitName] = ['properties' => $properties, 'methods' => $methods];
+    }
+
+    /**
+     * @param array<\PhpParser\Node\Stmt> $stmts
+     */
+    protected function registerEnums(array $stmts, ?string $namespace): void
+    {
+        foreach ($stmts as $stmt) {
+            if ($stmt instanceof \PhpParser\Node\Stmt\Enum_) {
+                $this->registerEnum($stmt, $namespace);
+            }
+        }
+    }
+
+    protected function registerEnum(\PhpParser\Node\Stmt\Enum_ $stmt, ?string $namespace): void
+    {
+        \App\PicoHP\CompilerInvariant::check($stmt->name instanceof \PhpParser\Node\Identifier);
+        $enumName = ClassSymbol::fqcn($namespace, $stmt->name->toString());
+        if (isset($this->enumRegistry[$enumName])) {
+            return;
+        }
+        $scalarTypeName = $stmt->scalarType !== null ? $stmt->scalarType->name : null;
+        $enumMeta = new EnumMetadata($enumName, $scalarTypeName);
+        $this->enumRegistry[$enumName] = $enumMeta;
+        $enumClassMeta = new ClassMetadata($enumName);
+        $this->classRegistry[$enumName] = $enumClassMeta;
+        $this->typeIdMap[$enumName] = $this->nextTypeId++;
     }
 
     /**
@@ -2033,6 +2067,10 @@ class SemanticAnalysisPass implements PassInterface
         }
         if ($lower === 'directory_separator') {
             return PicoType::fromString('string'); // @codeCoverageIgnore
+        }
+        // PHP tokenizer constants (T_STRING, T_VARIABLE, etc.)
+        if (str_starts_with($lower, 't_')) {
+            return PicoType::fromString('int');
         }
 
         if ($context !== null) {

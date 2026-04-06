@@ -115,6 +115,19 @@ final class BuildCommand
                 }
                 // @codeCoverageIgnoreEnd
 
+                if ($options->dumpTokens) {
+                    $lexer = new HandLexerAdapter();
+                    $tokens = $lexer->tokenize($code);
+                    foreach ($tokens as $token) {
+                        if ($token->id === 0) {
+                            break;
+                        }
+                        echo $token->id . '|' . $token->line . '|' . $token->text . "\n";
+                    }
+
+                    return 0;
+                }
+
                 try {
                     $ast = $parser->parse($code);
                 } catch (\PhpParser\Error $e) {

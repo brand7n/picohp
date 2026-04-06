@@ -188,6 +188,11 @@ function strval(mixed $val): string
 
 // ── String utility ───────────────────────────────────────────────────
 
+/** @runtime-symbol pico_substr_count */
+function substr_count(string $haystack, string $needle): int
+{
+}
+
 /** @runtime-symbol pico_string_trim */
 function ltrim(string $str): string
 {
@@ -329,6 +334,11 @@ function fopen(string $filename, string $mode): int
 
 /** @runtime-symbol pico_fclose */
 function fclose(int $fd): bool
+{
+}
+
+/** @runtime-symbol pico_constant */
+function constant(string $name): int
 {
 }
 

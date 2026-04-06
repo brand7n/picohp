@@ -13,6 +13,7 @@ final class BuildOptions
         public bool $debug = false,
         public bool $sharedLib = false,
         public bool $precompilePlan = false,
+        public bool $dumpTokens = false,
         public int $verbosity = 0,
         public string $out = 'a.out',
         public string $withOptLl = 'off',
@@ -48,6 +49,12 @@ final class BuildOptions
             }
             if ($t === '--precompile-plan') {
                 $o->precompilePlan = true;
+                $i++;
+
+                continue;
+            }
+            if ($t === '--dump-tokens') {
+                $o->dumpTokens = true;
                 $i++;
 
                 continue;

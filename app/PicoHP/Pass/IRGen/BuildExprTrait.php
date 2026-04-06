@@ -237,7 +237,7 @@ trait BuildExprTrait
                     break;
                 case '==':
                 case '===':
-                    if ($operandType === BaseType::STRING
+                    if (($operandType === BaseType::STRING || $operandType === BaseType::PTR)
                         && !($lval instanceof NullConstant)
                         && !($rval instanceof NullConstant)
                     ) {
@@ -253,7 +253,7 @@ trait BuildExprTrait
                     break;
                 case '!=':
                 case '!==':
-                    if ($operandType === BaseType::STRING
+                    if (($operandType === BaseType::STRING || $operandType === BaseType::PTR)
                         && !($lval instanceof NullConstant)
                         && !($rval instanceof NullConstant)
                     ) {
@@ -364,6 +364,12 @@ trait BuildExprTrait
             }
             if ($constName === 'directory_separator') {
                 return $this->builder->createStringConstant(DIRECTORY_SEPARATOR);
+            }
+            // PHP tokenizer constants — resolve at compile time
+            if (str_starts_with($constName, 't_') && defined(strtoupper($constName))) {
+                /** @var int $val */
+                $val = constant(strtoupper($constName));
+                return new Constant($val, BaseType::INT);
             }
             return new Constant($constName === 'true' ? 1 : 0, BaseType::BOOL);
         } elseif ($expr instanceof \PhpParser\Node\Expr\Cast\Int_) {
@@ -712,15 +718,20 @@ trait BuildExprTrait
             if ($varType->isMixed()) {
                 return new NullConstant();
             }
-            // Enum ->value access
+            // Enum ->value access — look up backing value from global table by tag index
             if ($varType->isEnum() && $expr->name->toString() === 'value') {
                 $enumName = $varType->getClassName();
                 $enumMeta = $this->enumRegistry[$enumName];
+                $llvmEnum = ClassSymbol::mangle($enumName);
+                $count = count($enumMeta->cases);
                 if ($enumMeta->backingType === 'string') {
-                    $elemPtr = $this->builder->createEnumValueLookup(ClassSymbol::mangle($enumName), count($enumMeta->cases), $objVal);
+                    $elemPtr = $this->builder->createEnumValueLookup($llvmEnum, $count, $objVal);
                     return $this->builder->createLoad($elemPtr);
                 }
-                return $objVal; // int-backed: tag IS the value
+                // int-backed: GEP into i32 values array
+                $elemPtr = new \App\PicoHP\LLVM\Value\Instruction('enum_val', BaseType::INT);
+                $this->builder->addLine("{$elemPtr->render()} = getelementptr inbounds [{$count} x i32], ptr @{$llvmEnum}_values, i32 0, i32 {$objVal->render()}", 1);
+                return $this->builder->createLoad($elemPtr);
             }
             $className = $varType->getClassName();
             $classMeta = $this->classRegistry[$className];
@@ -884,22 +895,34 @@ trait BuildExprTrait
                         $armCondVal = $this->builder->createPtrToInt($armCondVal);
                     }
                     $isFloat = $cmpType === BaseType::FLOAT;
-                    $cmpResult = $this->builder->createInstruction(
-                        $isFloat ? 'fcmp oeq' : 'icmp eq',
-                        [$cmpLeft, $armCondVal],
-                        resultType: BaseType::BOOL
-                    );
+                    $isStr = $cmpType === BaseType::STRING || $cmpType === BaseType::PTR;
+                    if ($isStr && !($cmpLeft instanceof NullConstant) && !($armCondVal instanceof NullConstant)) {
+                        $eqResult = $this->builder->createCall('pico_string_eq', [$cmpLeft, $armCondVal], BaseType::INT);
+                        $cmpResult = $this->builder->createInstruction('icmp ne', [$eqResult, new Constant(0, BaseType::INT)], resultType: BaseType::BOOL);
+                    } else {
+                        $cmpResult = $this->builder->createInstruction(
+                            $isFloat ? 'fcmp oeq' : 'icmp eq',
+                            [$cmpLeft, $armCondVal],
+                            resultType: BaseType::BOOL
+                        );
+                    }
                 } else {
                     // Multiple conditions: OR them together
                     $orResult = null;
                     foreach ($arm->conds as $armCond) {
                         $armCondVal = $this->buildExpr($armCond);
                         $isFloat = $condType === BaseType::FLOAT;
-                        $cmpResult = $this->builder->createInstruction(
-                            $isFloat ? 'fcmp oeq' : 'icmp eq',
-                            [$condVal, $armCondVal],
-                            resultType: BaseType::BOOL
-                        );
+                        $isStr = $condType === BaseType::STRING || $condType === BaseType::PTR;
+                        if ($isStr && !($condVal instanceof NullConstant) && !($armCondVal instanceof NullConstant)) {
+                            $eqResult = $this->builder->createCall('pico_string_eq', [$condVal, $armCondVal], BaseType::INT);
+                            $cmpResult = $this->builder->createInstruction('icmp ne', [$eqResult, new Constant(0, BaseType::INT)], resultType: BaseType::BOOL);
+                        } else {
+                            $cmpResult = $this->builder->createInstruction(
+                                $isFloat ? 'fcmp oeq' : 'icmp eq',
+                                [$condVal, $armCondVal],
+                                resultType: BaseType::BOOL
+                            );
+                        }
                         if ($orResult === null) {
                             $orResult = $cmpResult;
                         } else {
@@ -1488,6 +1511,11 @@ trait BuildExprTrait
             }
             if (isset($this->enumRegistry[$className])) {
                 return PicoType::enum($className);
+            }
+            // Class constants are scalar values, not object instances
+            CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Identifier);
+            if (isset($this->classRegistry[$className]) && isset($this->classRegistry[$className]->constants[$expr->name->toString()])) {
+                return PicoType::fromString('int');
             }
             return PicoType::object($className);
         }

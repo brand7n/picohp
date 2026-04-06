@@ -29,7 +29,7 @@ final class NativeTokenPipeline
             if ($t->type === TokenType::Eof) {
                 break;
             }
-            $tokens[] = new Token($t->type->value, $t->value, $t->line, $pos);
+            $tokens[] = new Token($t->type, $t->value, $t->line, $pos);
             $pos += \strlen($t->value);
         }
         self::postprocessTokens($tokens, $errorHandler);
@@ -61,7 +61,7 @@ final class NativeTokenPipeline
                     $next++;
                 }
                 $followedByVarOrVarArg = isset($tokens[$next])
-                    && $tokens[$next]->is([\T_VARIABLE, \T_ELLIPSIS]);
+                    && ($tokens[$next]->id === \T_VARIABLE || $tokens[$next]->id === \T_ELLIPSIS);
                 $token->id = $followedByVarOrVarArg
                     ? \T_AMPERSAND_FOLLOWED_BY_VAR_OR_VARARG
                     : \T_AMPERSAND_NOT_FOLLOWED_BY_VAR_OR_VARARG;
@@ -101,8 +101,9 @@ final class NativeTokenPipeline
 
     private static function isUnterminatedComment(Token $token): bool
     {
-        return $token->is([\T_COMMENT, \T_DOC_COMMENT])
+        return ($token->id === \T_COMMENT || $token->id === \T_DOC_COMMENT)
             && \substr($token->text, 0, 2) === '/*'
             && \substr($token->text, -2) !== '*/';
+
     }
 }

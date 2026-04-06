@@ -129,6 +129,12 @@ final class BuiltinRegistry
                 $defaultValue = $param->default->value;
             } elseif ($param->default instanceof \PhpParser\Node\Scalar\Float_) {
                 $defaultValue = $param->default->value;
+            } elseif ($param->default instanceof \PhpParser\Node\Expr\UnaryMinus
+                && $param->default->expr instanceof \PhpParser\Node\Scalar\Int_) {
+                $defaultValue = -$param->default->expr->value;
+            } elseif ($param->default instanceof \PhpParser\Node\Expr\UnaryMinus
+                && $param->default->expr instanceof \PhpParser\Node\Scalar\Float_) {
+                $defaultValue = -$param->default->expr->value;
             } elseif ($param->default instanceof \PhpParser\Node\Scalar\String_) {
                 $defaultValue = $param->default->value;
             } elseif ($param->default instanceof \PhpParser\Node\Expr\Array_) {
