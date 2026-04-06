@@ -211,7 +211,7 @@ final class BuildCommand
                 file_put_contents($astWithSymbolOutput, json_encode($transformedAst, JSON_PRETTY_PRINT));
             }
 
-            $resolvedFile = is_file($filename) ? realpath($filename) : null;
+            $resolvedFile = realpath($filename);
             if ($resolvedFile === false) {
                 $resolvedFile = null;
             }
@@ -232,7 +232,7 @@ final class BuildCommand
 
             $llvmPath = config('app.llvm_path');
             \App\PicoHP\CompilerInvariant::check(is_string($llvmPath));
-            $llvmPath .= '/';
+            $llvmPath = $llvmPath . '/';
             $result = 0;
 
             if ($options->withOptLl === 'off') {

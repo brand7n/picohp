@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\PicoHP\LLVM;
 
 use App\PicoHP\{BaseType};
-use App\PicoHP\LLVM\Value\{Instruction, Void_, AllocaInst, Global_, Label};
+use App\PicoHP\LLVM\Value\{Constant, Instruction, Void_, AllocaInst, Global_, Label};
 
 class Builder
 {
@@ -29,6 +29,17 @@ class Builder
         $this->addLine();
         $this->addLine('declare i32 @printf(ptr, ...)');
         $this->addLine('declare void @abort() noreturn');
+        $this->addLine('declare void @exit(i32) noreturn');
+        $this->addLine('@.str.unimpl_prefix = private constant [16 x i8] c"unimplemented: \00"');
+        $this->addLine('@.str.newline = private constant [2 x i8] c"\0A\00"');
+        $this->addLine('define void @picohp_unimplemented(ptr %name) {');
+        $this->addLine('    %msg = call ptr @pico_string_concat(ptr @.str.unimpl_prefix, ptr %name)');
+        $this->addLine('    %full = call ptr @pico_string_concat(ptr %msg, ptr @.str.newline)');
+        $this->addLine('    %len = call i32 @pico_string_len(ptr %full)');
+        $this->addLine('    call i32 @pico_fwrite(i32 2, ptr %full, i32 %len)');
+        $this->addLine('    call void @abort()');
+        $this->addLine('    unreachable');
+        $this->addLine('}');
         $this->addLine('declare ptr @pico_string_concat(ptr, ptr)');
         $this->addLine('declare i32 @pico_rt_version()');
         $this->addLine('declare i32 @pico_string_len(ptr)');
@@ -222,6 +233,17 @@ class Builder
         return $resultVal;
     }
 
+    /**
+     * Emit a call to picohp_unimplemented(name) + unreachable.
+     * Prints the function name to stderr before aborting.
+     */
+    public function emitUnimplementedAbort(string $funcName): void
+    {
+        $nameConst = $this->createStringConstant($funcName);
+        $this->addLine("call void @picohp_unimplemented(ptr {$nameConst->render()})", 1);
+        $this->addLine('unreachable', 1);
+    }
+
     public function createStringConstant(string $value): ValueAbstract
     {
         $count = $this->stringConstantCount++;
@@ -344,6 +366,10 @@ class Builder
 
     public function createNullCheck(ValueAbstract $val): ValueAbstract
     {
+        // Non-pointer types can never be null
+        if ($val->getType() !== BaseType::PTR && $val->getType() !== BaseType::STRING) {
+            return new Constant(0, BaseType::BOOL);
+        }
         $resultVal = new Instruction('null_check', BaseType::BOOL);
         $this->addLine("{$resultVal->render()} = icmp eq ptr {$val->render()}, null", 1);
         return $resultVal;

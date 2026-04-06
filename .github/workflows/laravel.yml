@@ -33,3 +33,29 @@ jobs:
       run: php -d pcov.directory=${{ github.workspace }}/app vendor/bin/pest --coverage --min=90
     - name: Run Laravel Pint
       run: vendor/bin/pint --test
+
+  self-compile:
+    runs-on: ubuntu-24.04
+    needs: laravel-tests
+
+    steps:
+    - uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.5'
+        ini-file: development
+        ini-values: memory_limit=1G
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    - name: Build runtime
+      run: cargo build --release --manifest-path runtime/Cargo.toml
+    - name: Install Dependencies
+      run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+    - name: Self-compile picoHP
+      run: |
+        php -d memory_limit=1G ./picoHP build --debug --entry=picoHP \
+          --override-class 'PhpParser\Token' compat/PhpParser/Token.php .
+    - name: Verify self-compiled binary exists
+      run: test -x /tmp/picoHP/a.out
+    - name: Run self-compiled binary
+      run: |
+        /tmp/picoHP/a.out 2>&1 | head -1 | grep -q "Usage: picohp build"

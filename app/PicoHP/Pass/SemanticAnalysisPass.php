@@ -274,6 +274,9 @@ class SemanticAnalysisPass implements PassInterface
         $getMessageSymbol = new \App\PicoHP\SymbolTable\Symbol('getMessage', PicoType::fromString('string'), func: true);
         $exceptionMeta->methods['getMessage'] = $getMessageSymbol;
         $exceptionMeta->methodOwner['getMessage'] = 'Exception';
+        $getTraceAsStringSymbol = new \App\PicoHP\SymbolTable\Symbol('getTraceAsString', PicoType::fromString('string'), func: true);
+        $exceptionMeta->methods['getTraceAsString'] = $getTraceAsStringSymbol;
+        $exceptionMeta->methodOwner['getTraceAsString'] = 'Exception';
         $ctorSymbol = new \App\PicoHP\SymbolTable\Symbol('__construct', PicoType::fromString('void'), func: true);
         $ctorSymbol->params = [PicoType::fromString('string')];
         $ctorSymbol->paramNames = [0 => 'message'];
@@ -1292,6 +1295,8 @@ class SemanticAnalysisPass implements PassInterface
             $this->symbolTable->exitScope();
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Enum_) {
             // Enum cases already registered in registerClasses
+            // Process enum methods
+            // Enum cases already registered in registerClasses; enum methods not yet supported
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\EnumCase) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Use_) {
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\GroupUse) {

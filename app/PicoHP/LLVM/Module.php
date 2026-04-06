@@ -91,8 +91,38 @@ class Module implements NodeInterface
      */
     public function print($file = STDOUT): void
     {
-        foreach ($this->getLines() as $line) {
+        $lines = $this->getLines();
+
+        // Collect defined/declared symbols, then emit stubs for missing ones
+        $defined = [];
+        $called = [];
+        foreach ($lines as $line) {
+            $text = $line->toString();
+            if (preg_match('/^define\s.*@(\S+)\s*\(/', $text, $m) === 1) {
+                $defined[$m[1]] = true;
+            }
+            if (preg_match('/^declare\s.*@(\S+)\s*\(/', $text, $m) === 1) {
+                $defined[$m[1]] = true;
+            }
+            if (preg_match_all('/call\s+[^@]*@(\S+)\s*\(/', $text, $matches) >= 1) {
+                foreach ($matches[1] as $fn) {
+                    $called[$fn] = true;
+                }
+            }
+        }
+
+        foreach ($lines as $line) {
             fwrite($file, $line->toString() . PHP_EOL);
+        }
+        // Emit abort-stub defines for any called-but-not-defined functions
+        foreach ($called as $fn => $_) {
+            if (!isset($defined[$fn])) {
+                $nameLen = strlen($fn) + 1;
+                fwrite($file, "@.stub.name.{$fn} = private constant [{$nameLen} x i8] c\"{$fn}\\00\"\n");
+                fwrite($file, "define void @{$fn}(...) {\nentry:\n");
+                fwrite($file, "    call void @picohp_unimplemented(ptr @.stub.name.{$fn})\n");
+                fwrite($file, "    unreachable\n}\n\n");
+            }
         }
         foreach ($this->debugInfo->getMetadataLines() as $metaLine) {
             fwrite($file, $metaLine . PHP_EOL);

@@ -66,7 +66,8 @@ class BasicBlock implements NodeInterface
                 continue;
             }
             $truncated[] = $line;
-            if (trim($line->toString()) === 'unreachable') {
+            $trimmed = trim($line->toString());
+            if ($trimmed === 'unreachable' || str_starts_with($trimmed, 'unreachable,')) {
                 $terminated = true;
             }
         }
@@ -77,20 +78,24 @@ class BasicBlock implements NodeInterface
     {
         $lastLine = end($this->lines);
         $trimmed = $lastLine !== false ? trim($lastLine->toString()) : '';
-        return str_starts_with($trimmed, 'ret')
-            || str_starts_with($trimmed, 'br')
+        return str_starts_with($trimmed, 'ret ')
+            || str_starts_with($trimmed, 'ret,')
+            || $trimmed === 'ret void'
+            || str_starts_with($trimmed, 'br ')
             || str_starts_with($trimmed, 'unreachable')
-            || str_starts_with($trimmed, 'switch');
+            || str_starts_with($trimmed, 'switch ');
     }
 
     public function verify(): void
     {
         $lastLine = end($this->lines);
         $trimmed = $lastLine !== false ? trim($lastLine->toString()) : '';
-        $valid = str_starts_with($trimmed, 'ret')
-            || str_starts_with($trimmed, 'br')
+        $valid = str_starts_with($trimmed, 'ret ')
+            || str_starts_with($trimmed, 'ret,')
+            || $trimmed === 'ret void'
+            || str_starts_with($trimmed, 'br ')
             || str_starts_with($trimmed, 'unreachable')
-            || str_starts_with($trimmed, 'switch');
+            || str_starts_with($trimmed, 'switch ');
         if (!$valid && self::$autoSealEnabled) {
             $this->lines[] = new IRLine('    unreachable ; auto-sealed: was "' . substr($trimmed, 0, 40) . '"');
         } elseif (!$valid) {
