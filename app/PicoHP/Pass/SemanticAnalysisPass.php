@@ -1607,8 +1607,7 @@ class SemanticAnalysisPass implements PassInterface
             // Built-in functions — registry-driven lookup
             if ($this->builtinRegistry->has($funcName)) {
                 $def = $this->builtinRegistry->get($funcName);
-                $existing = $this->symbolTable->lookup($funcName);
-                $pData->symbol = $existing ?? $this->symbolTable->addSymbol($funcName, $def->returnType, func: true);
+                $pData->symbol = new \App\PicoHP\SymbolTable\Symbol($funcName, $def->returnType, func: true);
                 if ($def->returnMatchesArg !== null) {
                     $argIdx = $def->returnMatchesArg;
                     if (count($expr->args) > $argIdx && $expr->args[$argIdx] instanceof \PhpParser\Node\Arg) {
@@ -1715,7 +1714,13 @@ class SemanticAnalysisPass implements PassInterface
             \App\PicoHP\CompilerInvariant::check($objType->isObject(), AstContextFormatter::location($expr) . ', property fetch on non-object type: ' . $objType->toString());
             $className = $objType->getClassName();
             $this->ensureExternalClassReference($className);
-            \App\PicoHP\CompilerInvariant::check(isset($this->classRegistry[$className]), AstContextFormatter::location($expr) . ', class ' . $className . ' not found in registry for property fetch');
+            if (!isset($this->classRegistry[$className])) {
+                if ($this->allowStubbing) {
+                    $this->emitSemanticWarning('class ' . $className . ' not found in registry for property fetch', $expr);
+                    return PicoType::fromString('mixed');
+                }
+                throw new \Exception(AstContextFormatter::location($expr) . ', class ' . $className . ' not found in registry for property fetch');
+            }
             $classMeta = $this->classRegistry[$className];
             $propName = $expr->name->toString();
             $line = $expr->getStartLine();
@@ -1740,7 +1745,14 @@ class SemanticAnalysisPass implements PassInterface
             $className = $objType->getClassName();
             $methodName = $expr->name->toString();
             $this->ensureExternalClassReference($className);
-            \App\PicoHP\CompilerInvariant::check(isset($this->classRegistry[$className]), "class {$className} not found in registry for method call {$methodName}");
+            if (!isset($this->classRegistry[$className])) {
+                if ($this->allowStubbing) {
+                    $this->emitSemanticWarning("class {$className} not found in registry for method call {$methodName}", $expr);
+                    $this->resolveArgs($expr->args);
+                    return PicoType::fromString('mixed');
+                }
+                throw new \Exception("class {$className} not found in registry for method call {$methodName}");
+            }
             $classMeta = $this->classRegistry[$className];
             \App\PicoHP\CompilerInvariant::check(isset($classMeta->methods[$methodName]), "method {$methodName} not found on class {$className}");
             $this->resolveArgs($expr->args);
