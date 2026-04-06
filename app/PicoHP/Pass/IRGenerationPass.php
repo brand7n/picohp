@@ -211,8 +211,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $bb = $this->currentFunction->addBasicBlock("entry");
             $this->builder->setInsertPoint($bb);
             if ($pData->stubbed) {
-                $this->builder->addLine('call void @abort()', 1);
-                $this->builder->addLine('unreachable', 1);
+                $this->builder->emitUnimplementedAbort($stmt->name->toString());
             } else {
                 try {
                     $scope = $pData->getScope();
@@ -441,8 +440,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $bb = $this->currentFunction->addBasicBlock("entry");
             $this->builder->setInsertPoint($bb);
             if ($pData->stubbed) {
-                $this->builder->addLine('call void @abort()', 1);
-                $this->builder->addLine('unreachable', 1);
+                $this->builder->emitUnimplementedAbort($qualifiedName);
             } else {
                 try {
                     $scope = $pData->getScope();
@@ -2912,8 +2910,7 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $structType = Builder::resultTypeName($retType);
             $this->builder->addLine("ret {$structType} {$errResult->render()}", 1);
         } else {
-            $this->builder->addLine('call void @abort()', 1);
-            $this->builder->addLine('unreachable', 1);
+            $this->builder->emitUnimplementedAbort($funcName);
         }
         return new Void_();
     }

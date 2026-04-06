@@ -117,13 +117,11 @@ class Module implements NodeInterface
         // Emit abort-stub defines for any called-but-not-defined functions
         foreach ($called as $fn => $_) {
             if (!isset($defined[$fn])) {
-                $msgConst = "@.stub.{$fn}";
-                $msg = "unimplemented: {$fn}\\0A\\00";
-                $len = strlen("unimplemented: {$fn}\n") + 1;
-                fwrite($file, "{$msgConst} = private constant [{$len} x i8] c\"{$msg}\"\n");
+                $nameLen = strlen($fn) + 1;
+                fwrite($file, "@.stub.name.{$fn} = private constant [{$nameLen} x i8] c\"{$fn}\\00\"\n");
                 fwrite($file, "define void @{$fn}(...) {\nentry:\n");
-                fwrite($file, "    call i32 (ptr, ...) @printf(ptr {$msgConst})\n");
-                fwrite($file, "    call void @abort()\n    unreachable\n}\n\n");
+                fwrite($file, "    call void @picohp_unimplemented(ptr @.stub.name.{$fn})\n");
+                fwrite($file, "    unreachable\n}\n\n");
             }
         }
         foreach ($this->debugInfo->getMetadataLines() as $metaLine) {

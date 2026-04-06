@@ -30,6 +30,12 @@ class Builder
         $this->addLine('declare i32 @printf(ptr, ...)');
         $this->addLine('declare void @abort() noreturn');
         $this->addLine('declare void @exit(i32) noreturn');
+        $this->addLine('@.str.unimpl = private constant [19 x i8] c"unimplemented: %s\0A\00"');
+        $this->addLine('define void @picohp_unimplemented(ptr %name) {');
+        $this->addLine('    call i32 (ptr, ...) @printf(ptr @.str.unimpl, ptr %name)');
+        $this->addLine('    call void @abort()');
+        $this->addLine('    unreachable');
+        $this->addLine('}');
         $this->addLine('declare ptr @pico_string_concat(ptr, ptr)');
         $this->addLine('declare i32 @pico_rt_version()');
         $this->addLine('declare i32 @pico_string_len(ptr)');
@@ -221,6 +227,17 @@ class Builder
         $resultVal = new Instruction("cast", BaseType::INT);
         $this->addLine("{$resultVal->render()} = zext i1 {$val->render()} to i32", 1);
         return $resultVal;
+    }
+
+    /**
+     * Emit a call to picohp_unimplemented(name) + unreachable.
+     * Prints the function name to stderr before aborting.
+     */
+    public function emitUnimplementedAbort(string $funcName): void
+    {
+        $nameConst = $this->createStringConstant($funcName);
+        $this->addLine("call void @picohp_unimplemented(ptr {$nameConst->render()})", 1);
+        $this->addLine('unreachable', 1);
     }
 
     public function createStringConstant(string $value): ValueAbstract
