@@ -1856,11 +1856,14 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             }
             return $result;
         } elseif ($expr instanceof \PhpParser\Node\Expr\Exit_) {
-            // exit()/die() → abort (process termination), same as unknown function stubs
+            $exitCode = new Constant(0, BaseType::INT);
             if ($expr->expr !== null) {
-                $this->buildExpr($expr->expr); // evaluate for side effects
+                $val = $this->buildExpr($expr->expr);
+                if ($val->getType() === BaseType::INT) {
+                    $exitCode = $val;
+                }
             }
-            $this->builder->addLine('call void @abort()', 1);
+            $this->builder->addLine("call void @exit(i32 {$exitCode->render()})", 1);
             $this->builder->addLine('unreachable', 1);
             return new Void_();
         } elseif ($expr instanceof \PhpParser\Node\Expr\Throw_) {
