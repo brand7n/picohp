@@ -247,16 +247,6 @@ final class Lexer
 
     private function countNewlines(string $text): int
     {
-        $count = 0;
-        $i = 0;
-        $length = strlen($text);
-        while ($i < $length) {
-            if ($text[$i] === "\n") {
-                $count += 1;
-            }
-            $i += 1;
-        }
-
-        return $count;
+        return substr_count($text, "\n");
     }
 }
