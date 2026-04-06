@@ -64,8 +64,7 @@ final class Lexer
             && ord(substr($rest, 1, 1)) === 63   // ?
             && (ord(substr($rest, 2, 1)) === 112 || ord(substr($rest, 2, 1)) === 80)  // p/P
             && (ord(substr($rest, 3, 1)) === 104 || ord(substr($rest, 3, 1)) === 72)  // h/H
-            && (ord(substr($rest, 4, 1)) === 112 || ord(substr($rest, 4, 1)) === 80)) // p/P
-        {
+            && (ord(substr($rest, 4, 1)) === 112 || ord(substr($rest, 4, 1)) === 80)) { // p/P
             $nextOrd = strlen($rest) > 5 ? ord(substr($rest, 5, 1)) : 0;
             $isWs = $nextOrd === 0 || $nextOrd === 32 || $nextOrd === 9 || $nextOrd === 13 || $nextOrd === 10;
             if ($isWs) {
@@ -294,15 +293,33 @@ final class Lexer
     /** @return int Token ID or 0 if not a three-char operator */
     private function threeCharOp(int $c1, int $c2, int $c3): int
     {
-        if ($c1 === 61 && $c2 === 61 && $c3 === 61) { return 372; } // ===  T_IS_IDENTICAL
-        if ($c1 === 33 && $c2 === 61 && $c3 === 61) { return 373; } // !==  T_IS_NOT_IDENTICAL
-        if ($c1 === 42 && $c2 === 42 && $c3 === 61) { return 407; } // **=  T_POW_EQUAL
-        if ($c1 === 60 && $c2 === 60 && $c3 === 61) { return 365; } // <<=  T_SL_EQUAL
-        if ($c1 === 62 && $c2 === 62 && $c3 === 61) { return 366; } // >>=  T_SR_EQUAL
-        if ($c1 === 63 && $c2 === 63 && $c3 === 61) { return 367; } // ??=  T_COALESCE_EQUAL
-        if ($c1 === 46 && $c2 === 46 && $c3 === 46) { return 404; } // ...  T_ELLIPSIS
-        if ($c1 === 60 && $c2 === 61 && $c3 === 62) { return 376; } // <=>  T_SPACESHIP
-        if ($c1 === 63 && $c2 === 45 && $c3 === 62) { return 390; } // ?->  T_NULLSAFE_OBJECT_OPERATOR
+        if ($c1 === 61 && $c2 === 61 && $c3 === 61) {
+            return 372;
+        } // ===  T_IS_IDENTICAL
+        if ($c1 === 33 && $c2 === 61 && $c3 === 61) {
+            return 373;
+        } // !==  T_IS_NOT_IDENTICAL
+        if ($c1 === 42 && $c2 === 42 && $c3 === 61) {
+            return 407;
+        } // **=  T_POW_EQUAL
+        if ($c1 === 60 && $c2 === 60 && $c3 === 61) {
+            return 365;
+        } // <<=  T_SL_EQUAL
+        if ($c1 === 62 && $c2 === 62 && $c3 === 61) {
+            return 366;
+        } // >>=  T_SR_EQUAL
+        if ($c1 === 63 && $c2 === 63 && $c3 === 61) {
+            return 367;
+        } // ??=  T_COALESCE_EQUAL
+        if ($c1 === 46 && $c2 === 46 && $c3 === 46) {
+            return 404;
+        } // ...  T_ELLIPSIS
+        if ($c1 === 60 && $c2 === 61 && $c3 === 62) {
+            return 376;
+        } // <=>  T_SPACESHIP
+        if ($c1 === 63 && $c2 === 45 && $c3 === 62) {
+            return 390;
+        } // ?->  T_NULLSAFE_OBJECT_OPERATOR
 
         return 0;
     }
@@ -310,30 +327,78 @@ final class Lexer
     /** @return int Token ID or 0 if not a two-char operator */
     private function twoCharOp(int $c1, int $c2): int
     {
-        if ($c1 === 46 && $c2 === 61) { return 360; } // .=  T_CONCAT_EQUAL
-        if ($c1 === 43 && $c2 === 61) { return 356; } // +=  T_PLUS_EQUAL
-        if ($c1 === 45 && $c2 === 61) { return 357; } // -=  T_MINUS_EQUAL
-        if ($c1 === 42 && $c2 === 61) { return 358; } // *=  T_MUL_EQUAL
-        if ($c1 === 47 && $c2 === 61) { return 359; } // /=  T_DIV_EQUAL
-        if ($c1 === 37 && $c2 === 61) { return 361; } // %=  T_MOD_EQUAL
-        if ($c1 === 38 && $c2 === 61) { return 362; } // &=  T_AND_EQUAL
-        if ($c1 === 124 && $c2 === 61) { return 363; } // |=  T_OR_EQUAL
-        if ($c1 === 94 && $c2 === 61) { return 364; } // ^=  T_XOR_EQUAL
-        if ($c1 === 61 && $c2 === 61) { return 370; } // ==  T_IS_EQUAL
-        if ($c1 === 33 && $c2 === 61) { return 371; } // !=  T_IS_NOT_EQUAL
-        if ($c1 === 60 && $c2 === 61) { return 374; } // <=  T_IS_SMALLER_OR_EQUAL
-        if ($c1 === 62 && $c2 === 61) { return 375; } // >=  T_IS_GREATER_OR_EQUAL
-        if ($c1 === 61 && $c2 === 62) { return 391; } // =>  T_DOUBLE_ARROW
-        if ($c1 === 45 && $c2 === 62) { return 389; } // ->  T_OBJECT_OPERATOR
-        if ($c1 === 58 && $c2 === 58) { return 402; } // ::  T_PAAMAYIM_NEKUDOTAYIM
-        if ($c1 === 43 && $c2 === 43) { return 379; } // ++  T_INC
-        if ($c1 === 45 && $c2 === 45) { return 380; } // --  T_DEC
-        if ($c1 === 38 && $c2 === 38) { return 369; } // &&  T_BOOLEAN_AND
-        if ($c1 === 124 && $c2 === 124) { return 368; } // ||  T_BOOLEAN_OR
-        if ($c1 === 60 && $c2 === 60) { return 377; } // <<  T_SL
-        if ($c1 === 62 && $c2 === 62) { return 378; } // >>  T_SR
-        if ($c1 === 42 && $c2 === 42) { return 406; } // **  T_POW
-        if ($c1 === 63 && $c2 === 63) { return 405; } // ??  T_COALESCE
+        if ($c1 === 46 && $c2 === 61) {
+            return 360;
+        } // .=  T_CONCAT_EQUAL
+        if ($c1 === 43 && $c2 === 61) {
+            return 356;
+        } // +=  T_PLUS_EQUAL
+        if ($c1 === 45 && $c2 === 61) {
+            return 357;
+        } // -=  T_MINUS_EQUAL
+        if ($c1 === 42 && $c2 === 61) {
+            return 358;
+        } // *=  T_MUL_EQUAL
+        if ($c1 === 47 && $c2 === 61) {
+            return 359;
+        } // /=  T_DIV_EQUAL
+        if ($c1 === 37 && $c2 === 61) {
+            return 361;
+        } // %=  T_MOD_EQUAL
+        if ($c1 === 38 && $c2 === 61) {
+            return 362;
+        } // &=  T_AND_EQUAL
+        if ($c1 === 124 && $c2 === 61) {
+            return 363;
+        } // |=  T_OR_EQUAL
+        if ($c1 === 94 && $c2 === 61) {
+            return 364;
+        } // ^=  T_XOR_EQUAL
+        if ($c1 === 61 && $c2 === 61) {
+            return 370;
+        } // ==  T_IS_EQUAL
+        if ($c1 === 33 && $c2 === 61) {
+            return 371;
+        } // !=  T_IS_NOT_EQUAL
+        if ($c1 === 60 && $c2 === 61) {
+            return 374;
+        } // <=  T_IS_SMALLER_OR_EQUAL
+        if ($c1 === 62 && $c2 === 61) {
+            return 375;
+        } // >=  T_IS_GREATER_OR_EQUAL
+        if ($c1 === 61 && $c2 === 62) {
+            return 391;
+        } // =>  T_DOUBLE_ARROW
+        if ($c1 === 45 && $c2 === 62) {
+            return 389;
+        } // ->  T_OBJECT_OPERATOR
+        if ($c1 === 58 && $c2 === 58) {
+            return 402;
+        } // ::  T_PAAMAYIM_NEKUDOTAYIM
+        if ($c1 === 43 && $c2 === 43) {
+            return 379;
+        } // ++  T_INC
+        if ($c1 === 45 && $c2 === 45) {
+            return 380;
+        } // --  T_DEC
+        if ($c1 === 38 && $c2 === 38) {
+            return 369;
+        } // &&  T_BOOLEAN_AND
+        if ($c1 === 124 && $c2 === 124) {
+            return 368;
+        } // ||  T_BOOLEAN_OR
+        if ($c1 === 60 && $c2 === 60) {
+            return 377;
+        } // <<  T_SL
+        if ($c1 === 62 && $c2 === 62) {
+            return 378;
+        } // >>  T_SR
+        if ($c1 === 42 && $c2 === 42) {
+            return 406;
+        } // **  T_POW
+        if ($c1 === 63 && $c2 === 63) {
+            return 405;
+        } // ??  T_COALESCE
 
         return 0;
     }
