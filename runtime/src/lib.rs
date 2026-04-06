@@ -997,6 +997,66 @@ pub extern "C" fn pico_file_put_contents(filename: *const c_char, data: *const c
 }
 
 // ---------------------------------------------------------------------------
+// Process & I/O
+// ---------------------------------------------------------------------------
+
+/// Execute a shell command, return output as a C string.
+#[no_mangle]
+pub extern "C" fn pico_exec(command: *const c_char, result_code: *mut i32) -> *mut c_char {
+    if command.is_null() { return std::ptr::null_mut(); }
+    let Ok(cmd) = unsafe { CStr::from_ptr(command) }.to_str() else { return std::ptr::null_mut(); };
+    let output = std::process::Command::new("sh").arg("-c").arg(cmd).output();
+    match output {
+        Ok(out) => {
+            if !result_code.is_null() {
+                unsafe { *result_code = out.status.code().unwrap_or(-1); }
+            }
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            let trimmed = stdout.trim_end_matches('\n');
+            match CString::new(trimmed) {
+                Ok(cs) => cs.into_raw(),
+                Err(_) => std::ptr::null_mut(),
+            }
+        }
+        Err(_) => {
+            if !result_code.is_null() {
+                unsafe { *result_code = -1; }
+            }
+            std::ptr::null_mut()
+        }
+    }
+}
+
+/// Open a file, return fd (1=stdout, 2=stderr, 3+=file). Returns -1 on error.
+#[no_mangle]
+pub extern "C" fn pico_fopen(filename: *const c_char, mode: *const c_char) -> i32 {
+    if filename.is_null() || mode.is_null() { return -1; }
+    let Ok(f) = unsafe { CStr::from_ptr(filename) }.to_str() else { return -1; };
+    let Ok(m) = unsafe { CStr::from_ptr(mode) }.to_str() else { return -1; };
+    use std::fs::OpenOptions;
+    let file = match m {
+        "r" => OpenOptions::new().read(true).open(f),
+        "w" => OpenOptions::new().write(true).create(true).truncate(true).open(f),
+        "a" => OpenOptions::new().append(true).create(true).open(f),
+        _ => OpenOptions::new().write(true).create(true).truncate(true).open(f),
+    };
+    match file {
+        Ok(f) => {
+            // Leak the file handle and return a fake fd (pointer as int)
+            let boxed = Box::new(f);
+            Box::into_raw(boxed) as i32
+        }
+        Err(_) => -1,
+    }
+}
+
+/// Close a file descriptor (stub — we leak file handles).
+#[no_mangle]
+pub extern "C" fn pico_fclose(_fd: i32) -> i32 {
+    1 // always "success"
+}
+
+// ---------------------------------------------------------------------------
 // Search & compare
 // ---------------------------------------------------------------------------
 

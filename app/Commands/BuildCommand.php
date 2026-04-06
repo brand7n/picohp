@@ -88,7 +88,7 @@ final class BuildCommand
                     mkdir($buildPath, 0700, true);
                 }
                 $jsonPath = "{$buildPath}/precompile_plan.json";
-                file_put_contents($jsonPath, json_encode($plan->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                file_put_contents($jsonPath, json_encode($plan->toArray()));
                 $io->writeln("Wrote {$jsonPath}");
             }
 
@@ -123,7 +123,7 @@ final class BuildCommand
                     throw $e;
                 }
                 // @codeCoverageIgnoreStart
-                if (is_null($ast)) {
+                if (null === ($ast)) {
                     $io->error("Failed to parse input file: {$filename}");
 
                     return 1;
@@ -170,7 +170,7 @@ final class BuildCommand
             }
 
             if ($debug) {
-                file_put_contents($astOutput, json_encode($ast, JSON_PRETTY_PRINT));
+                file_put_contents($astOutput, json_encode($ast));
             }
 
             $traverser = new NodeTraverser();
@@ -202,14 +202,12 @@ final class BuildCommand
             if ($isDirectoryBuild) {
                 \App\PicoHP\LLVM\BasicBlock::enableAutoSeal();
             }
-            $semanticPass = new SemanticAnalysisPass($transformedAst, static function (string $message) use ($io): void {
-                $io->warning($message);
-            }, allowStubbing: $isDirectoryBuild);
+            $semanticPass = new SemanticAnalysisPass($transformedAst, $io->createSemanticWarningCallback(), allowStubbing: $isDirectoryBuild);
             $semanticPass->exec();
 
             if ($debug) {
                 $astWithSymbolOutput = "{$buildPath}/ast_sym.json";
-                file_put_contents($astWithSymbolOutput, json_encode($transformedAst, JSON_PRETTY_PRINT));
+                file_put_contents($astWithSymbolOutput, json_encode($transformedAst));
             }
 
             $resolvedFile = realpath($filename);
@@ -334,7 +332,7 @@ final class BuildCommand
             throw $e;
         }
         // @codeCoverageIgnoreStart
-        if (is_null($ast)) {
+        if (null === ($ast)) {
             throw new \RuntimeException("Failed to parse input file: {$filename}");
         }
         // @codeCoverageIgnoreEnd

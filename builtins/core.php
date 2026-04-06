@@ -315,6 +315,23 @@ function class_exists(string $class, bool $autoload = true): bool
 {
 }
 
+// ── Process & I/O ───────────────────────────────────────────────────
+
+/** @runtime-symbol pico_exec */
+function exec(string $command, int $result_code = 0): string
+{
+}
+
+/** @runtime-symbol pico_fopen */
+function fopen(string $filename, string $mode): int
+{
+}
+
+/** @runtime-symbol pico_fclose */
+function fclose(int $fd): bool
+{
+}
+
 // ── Misc ─────────────────────────────────────────────────────────────
 
 /** @intrinsic noop */

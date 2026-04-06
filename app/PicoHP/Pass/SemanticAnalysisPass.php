@@ -1607,6 +1607,8 @@ class SemanticAnalysisPass implements PassInterface
             // Built-in functions — registry-driven lookup
             if ($this->builtinRegistry->has($funcName)) {
                 $def = $this->builtinRegistry->get($funcName);
+                $existing = $this->symbolTable->lookup($funcName);
+                $pData->symbol = $existing ?? $this->symbolTable->addSymbol($funcName, $def->returnType, func: true);
                 if ($def->returnMatchesArg !== null) {
                     $argIdx = $def->returnMatchesArg;
                     if (count($expr->args) > $argIdx && $expr->args[$argIdx] instanceof \PhpParser\Node\Arg) {

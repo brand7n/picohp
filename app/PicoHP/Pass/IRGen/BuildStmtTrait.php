@@ -66,6 +66,7 @@ trait BuildStmtTrait
                     $this->buildStmts($stmt->stmts);
                 } catch (\Throwable $e) {
                     // Clear partial IR and replace with a clean abort stub
+                    fwrite(STDERR, "[IR-STUB] {$stmt->name->toString()}: {$e->getMessage()}\n");
                     CompilerInvariant::check($this->ctx->function !== null);
                     $this->ctx->function->clearBlocks();
                     $bb = $this->ctx->function->addBasicBlock('entry');
@@ -333,6 +334,7 @@ trait BuildStmtTrait
                         }
                     }
                 } catch (\Throwable $e) {
+                    fwrite(STDERR, "[IR-STUB] {$qualifiedName}: {$e->getMessage()}\n");
                     CompilerInvariant::check($this->ctx->function !== null);
                     $this->ctx->function->clearBlocks();
                     $bb = $this->ctx->function->addBasicBlock('entry');

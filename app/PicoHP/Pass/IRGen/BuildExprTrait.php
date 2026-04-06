@@ -1198,8 +1198,23 @@ trait BuildExprTrait
             $this->builder->addLine('unreachable', 1);
             return new Void_();
         } elseif ($expr instanceof \PhpParser\Node\Expr\Throw_) {
-            // throw new ClassName(args...)
-            CompilerInvariant::check($expr->expr instanceof \PhpParser\Node\Expr\New_);
+            if (!($expr->expr instanceof \PhpParser\Node\Expr\New_)) {
+                // throw $variable — re-throw an existing exception
+                $objPtr = $this->buildExpr($expr->expr);
+                if ($this->ctx->tryContext !== null) {
+                    $this->builder->createStore($objPtr, $this->ctx->tryContext['exceptionSlot']);
+                    $this->builder->createBranch([$this->ctx->tryContext['catchLabel']]);
+                } elseif ($this->ctx->function !== null && $this->ctx->function->canThrow) {
+                    $retType = $this->ctx->function->getReturnType()->toBase();
+                    $errResult = $this->builder->createResultErr($objPtr, $retType);
+                    $structType = Builder::resultTypeName($retType);
+                    $this->builder->addLine("ret {$structType} {$errResult->render()}", 1);
+                } else {
+                    $this->builder->addLine('call void @abort()', 1);
+                    $this->builder->addLine('unreachable', 1);
+                }
+                return new Void_();
+            }
             $newExpr = $expr->expr;
             CompilerInvariant::check($newExpr->class instanceof \PhpParser\Node\Name);
             $className = ClassSymbol::fqcnFromResolvedName($newExpr->class, $this->currentNamespace());
