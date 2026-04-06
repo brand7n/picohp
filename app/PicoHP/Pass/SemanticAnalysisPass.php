@@ -364,8 +364,17 @@ class SemanticAnalysisPass implements PassInterface
             // Only php-parser types are safe to replace: user classes can be empty until traits apply.
             if ($meta->methods === [] && str_starts_with($fqcn, 'PhpParser\\')) {
                 if (class_exists($fqcn, true) || interface_exists($fqcn, true)) {
+                    if ($fqcn === 'PhpParser\ParserAbstract') {
+                        if (isset($meta->properties['lexer'])) {
+                        }
+                    }
                     unset($this->classRegistry[$fqcn], $this->typeIdMap[$fqcn]);
                     $this->registerClassHierarchyFromReflection($fqcn);
+                    if ($fqcn === 'PhpParser\ParserAbstract' && isset($this->classRegistry[$fqcn])) {
+                        $newMeta = $this->classRegistry[$fqcn];
+                        if (isset($newMeta->properties['lexer'])) {
+                        }
+                    }
                 }
             }
 
@@ -562,6 +571,8 @@ class SemanticAnalysisPass implements PassInterface
             return PicoType::enum($name);
         }
         if (class_exists($name) || interface_exists($name)) {
+            if ($name === 'PhpParser\Lexer') {
+            }
             return $rt->allowsNull() ? PicoType::fromString('?'.$name) : PicoType::object($name);
         }
 
@@ -728,6 +739,8 @@ class SemanticAnalysisPass implements PassInterface
                     }
                 }
                 $stmt->stmts = $inlinedStmts;
+                // Push namespace so typeFromNode resolves class names correctly
+                $this->namespaceStack[] = $namespace;
                 foreach ($stmt->stmts as $classStmt) {
                     if ($classStmt instanceof \PhpParser\Node\Stmt\Property) {
                         if ($classStmt->type === null) {
@@ -740,11 +753,16 @@ class SemanticAnalysisPass implements PassInterface
                             $propType = $this->docTypeParser->parseType($docText);
                         } else {
                             \App\PicoHP\CompilerInvariant::check($classStmt->type instanceof \PhpParser\Node\Identifier || $classStmt->type instanceof \PhpParser\Node\NullableType || $classStmt->type instanceof \PhpParser\Node\Name || $classStmt->type instanceof \PhpParser\Node\UnionType);
+                            if ($classStmt->type instanceof \PhpParser\Node\Name && $classStmt->type->toString() === 'Lexer') {
+                                $rn = $classStmt->type->getAttribute('resolvedName');
+                            }
                             $docText = $this->docTextForPropertyVarTag($classStmt);
                             if ($docText !== null) {
                                 $propType = $this->docTypeParser->parseType($docText);
                             } else {
                                 $propType = $this->typeFromNode($classStmt->type);
+
+
                             }
                         }
                         if ($classStmt->isStatic()) {
@@ -793,6 +811,7 @@ class SemanticAnalysisPass implements PassInterface
                         }
                     }
                 }
+                array_pop($this->namespaceStack);
             }
             if ($stmt instanceof \PhpParser\Node\Stmt\Interface_) {
                 \App\PicoHP\CompilerInvariant::check($stmt->name instanceof \PhpParser\Node\Identifier);
@@ -1105,10 +1124,14 @@ class SemanticAnalysisPass implements PassInterface
         }
         if ($node instanceof \PhpParser\Node\Name) {
             $name = ClassSymbol::fqcnFromResolvedName($node, $this->currentNamespace());
+            if ($name === 'Lexer') {
+            }
             if (isset($this->enumRegistry[$name])) {
                 return PicoType::enum($name);
             }
             return PicoType::fromString($name);
+        }
+        if (!in_array($node->name, ['int', 'float', 'bool', 'string', 'void', 'mixed', 'array', 'callable', 'iterable', 'object', 'null', 'self', 'static', 'parent', 'never'], true)) {
         }
         return PicoType::fromString($node->name);
     }
@@ -1261,11 +1284,13 @@ class SemanticAnalysisPass implements PassInterface
             // Class constants handled during class registration
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Foreach_) {
             $arrayType = $this->resolveExpr($stmt->expr);
-            \App\PicoHP\CompilerInvariant::check($arrayType->isArray() || $arrayType->isMixed(), "foreach expression must be an array, got {$arrayType->toString()}");
+            if (!$arrayType->isArray() && !$arrayType->isMixed() && !$arrayType->isObject()) {
+                throw new \Exception("foreach expression must be an array, got {$arrayType->toString()}");
+            }
             \App\PicoHP\CompilerInvariant::check($stmt->valueVar instanceof \PhpParser\Node\Expr\Variable);
             \App\PicoHP\CompilerInvariant::check(is_string($stmt->valueVar->name));
             $valueVarPData = $this->getPicoData($stmt->valueVar);
-            $elementType = $arrayType->isMixed() ? PicoType::fromString('mixed') : $arrayType->getElementType();
+            $elementType = ($arrayType->isMixed() || $arrayType->isObject()) ? PicoType::fromString('mixed') : $arrayType->getElementType();
             // Reuse existing symbol if already declared in this scope (e.g. multiple foreach
             // loops using the same variable). Note: does not re-type — safe because PHPStan-max
             // enforces compatible types at the source level for our compilation target.
@@ -1732,7 +1757,10 @@ class SemanticAnalysisPass implements PassInterface
                     }
                 }
             }
-            return $classMeta->getPropertyType($propName, $line);
+            $propResult = $classMeta->getPropertyType($propName, $line);
+            if ($propName === 'lexer' && $propResult->isObject()) {
+            }
+            return $propResult;
         } elseif ($expr instanceof \PhpParser\Node\Expr\MethodCall) {
             $objType = $this->resolveExpr($expr->var);
             // Mixed type: method calls resolve to mixed
@@ -1744,6 +1772,15 @@ class SemanticAnalysisPass implements PassInterface
             \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Identifier);
             $className = $objType->getClassName();
             $methodName = $expr->name->toString();
+            if ($className === 'Lexer' && $methodName === 'tokenize') {
+                // Trace where this short name comes from
+                $sf = $expr->getAttribute('pico_source_file') ?? 'unknown';
+                // Check what the lexer property type actually is in the registry
+                $thisClassName = $this->currentClass !== null ? $this->currentClass->name : 'N/A';
+                if ($this->currentClass !== null && isset($this->currentClass->properties['lexer'])) {
+                    $lexerType = $this->currentClass->properties['lexer'];
+                }
+            }
             $this->ensureExternalClassReference($className);
             if (!isset($this->classRegistry[$className])) {
                 if ($this->allowStubbing) {

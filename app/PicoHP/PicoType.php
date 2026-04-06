@@ -163,7 +163,9 @@ class PicoType
 
     public function getElementType(): PicoType
     {
-        \App\PicoHP\CompilerInvariant::check($this->elementPicoType !== null, 'getElementType() called on non-array PicoType');
+        if ($this->elementPicoType === null) {
+            return self::fromString('mixed');
+        }
         return $this->elementPicoType;
     }
 

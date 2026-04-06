@@ -484,7 +484,7 @@ trait BuildStmtTrait
 
             $arrayPtr = $this->buildExpr($stmt->expr);
             $arrayType = $this->getExprResolvedType($stmt->expr);
-            $elemBaseType = $arrayType->isMixed() ? BaseType::PTR : $arrayType->getElementBaseType();
+            $elemBaseType = ($arrayType->isMixed() || $arrayType->isObject()) ? BaseType::PTR : $arrayType->getElementBaseType();
 
             CompilerInvariant::check($stmt->valueVar instanceof \PhpParser\Node\Expr\Variable);
             $valueVarPData = PicoHPData::getPData($stmt->valueVar);
