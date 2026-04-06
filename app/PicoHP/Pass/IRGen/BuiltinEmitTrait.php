@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\PicoHP\Pass\IRGen;
 
 use App\PicoHP\{BaseType, BuiltinMethodDef, ClassSymbol, CompilerInvariant, PicoType};
-use App\PicoHP\LLVM\{Builder, IRLine, ValueAbstract};
+use App\PicoHP\LLVM\{Builder, ValueAbstract};
 use App\PicoHP\LLVM\Value\{Constant, Void_, Label, Param};
 use App\PicoHP\SymbolTable\{ClassMetadata, PicoHPData};
 
