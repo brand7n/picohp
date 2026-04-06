@@ -66,8 +66,15 @@ class ClassMetadata
 
     public function addProperty(string $name, PicoType $type): int
     {
-        // If property already exists (inherited from parent), preserve its offset
+        // If property already exists with a more specific type (e.g. FQCN from reflection),
+        // don't overwrite with a less specific type (e.g. short name from AST)
         if (isset($this->propertyOffsets[$name])) {
+            $existing = $this->properties[$name];
+            if ($existing->isObject() && $type->isObject()
+                && str_contains($existing->getClassName(), '\\')
+                && !str_contains($type->getClassName(), '\\')) {
+                return $this->propertyOffsets[$name];
+            }
             $this->properties[$name] = $type;
             return $this->propertyOffsets[$name];
         }

@@ -53,6 +53,13 @@ class Function_ implements NodeInterface
         return $this->returnType;
     }
 
+    public function clearBlocks(): void
+    {
+        foreach ($this->getBasicBlocks() as $block) {
+            $this->removeChild($block);
+        }
+    }
+
     /**
      * @return array<BasicBlock>
      */

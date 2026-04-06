@@ -64,8 +64,14 @@ trait BuildStmtTrait
                         $this->emitMainArgvConversion($stmt->params);
                     }
                     $this->buildStmts($stmt->stmts);
-                } catch (\Throwable) {
-                    $this->sealAllBlocks();
+                } catch (\Throwable $e) {
+                    // Clear partial IR and replace with a clean abort stub
+                    fwrite(STDERR, "[IR-STUB] {$stmt->name->toString()}: {$e->getMessage()}\n");
+                    CompilerInvariant::check($this->ctx->function !== null);
+                    $this->ctx->function->clearBlocks();
+                    $bb = $this->ctx->function->addBasicBlock('entry');
+                    $this->builder->setInsertPoint($bb);
+                    $this->builder->emitUnimplementedAbort($stmt->name->toString());
                     $pData->stubbed = true;
                 }
             }
@@ -327,8 +333,13 @@ trait BuildStmtTrait
                             $this->builder->createRetVoid();
                         }
                     }
-                } catch (\Throwable) {
-                    $this->sealAllBlocks();
+                } catch (\Throwable $e) {
+                    fwrite(STDERR, "[IR-STUB] {$qualifiedName}: {$e->getMessage()}\n");
+                    CompilerInvariant::check($this->ctx->function !== null);
+                    $this->ctx->function->clearBlocks();
+                    $bb = $this->ctx->function->addBasicBlock('entry');
+                    $this->builder->setInsertPoint($bb);
+                    $this->builder->emitUnimplementedAbort($qualifiedName);
                 }
             }
             $this->module->getDebugInfo()->setCurrentScope(null);
@@ -473,7 +484,7 @@ trait BuildStmtTrait
 
             $arrayPtr = $this->buildExpr($stmt->expr);
             $arrayType = $this->getExprResolvedType($stmt->expr);
-            $elemBaseType = $arrayType->isMixed() ? BaseType::PTR : $arrayType->getElementBaseType();
+            $elemBaseType = ($arrayType->isMixed() || $arrayType->isObject()) ? BaseType::PTR : $arrayType->getElementBaseType();
 
             CompilerInvariant::check($stmt->valueVar instanceof \PhpParser\Node\Expr\Variable);
             $valueVarPData = PicoHPData::getPData($stmt->valueVar);
@@ -704,6 +715,27 @@ trait BuildStmtTrait
                 CompilerInvariant::check(isset($this->enumRegistry[$enumName]), "enum {$enumName} not found for property default");
                 $tag = $this->enumRegistry[$enumName]->getCaseTag($caseName);
                 $this->builder->createStore(new Constant($tag, BaseType::INT), $fieldPtr);
+            } elseif ($default instanceof \PhpParser\Node\Expr\New_) {
+                CompilerInvariant::check($default->class instanceof \PhpParser\Node\Name);
+                $newClassName = ClassSymbol::fqcnFromResolvedName($default->class, $this->currentNamespace());
+                $newMeta = $this->classRegistry[$newClassName] ?? null;
+                $newTypeId = $this->typeIdMap[$newClassName] ?? 0;
+                $newLlvm = ClassSymbol::mangle($newClassName);
+                $newObjPtr = $this->builder->createObjectAlloc($newLlvm, $newTypeId);
+                $newTypeIdPtr = $this->builder->createStructGEP($newLlvm, $newObjPtr, 0, BaseType::INT);
+                $this->builder->createStore(new Constant($newTypeId, BaseType::INT), $newTypeIdPtr);
+                if ($newMeta !== null) {
+                    $this->emitPropertyDefaults($newClassName, $newMeta, $newObjPtr);
+                    if (isset($newMeta->methods['__construct'])) {
+                        $ctorSymbol = $newMeta->methods['__construct'];
+                        $args = $this->buildArgsWithDefaults($default->args, $ctorSymbol);
+                        $allArgs = array_merge([$newObjPtr], $args);
+                        $ctorOwner = $newMeta->methodOwner['__construct'] ?? $newClassName;
+                        $qualifiedName = ClassSymbol::llvmMethodSymbol($ctorOwner, '__construct');
+                        $this->builder->createCall($qualifiedName, $allArgs, BaseType::VOID);
+                    }
+                }
+                $this->builder->createStore($newObjPtr, $fieldPtr);
             } else {
                 /** @phpstan-ignore-next-line */
                 CompilerInvariant::check(false, "unsupported property default type: " . get_class($default));

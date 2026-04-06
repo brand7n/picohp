@@ -63,4 +63,12 @@ final class ConsoleIo
             echo str_repeat("\n", $count);
         }
     }
+
+    /** @return \Closure(string): void */
+    public function createSemanticWarningCallback(): \Closure
+    {
+        return function (string $message): void {
+            $this->warning($message);
+        };
+    }
 }

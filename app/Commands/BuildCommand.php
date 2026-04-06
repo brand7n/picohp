@@ -13,6 +13,7 @@ use App\PicoHP\Pass\{IRGenerationPass, SemanticAnalysisPass};
 use App\PicoHP\Precompile\CompilationPlan;
 use App\PicoHP\Precompile\CompilationPlanner;
 use App\PicoHP\SourceFileAttributeVisitor;
+use App\Support\ProjectConfig;
 use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\PhpVersion;
@@ -81,13 +82,13 @@ final class BuildCommand
             $this->printPrecompilePlan($io, $plan);
 
             if ($options->debug === true) {
-                $buildPath = config('app.build_path');
+                $buildPath = ProjectConfig::get('app.build_path');
                 \App\PicoHP\CompilerInvariant::check(is_string($buildPath));
                 if (!is_dir($buildPath)) {
                     mkdir($buildPath, 0700, true);
                 }
                 $jsonPath = "{$buildPath}/precompile_plan.json";
-                file_put_contents($jsonPath, json_encode($plan->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                file_put_contents($jsonPath, json_encode($plan->toArray()));
                 $io->writeln("Wrote {$jsonPath}");
             }
 
@@ -122,7 +123,7 @@ final class BuildCommand
                     throw $e;
                 }
                 // @codeCoverageIgnoreStart
-                if (is_null($ast)) {
+                if (null === ($ast)) {
                     $io->error("Failed to parse input file: {$filename}");
 
                     return 1;
@@ -141,7 +142,7 @@ final class BuildCommand
             return 1;
         }
 
-        $buildPath = config('app.build_path');
+        $buildPath = ProjectConfig::get('app.build_path');
         \App\PicoHP\CompilerInvariant::check(is_string($buildPath));
         if (!is_dir($buildPath)) {
             // @codeCoverageIgnoreStart
@@ -169,7 +170,7 @@ final class BuildCommand
             }
 
             if ($debug) {
-                file_put_contents($astOutput, json_encode($ast, JSON_PRETTY_PRINT));
+                file_put_contents($astOutput, json_encode($ast));
             }
 
             $traverser = new NodeTraverser();
@@ -201,14 +202,12 @@ final class BuildCommand
             if ($isDirectoryBuild) {
                 \App\PicoHP\LLVM\BasicBlock::enableAutoSeal();
             }
-            $semanticPass = new SemanticAnalysisPass($transformedAst, static function (string $message) use ($io): void {
-                $io->warning($message);
-            }, allowStubbing: $isDirectoryBuild);
+            $semanticPass = new SemanticAnalysisPass($transformedAst, $io->createSemanticWarningCallback(), allowStubbing: $isDirectoryBuild);
             $semanticPass->exec();
 
             if ($debug) {
                 $astWithSymbolOutput = "{$buildPath}/ast_sym.json";
-                file_put_contents($astWithSymbolOutput, json_encode($transformedAst, JSON_PRETTY_PRINT));
+                file_put_contents($astWithSymbolOutput, json_encode($transformedAst));
             }
 
             $resolvedFile = realpath($filename);
@@ -230,7 +229,7 @@ final class BuildCommand
 
             $exe = "{$buildPath}/{$options->out}";
 
-            $llvmPath = config('app.llvm_path');
+            $llvmPath = ProjectConfig::get('app.llvm_path');
             \App\PicoHP\CompilerInvariant::check(is_string($llvmPath));
             $llvmPath = $llvmPath . '/';
             $result = 0;
@@ -254,7 +253,7 @@ final class BuildCommand
             if ($options->sharedLib === true || !$globalToMain->hasMain) {
                 $sharedLibOpts = '-shared -undefined dynamic_lookup';
             }
-            $runtimePath = config('app.runtime_path');
+            $runtimePath = ProjectConfig::get('app.runtime_path');
             \App\PicoHP\CompilerInvariant::check(is_string($runtimePath));
             $runtimeLink = "-L{$runtimePath} -lpico_rt -Wl,-rpath,{$runtimePath}";
             $debugFlag = $resolvedFile !== null ? '-g' : '';
@@ -333,7 +332,7 @@ final class BuildCommand
             throw $e;
         }
         // @codeCoverageIgnoreStart
-        if (is_null($ast)) {
+        if (null === ($ast)) {
             throw new \RuntimeException("Failed to parse input file: {$filename}");
         }
         // @codeCoverageIgnoreEnd

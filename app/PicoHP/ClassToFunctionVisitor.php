@@ -167,7 +167,9 @@ class ClassToFunctionVisitor extends NodeVisitorAbstract
                     // Short names from `use` / `use X\{A, B}` stay as one segment; NameResolver sets resolvedName.
                     $classFqcn = ClassSymbol::fqcnFromResolvedName($node->class, $this->currentNamespace());
                 }
-                \App\PicoHP\CompilerInvariant::check($node->name instanceof Node\Identifier);
+                if (!$node->name instanceof Node\Identifier) {
+                    return null; // dynamic static call — leave as StaticCall
+                }
                 $symbol = ClassSymbol::llvmMethodSymbol($classFqcn, $node->name->toString());
 
                 return new Node\Expr\FuncCall(new Node\Name($symbol), $node->args);

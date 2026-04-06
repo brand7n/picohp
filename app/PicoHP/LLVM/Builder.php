@@ -69,6 +69,17 @@ class Builder
         $this->addLine('declare i32 @pico_file_exists(ptr)');
         $this->addLine('declare ptr @pico_file_get_contents(ptr)');
         $this->addLine('declare ptr @pico_realpath(ptr)');
+        $this->addLine('declare i32 @pico_mkdir(ptr, i32, i32)');
+        $this->addLine('declare ptr @pico_exec(ptr, ptr)');
+        $this->addLine('declare i32 @pico_fopen(ptr, ptr)');
+        $this->addLine('declare i32 @pico_fclose(i32)');
+        $this->addLine('declare i32 @pico_file_put_contents(ptr, ptr)');
+        $this->addLine('declare i32 @pico_in_array_int(i32, ptr, i32)');
+        $this->addLine('declare i32 @pico_strpos(ptr, ptr, i32)');
+        $this->addLine('declare i32 @pico_substr_compare(ptr, ptr, i32, i32, i32)');
+        $this->addLine('declare ptr @pico_sprintf(ptr, ptr)');
+        $this->addLine('declare ptr @pico_json_encode(ptr)');
+        $this->addLine('declare ptr @pico_preg_quote(ptr, ptr)');
         $this->addLine();
         $this->addLine('; value-based exception result types');
         $this->addLine('%result.void = type { i1, ptr }');
