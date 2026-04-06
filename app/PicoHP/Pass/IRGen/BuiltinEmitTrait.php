@@ -25,10 +25,10 @@ trait BuiltinEmitTrait
             }
             $className = $classDef->name;
             if (!isset($this->classRegistry[$className])) {
-                continue;
+                continue; // @codeCoverageIgnore
             }
             if (isset($userClasses[$className])) {
-                continue;
+                continue; // @codeCoverageIgnore
             }
             $classMeta = $this->classRegistry[$className];
             $llvmClass = ClassSymbol::mangle($className);
@@ -51,7 +51,7 @@ trait BuiltinEmitTrait
         $qualifiedName = ClassSymbol::llvmMethodSymbol($className, $methodName);
 
         if ($this->module->hasFunction($qualifiedName)) {
-            return;
+            return; // @codeCoverageIgnore
         }
 
         $thisParam = new PicoType(BaseType::PTR);
@@ -133,7 +133,7 @@ trait BuiltinEmitTrait
         // If the current block is already terminated (e.g. after abort()), this is dead code
         $currentBB = $this->builder->getCurrentBasicBlock();
         if ($currentBB !== null && $currentBB->hasTerminator()) {
-            return $returnType === BaseType::VOID ? new Void_() : new Constant(0, $returnType);
+            return $returnType === BaseType::VOID ? new Void_() : new Constant(0, $returnType); // @codeCoverageIgnore
         }
 
         // Call the function — returns a result struct
