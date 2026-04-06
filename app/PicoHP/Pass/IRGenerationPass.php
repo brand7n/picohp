@@ -268,7 +268,16 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
             $doc = $stmt->getDocComment();
             $this->buildExpr($stmt->expr, $doc);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Return_) {
-            if (!is_null($stmt->expr)) {
+            if (is_null($stmt->expr)) {
+                // bare return; in void function
+                if ($this->currentFunction !== null && $this->currentFunction->canThrow) {
+                    $okResult = $this->builder->createResultOk(new Void_(), BaseType::VOID);
+                    $structType = Builder::resultTypeName(BaseType::VOID);
+                    $this->builder->addLine("ret {$structType} {$okResult->render()}", 1);
+                } else {
+                    $this->builder->createRetVoid();
+                }
+            } elseif (!is_null($stmt->expr)) {
                 $val = $this->buildExpr($stmt->expr);
                 $funcRetType = $this->currentFunction !== null ? $this->currentFunction->getReturnType()->toBase() : null;
                 if ($funcRetType === BaseType::VOID) {
