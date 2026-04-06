@@ -134,7 +134,7 @@ final class BuildOptions
         if (count($positionals) > 1) {
             throw new \InvalidArgumentException('Too many arguments: expected one file or directory');
         }
-        if ($positionals !== []) {
+        if (count($positionals) > 0) {
             $o->filename = $positionals[0];
         }
 
