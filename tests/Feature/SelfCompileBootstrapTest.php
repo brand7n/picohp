@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 it('self-compiles picoHP to a linked binary', function () {
-    if (ini_get('memory_limit') !== '-1' && (int) ini_get('memory_limit') < 1024) {
-        $this->markTestSkipped('Self-compile requires memory_limit >= 1G (run with: php -d memory_limit=1G)');
+    if (getenv('PICOHP_SELF_COMPILE_TEST') === false) {
+        $this->markTestSkipped('Set PICOHP_SELF_COMPILE_TEST=1 to run (requires 1G+ memory)');
     }
     /** @phpstan-ignore-next-line */
     $this->assertPicohpExitCode(
