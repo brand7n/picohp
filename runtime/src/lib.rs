@@ -969,6 +969,16 @@ pub extern "C" fn pico_map_get_value_str(map: *const PicoMap, index: i32) -> *co
     }
 }
 
+/// substr_count — count occurrences of needle in haystack.
+#[no_mangle]
+pub extern "C" fn pico_substr_count(haystack: *const c_char, needle: *const c_char) -> i32 {
+    if haystack.is_null() || needle.is_null() { return 0; }
+    let h = unsafe { CStr::from_ptr(haystack) }.to_bytes();
+    let n = unsafe { CStr::from_ptr(needle) }.to_bytes();
+    if n.is_empty() { return 0; }
+    h.windows(n.len()).filter(|w| *w == n).count() as i32
+}
+
 // ---------------------------------------------------------------------------
 // Filesystem (extended)
 // ---------------------------------------------------------------------------
