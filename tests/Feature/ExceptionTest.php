@@ -99,3 +99,17 @@ it('handles throw and catch of reflection-registered InvalidArgumentException', 
 
     expect($compiled_output)->toBe($php_output);
 });
+
+it('handles RuntimeException catch', function () {
+    $file = 'tests/programs/exceptions/runtime_exception.php';
+
+    /** @phpstan-ignore-next-line */
+    $this->assertPicohpExitCode("build --debug {$file}");
+
+    $buildPath = config('app.build_path');
+    assert(is_string($buildPath));
+    $compiled_output = shell_exec("{$buildPath}/a.out");
+    $php_output = shell_exec("php {$file}");
+
+    expect($compiled_output)->toBe($php_output);
+});
