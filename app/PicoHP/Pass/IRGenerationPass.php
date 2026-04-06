@@ -171,6 +171,15 @@ class IRGenerationPass implements \App\PicoHP\PassInterface
         $fieldPtr = $this->builder->createStructGEP('Exception', $thisParam, 1, BaseType::STRING);
         $msgVal = $this->builder->createLoad($fieldPtr);
         $this->builder->createInstruction('ret', [$msgVal], false);
+
+        // Exception_getTraceAsString(ptr %this) -> ptr (stub: returns empty string)
+        $getTraceFunc = $this->module->addFunction('Exception_getTraceAsString', new \App\PicoHP\PicoType(BaseType::STRING), [
+            new \App\PicoHP\PicoType(BaseType::PTR),
+        ]);
+        $bb = $getTraceFunc->addBasicBlock('entry');
+        $this->builder->setInsertPoint($bb);
+        $emptyStr = $this->builder->createStringConstant('');
+        $this->builder->createInstruction('ret', [$emptyStr], false);
     }
 
     /**

@@ -274,6 +274,9 @@ class SemanticAnalysisPass implements PassInterface
         $getMessageSymbol = new \App\PicoHP\SymbolTable\Symbol('getMessage', PicoType::fromString('string'), func: true);
         $exceptionMeta->methods['getMessage'] = $getMessageSymbol;
         $exceptionMeta->methodOwner['getMessage'] = 'Exception';
+        $getTraceAsStringSymbol = new \App\PicoHP\SymbolTable\Symbol('getTraceAsString', PicoType::fromString('string'), func: true);
+        $exceptionMeta->methods['getTraceAsString'] = $getTraceAsStringSymbol;
+        $exceptionMeta->methodOwner['getTraceAsString'] = 'Exception';
         $ctorSymbol = new \App\PicoHP\SymbolTable\Symbol('__construct', PicoType::fromString('void'), func: true);
         $ctorSymbol->params = [PicoType::fromString('string')];
         $ctorSymbol->paramNames = [0 => 'message'];

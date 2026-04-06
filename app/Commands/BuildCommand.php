@@ -232,7 +232,7 @@ final class BuildCommand
 
             $llvmPath = config('app.llvm_path');
             \App\PicoHP\CompilerInvariant::check(is_string($llvmPath));
-            $llvmPath .= '/';
+            $llvmPath = $llvmPath . '/';
             $result = 0;
 
             if ($options->withOptLl === 'off') {
