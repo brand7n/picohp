@@ -230,6 +230,16 @@ function realpath(string $path): string
 {
 }
 
+/** @runtime-symbol pico_mkdir */
+function mkdir(string $path, int $permissions = 0777, bool $recursive = false): bool
+{
+}
+
+/** @runtime-symbol pico_file_put_contents */
+function file_put_contents(string $filename, string $data): int
+{
+}
+
 /** @runtime-symbol pico_ord */
 function ord(string $str): int
 {

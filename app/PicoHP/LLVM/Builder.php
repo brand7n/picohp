@@ -69,6 +69,8 @@ class Builder
         $this->addLine('declare i32 @pico_file_exists(ptr)');
         $this->addLine('declare ptr @pico_file_get_contents(ptr)');
         $this->addLine('declare ptr @pico_realpath(ptr)');
+        $this->addLine('declare i32 @pico_mkdir(ptr, i32, i32)');
+        $this->addLine('declare i32 @pico_file_put_contents(ptr, ptr)');
         $this->addLine('declare i32 @pico_in_array_int(i32, ptr, i32)');
         $this->addLine('declare i32 @pico_strpos(ptr, ptr, i32)');
         $this->addLine('declare i32 @pico_substr_compare(ptr, ptr, i32, i32, i32)');

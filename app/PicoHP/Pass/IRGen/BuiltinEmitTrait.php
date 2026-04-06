@@ -6,7 +6,7 @@ namespace App\PicoHP\Pass\IRGen;
 
 use App\PicoHP\{BaseType, BuiltinMethodDef, ClassSymbol, CompilerInvariant, PicoType};
 use App\PicoHP\LLVM\{Builder, ValueAbstract};
-use App\PicoHP\LLVM\Value\{Constant, Void_, Label, Param};
+use App\PicoHP\LLVM\Value\{Constant, NullConstant, Void_, Label, Param};
 use App\PicoHP\SymbolTable\{ClassMetadata, PicoHPData};
 
 trait BuiltinEmitTrait
@@ -208,6 +208,6 @@ trait BuiltinEmitTrait
             $this->builder->emitUnimplementedAbort($funcName);
             throw new \RuntimeException("unimplemented function: {$funcName}");
         }
-        return new Void_();
+        return new NullConstant(BaseType::PTR);
     }
 }

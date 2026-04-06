@@ -970,6 +970,33 @@ pub extern "C" fn pico_map_get_value_str(map: *const PicoMap, index: i32) -> *co
 }
 
 // ---------------------------------------------------------------------------
+// Filesystem (extended)
+// ---------------------------------------------------------------------------
+
+#[no_mangle]
+pub extern "C" fn pico_mkdir(path: *const c_char, _permissions: i32, recursive: i32) -> i32 {
+    if path.is_null() { return 0; }
+    let Ok(s) = unsafe { CStr::from_ptr(path) }.to_str() else { return 0; };
+    let result = if recursive != 0 {
+        std::fs::create_dir_all(s)
+    } else {
+        std::fs::create_dir(s)
+    };
+    result.is_ok() as i32
+}
+
+#[no_mangle]
+pub extern "C" fn pico_file_put_contents(filename: *const c_char, data: *const c_char) -> i32 {
+    if filename.is_null() || data.is_null() { return -1; }
+    let Ok(f) = unsafe { CStr::from_ptr(filename) }.to_str() else { return -1; };
+    let bytes = unsafe { CStr::from_ptr(data) }.to_bytes();
+    match std::fs::write(f, bytes) {
+        Ok(()) => bytes.len() as i32,
+        Err(_) => -1,
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Search & compare
 // ---------------------------------------------------------------------------
 

@@ -65,7 +65,12 @@ trait BuildStmtTrait
                     }
                     $this->buildStmts($stmt->stmts);
                 } catch (\Throwable) {
-                    $this->sealAllBlocks();
+                    // Clear partial IR and replace with a clean abort stub
+                    CompilerInvariant::check($this->ctx->function !== null);
+                    $this->ctx->function->clearBlocks();
+                    $bb = $this->ctx->function->addBasicBlock('entry');
+                    $this->builder->setInsertPoint($bb);
+                    $this->builder->emitUnimplementedAbort($stmt->name->toString());
                     $pData->stubbed = true;
                 }
             }
@@ -328,7 +333,11 @@ trait BuildStmtTrait
                         }
                     }
                 } catch (\Throwable) {
-                    $this->sealAllBlocks();
+                    CompilerInvariant::check($this->ctx->function !== null);
+                    $this->ctx->function->clearBlocks();
+                    $bb = $this->ctx->function->addBasicBlock('entry');
+                    $this->builder->setInsertPoint($bb);
+                    $this->builder->emitUnimplementedAbort($qualifiedName);
                 }
             }
             $this->module->getDebugInfo()->setCurrentScope(null);
