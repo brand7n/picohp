@@ -1121,7 +1121,19 @@ trait BuildExprTrait
                 $structType = Builder::resultTypeName($retType);
                 $this->builder->addLine("ret {$structType} {$errResult->render()}", 1);
             } else {
-                // Uncaught — abort
+                // Uncaught — print "Uncaught ClassName: <message>" to stderr, then abort
+                $label = 'Uncaught ' . $className;
+                if (count($newExpr->args) > 0 && $newExpr->args[0] instanceof \PhpParser\Node\Arg) {
+                    $firstArg = $this->buildExpr($newExpr->args[0]->value);
+                    $prefixLit = $this->builder->createStringConstant($label . ': ');
+                    $fullMsg = $this->builder->createCall('pico_string_concat', [$prefixLit, $firstArg], BaseType::PTR);
+                } else {
+                    $fullMsg = $this->builder->createStringConstant($label);
+                }
+                $nlLit = $this->builder->createStringConstant("\n");
+                $withNl = $this->builder->createCall('pico_string_concat', [$fullMsg, $nlLit], BaseType::PTR);
+                $len = $this->builder->createCall('pico_string_len', [$withNl], BaseType::INT);
+                $this->builder->addLine("call i32 @pico_fwrite(i32 2, ptr {$withNl->render()}, i32 {$len->render()})", 1);
                 $this->builder->addLine('call void @abort()', 1);
                 $this->builder->addLine('unreachable', 1);
             }

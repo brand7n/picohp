@@ -181,10 +181,12 @@ abstract class ParserAbstract implements Parser
 
         $this->initReduceCallbacks();
         $this->phpTokenToSymbol = $this->createTokenMap();
-        $this->dropTokens = array_fill_keys(
-            [\T_WHITESPACE, \T_OPEN_TAG, \T_COMMENT, \T_DOC_COMMENT, \T_BAD_CHARACTER],
-            true
-        );
+        $this->dropTokens = [];
+    }
+
+    protected function isDropToken(int $id): bool
+    {
+        return $id === \T_WHITESPACE || $id === \T_OPEN_TAG || $id === \T_COMMENT || $id === \T_DOC_COMMENT || $id === \T_BAD_CHARACTER;
     }
 
     /**
@@ -278,16 +280,12 @@ abstract class ParserAbstract implements Parser
                     do {
                         $token = $this->tokens[++$this->tokenPos];
                         $tokenId = $token->id;
-                    } while (isset($this->dropTokens[$tokenId]));
+                    } while ($this->isDropToken($tokenId));
 
                     // Map the lexer token id to the internally used symbols.
                     $tokenValue = $token->text;
-                    if (!isset($this->phpTokenToSymbol[$tokenId])) {
-                        throw new \RangeException(sprintf(
-                            'The lexer returned an invalid token (id=%d, value=%s)',
-                            $tokenId,
-                            $tokenValue
-                        ));
+                    if ($tokenId < 0 || $tokenId >= count($this->phpTokenToSymbol) || $this->phpTokenToSymbol[$tokenId] === -1) {
+                        throw new \RangeException('The lexer returned an invalid token');
                     }
                     $symbol = $this->phpTokenToSymbol[$tokenId];
 
@@ -1017,7 +1015,7 @@ abstract class ParserAbstract implements Parser
     {
         while (--$tokenPos >= 0) {
             $token = $this->tokens[$tokenPos];
-            if (!isset($this->dropTokens[$token->id])) {
+            if (!$this->isDropToken($token->id)) {
                 break;
             }
 

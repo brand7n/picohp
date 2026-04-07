@@ -597,6 +597,24 @@ pub struct PicoArray {
     data: Vec<PicoValue>,
 }
 
+impl PicoArray {
+    /// Grow the backing vec so that `index` is valid, filling gaps with int 0.
+    fn ensure_index(&mut self, index: usize) {
+        if index >= self.data.len() {
+            self.data.resize(index + 1, PicoValue::Int(0));
+        }
+    }
+}
+
+macro_rules! null_check {
+    ($ptr:expr, $fn_name:expr) => {
+        if $ptr.is_null() {
+            eprintln!("FATAL: null array pointer passed to {}", $fn_name);
+            std::process::abort();
+        }
+    };
+}
+
 #[no_mangle]
 pub extern "C" fn pico_array_new() -> *mut PicoArray {
     let arr = Box::new(PicoArray { data: Vec::new() });
@@ -605,6 +623,7 @@ pub extern "C" fn pico_array_new() -> *mut PicoArray {
 
 #[no_mangle]
 pub extern "C" fn pico_array_len(arr: *const PicoArray) -> i32 {
+    null_check!(arr, "pico_array_len");
     let arr = unsafe { &*arr };
     arr.data.len() as i32
 }
@@ -612,6 +631,7 @@ pub extern "C" fn pico_array_len(arr: *const PicoArray) -> i32 {
 /// Copy a range into a new array. `length < 0` means "to end" (PHP `array_slice` with omitted length).
 #[no_mangle]
 pub extern "C" fn pico_array_slice(arr: *const PicoArray, offset: i32, length: i32) -> *mut PicoArray {
+    null_check!(arr, "pico_array_slice");
     let arr = unsafe { &*arr };
     let n = arr.data.len() as i32;
     let start = if offset < 0 {
@@ -636,24 +656,28 @@ pub extern "C" fn pico_array_slice(arr: *const PicoArray, offset: i32, length: i
 
 #[no_mangle]
 pub extern "C" fn pico_array_push_int(arr: *mut PicoArray, val: i32) {
+    null_check!(arr, "pico_array_push_int");
     let arr = unsafe { &mut *arr };
     arr.data.push(PicoValue::Int(val));
 }
 
 #[no_mangle]
 pub extern "C" fn pico_array_push_float(arr: *mut PicoArray, val: f64) {
+    null_check!(arr, "pico_array_push_float");
     let arr = unsafe { &mut *arr };
     arr.data.push(PicoValue::Float(val));
 }
 
 #[no_mangle]
 pub extern "C" fn pico_array_push_bool(arr: *mut PicoArray, val: i32) {
+    null_check!(arr, "pico_array_push_bool");
     let arr = unsafe { &mut *arr };
     arr.data.push(PicoValue::Bool(val != 0));
 }
 
 #[no_mangle]
 pub extern "C" fn pico_array_push_str(arr: *mut PicoArray, val: *const c_char) {
+    null_check!(arr, "pico_array_push_str");
     let arr = unsafe { &mut *arr };
     arr.data.push(PicoValue::Str(val));
 }
@@ -662,6 +686,7 @@ pub extern "C" fn pico_array_push_str(arr: *mut PicoArray, val: *const c_char) {
 
 #[no_mangle]
 pub extern "C" fn pico_array_get_int(arr: *const PicoArray, index: i32) -> i32 {
+    null_check!(arr, "pico_array_get_int");
     let arr = unsafe { &*arr };
     match &arr.data[index as usize] {
         PicoValue::Int(v) => *v,
@@ -671,6 +696,7 @@ pub extern "C" fn pico_array_get_int(arr: *const PicoArray, index: i32) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn pico_array_get_float(arr: *const PicoArray, index: i32) -> f64 {
+    null_check!(arr, "pico_array_get_float");
     let arr = unsafe { &*arr };
     match &arr.data[index as usize] {
         PicoValue::Float(v) => *v,
@@ -680,6 +706,7 @@ pub extern "C" fn pico_array_get_float(arr: *const PicoArray, index: i32) -> f64
 
 #[no_mangle]
 pub extern "C" fn pico_array_get_bool(arr: *const PicoArray, index: i32) -> i32 {
+    null_check!(arr, "pico_array_get_bool");
     let arr = unsafe { &*arr };
     match &arr.data[index as usize] {
         PicoValue::Bool(v) => *v as i32,
@@ -689,6 +716,7 @@ pub extern "C" fn pico_array_get_bool(arr: *const PicoArray, index: i32) -> i32 
 
 #[no_mangle]
 pub extern "C" fn pico_array_get_str(arr: *const PicoArray, index: i32) -> *const c_char {
+    null_check!(arr, "pico_array_get_str");
     let arr = unsafe { &*arr };
     match &arr.data[index as usize] {
         PicoValue::Str(v) => *v,
@@ -713,25 +741,33 @@ pub extern "C" fn pico_argv_to_array(argc: c_int, argv: *const *const c_char) ->
 
 #[no_mangle]
 pub extern "C" fn pico_array_set_int(arr: *mut PicoArray, index: i32, val: i32) {
+    null_check!(arr, "pico_array_set_int");
     let arr = unsafe { &mut *arr };
+    arr.ensure_index(index as usize);
     arr.data[index as usize] = PicoValue::Int(val);
 }
 
 #[no_mangle]
 pub extern "C" fn pico_array_set_float(arr: *mut PicoArray, index: i32, val: f64) {
+    null_check!(arr, "pico_array_set_float");
     let arr = unsafe { &mut *arr };
+    arr.ensure_index(index as usize);
     arr.data[index as usize] = PicoValue::Float(val);
 }
 
 #[no_mangle]
 pub extern "C" fn pico_array_set_bool(arr: *mut PicoArray, index: i32, val: i32) {
+    null_check!(arr, "pico_array_set_bool");
     let arr = unsafe { &mut *arr };
+    arr.ensure_index(index as usize);
     arr.data[index as usize] = PicoValue::Bool(val != 0);
 }
 
 #[no_mangle]
 pub extern "C" fn pico_array_set_str(arr: *mut PicoArray, index: i32, val: *const c_char) {
+    null_check!(arr, "pico_array_set_str");
     let arr = unsafe { &mut *arr };
+    arr.ensure_index(index as usize);
     arr.data[index as usize] = PicoValue::Str(val);
 }
 
@@ -739,12 +775,14 @@ pub extern "C" fn pico_array_set_str(arr: *mut PicoArray, index: i32, val: *cons
 
 #[no_mangle]
 pub extern "C" fn pico_array_push_ptr(arr: *mut PicoArray, val: *mut u8) {
+    null_check!(arr, "pico_array_push_ptr");
     let arr = unsafe { &mut *arr };
     arr.data.push(PicoValue::Ptr(val));
 }
 
 #[no_mangle]
 pub extern "C" fn pico_array_get_ptr(arr: *const PicoArray, index: i32) -> *mut u8 {
+    null_check!(arr, "pico_array_get_ptr");
     let arr = unsafe { &*arr };
     match &arr.data[index as usize] {
         PicoValue::Ptr(v) => *v,
@@ -754,7 +792,9 @@ pub extern "C" fn pico_array_get_ptr(arr: *const PicoArray, index: i32) -> *mut 
 
 #[no_mangle]
 pub extern "C" fn pico_array_set_ptr(arr: *mut PicoArray, index: i32, val: *mut u8) {
+    null_check!(arr, "pico_array_set_ptr");
     let arr = unsafe { &mut *arr };
+    arr.ensure_index(index as usize);
     arr.data[index as usize] = PicoValue::Ptr(val);
 }
 
