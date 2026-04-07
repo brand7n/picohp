@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace PhpParser\Parser;
 
@@ -1246,11 +1248,14 @@ class Php8 extends \PhpParser\ParserAbstract
         switch ($rule) {
             case 1:
 
-                $this->semValue = $this->handleNamespaces($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = $this->handleNamespaces($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 2:
 
-                if ($this->semStack[$stackPos-(2-2)] !== null) { $this->semStack[$stackPos-(2-1)][] = $this->semStack[$stackPos-(2-2)]; } $this->semValue = $this->semStack[$stackPos-(2-1)];;
+                if ($this->semStack[$stackPos - (2 - 2)] !== null) {
+                    $this->semStack[$stackPos - (2 - 1)][] = $this->semStack[$stackPos - (2 - 2)];
+                } $this->semValue = $this->semStack[$stackPos - (2 - 1)];
+                ;
                 return true;
             case 3:
 
@@ -1258,56 +1263,62 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 4:
 
-                $nop = $this->maybeCreateZeroLengthNop($this->tokenPos);;
-                if ($nop !== null) { $this->semStack[$stackPos-(1-1)][] = $nop; } $this->semValue = $this->semStack[$stackPos-(1-1)];
+                $nop = $this->maybeCreateZeroLengthNop($this->tokenPos);
+                ;
+                if ($nop !== null) {
+                    $this->semStack[$stackPos - (1 - 1)][] = $nop;
+                } $this->semValue = $this->semStack[$stackPos - (1 - 1)];
                 return true;
             case 76:
 
-                $this->semValue = $this->semStack[$stackPos-(1-1)]; if ($this->semValue === "<?=") $this->emitError(new Error('Cannot use "<?=" as an identifier', $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos])));
+                $this->semValue = $this->semStack[$stackPos - (1 - 1)];
+                if ($this->semValue === "<?=") {
+                    $this->emitError(new Error('Cannot use "<?=" as an identifier', $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos])));
+                }
                 return true;
             case 85:
 
-                $this->semValue = new Node\Identifier($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\Identifier($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 86:
 
-                $this->semValue = new Node\Identifier($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\Identifier($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 87:
 
-                $this->semValue = new Node\Identifier($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\Identifier($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 88:
 
-                $this->semValue = new Node\Identifier($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\Identifier($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 89:
 
-                $this->semValue = new Name($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Name($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 90:
 
-                $this->semValue = new Name($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Name($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 91:
 
-                $this->semValue = new Name($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Name($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 92:
 
-                $this->semValue = new Name($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Name($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 93:
 
-                $this->semValue = new Name($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Name($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 95:
 
-                $this->semValue = new Name(substr($this->semStack[$stackPos-(1-1)], 1), $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Name(substr($this->semStack[$stackPos - (1 - 1)], 1), $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 96:
 
-                $this->semValue = new Expr\Variable(substr($this->semStack[$stackPos-(1-1)], 1), $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Variable(substr($this->semStack[$stackPos - (1 - 1)], 1), $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 97:
 
@@ -1323,35 +1334,37 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 100:
 
-                $this->emitError(new Error('A trailing comma is not allowed here', $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos])));
+                $this->emitError(new Error('A trailing comma is not allowed here', $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos])));
                 return true;
             case 103:
 
-                $this->semValue = new Node\Attribute($this->semStack[$stackPos-(1-1)], [], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\Attribute($this->semStack[$stackPos - (1 - 1)], [], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 104:
 
-                $this->semValue = new Node\Attribute($this->semStack[$stackPos-(2-1)], $this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\Attribute($this->semStack[$stackPos - (2 - 1)], $this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 105:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 106:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 107:
 
-                $this->semValue = new Node\AttributeGroup($this->semStack[$stackPos-(4-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\AttributeGroup($this->semStack[$stackPos - (4 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 108:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 109:
 
-                $this->semStack[$stackPos-(2-1)][] = $this->semStack[$stackPos-(2-2)]; $this->semValue = $this->semStack[$stackPos-(2-1)];
+                $this->semStack[$stackPos - (2 - 1)][] = $this->semStack[$stackPos - (2 - 2)];
+                $this->semValue = $this->semStack[$stackPos - (2 - 1)];
                 return true;
             case 110:
 
@@ -1359,41 +1372,41 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 115:
 
-                $this->semValue = new Stmt\HaltCompiler($this->handleHaltCompiler(), $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\HaltCompiler($this->handleHaltCompiler(), $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 116:
 
-                $this->semValue = new Stmt\Namespace_($this->semStack[$stackPos-(3-2)], null, $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Namespace_($this->semStack[$stackPos - (3 - 2)], null, $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 $this->semValue->setAttribute('kind', Stmt\Namespace_::KIND_SEMICOLON);
                 $this->checkNamespace($this->semValue);
                 return true;
             case 117:
 
-                $this->semValue = new Stmt\Namespace_($this->semStack[$stackPos-(5-2)], $this->semStack[$stackPos-(5-4)], $this->getAttributes($this->tokenStartStack[$stackPos-(5-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Namespace_($this->semStack[$stackPos - (5 - 2)], $this->semStack[$stackPos - (5 - 4)], $this->getAttributes($this->tokenStartStack[$stackPos - (5 - 1)], $this->tokenEndStack[$stackPos]));
                 $this->semValue->setAttribute('kind', Stmt\Namespace_::KIND_BRACED);
                 $this->checkNamespace($this->semValue);
                 return true;
             case 118:
 
-                $this->semValue = new Stmt\Namespace_(null, $this->semStack[$stackPos-(4-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Namespace_(null, $this->semStack[$stackPos - (4 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 $this->semValue->setAttribute('kind', Stmt\Namespace_::KIND_BRACED);
                 $this->checkNamespace($this->semValue);
                 return true;
             case 119:
 
-                $this->semValue = new Stmt\Use_($this->semStack[$stackPos-(3-2)], Stmt\Use_::TYPE_NORMAL, $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Use_($this->semStack[$stackPos - (3 - 2)], Stmt\Use_::TYPE_NORMAL, $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 120:
 
-                $this->semValue = new Stmt\Use_($this->semStack[$stackPos-(4-3)], $this->semStack[$stackPos-(4-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Use_($this->semStack[$stackPos - (4 - 3)], $this->semStack[$stackPos - (4 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 122:
 
-                $this->semValue = new Stmt\Const_($this->semStack[$stackPos-(3-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]), []);
+                $this->semValue = new Stmt\Const_($this->semStack[$stackPos - (3 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]), []);
                 return true;
             case 123:
 
-                $this->semValue = new Stmt\Const_($this->semStack[$stackPos-(4-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]), $this->semStack[$stackPos-(4-1)]);
+                $this->semValue = new Stmt\Const_($this->semStack[$stackPos - (4 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]), $this->semStack[$stackPos - (4 - 1)]);
                 $this->checkConstantAttributes($this->semValue);
                 return true;
             case 124:
@@ -1406,91 +1419,105 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 126:
 
-                $this->semValue = new Stmt\GroupUse($this->semStack[$stackPos-(8-3)], $this->semStack[$stackPos-(8-6)], $this->semStack[$stackPos-(8-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(8-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\GroupUse($this->semStack[$stackPos - (8 - 3)], $this->semStack[$stackPos - (8 - 6)], $this->semStack[$stackPos - (8 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (8 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 127:
 
-                $this->semValue = new Stmt\GroupUse($this->semStack[$stackPos-(7-2)], $this->semStack[$stackPos-(7-5)], Stmt\Use_::TYPE_UNKNOWN, $this->getAttributes($this->tokenStartStack[$stackPos-(7-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\GroupUse($this->semStack[$stackPos - (7 - 2)], $this->semStack[$stackPos - (7 - 5)], Stmt\Use_::TYPE_UNKNOWN, $this->getAttributes($this->tokenStartStack[$stackPos - (7 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 129:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 130:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 132:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 133:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 135:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 136:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 137:
 
-                $this->semValue = new Node\UseItem($this->semStack[$stackPos-(1-1)], null, Stmt\Use_::TYPE_UNKNOWN, $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos])); $this->checkUseUse($this->semValue, $stackPos-(1-1));
+                $this->semValue = new Node\UseItem($this->semStack[$stackPos - (1 - 1)], null, Stmt\Use_::TYPE_UNKNOWN, $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
+                $this->checkUseUse($this->semValue, $stackPos - (1 - 1));
                 return true;
             case 138:
 
-                $this->semValue = new Node\UseItem($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], Stmt\Use_::TYPE_UNKNOWN, $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos])); $this->checkUseUse($this->semValue, $stackPos-(3-3));
+                $this->semValue = new Node\UseItem($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], Stmt\Use_::TYPE_UNKNOWN, $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
+                $this->checkUseUse($this->semValue, $stackPos - (3 - 3));
                 return true;
             case 139:
 
-                $this->semValue = new Node\UseItem($this->semStack[$stackPos-(1-1)], null, Stmt\Use_::TYPE_UNKNOWN, $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos])); $this->checkUseUse($this->semValue, $stackPos-(1-1));
+                $this->semValue = new Node\UseItem($this->semStack[$stackPos - (1 - 1)], null, Stmt\Use_::TYPE_UNKNOWN, $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
+                $this->checkUseUse($this->semValue, $stackPos - (1 - 1));
                 return true;
             case 140:
 
-                $this->semValue = new Node\UseItem($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], Stmt\Use_::TYPE_UNKNOWN, $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos])); $this->checkUseUse($this->semValue, $stackPos-(3-3));
+                $this->semValue = new Node\UseItem($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], Stmt\Use_::TYPE_UNKNOWN, $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
+                $this->checkUseUse($this->semValue, $stackPos - (3 - 3));
                 return true;
             case 141:
 
-                $this->semValue = $this->semStack[$stackPos-(1-1)]; $this->semValue->type = Stmt\Use_::TYPE_NORMAL;
+                $this->semValue = $this->semStack[$stackPos - (1 - 1)];
+                $this->semValue->type = Stmt\Use_::TYPE_NORMAL;
                 return true;
             case 142:
 
-                $this->semValue = $this->semStack[$stackPos-(2-2)]; $this->semValue->type = $this->semStack[$stackPos-(2-1)];
+                $this->semValue = $this->semStack[$stackPos - (2 - 2)];
+                $this->semValue->type = $this->semStack[$stackPos - (2 - 1)];
                 return true;
             case 144:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 145:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 146:
 
-                $this->semValue = new Node\Const_($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\Const_($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 148:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 149:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 150:
 
-                $this->semValue = new Node\Const_(new Node\Identifier($this->semStack[$stackPos-(3-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)],  $this->tokenEndStack[$stackPos-(3-1)])), $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\Const_(new Node\Identifier($this->semStack[$stackPos - (3 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos - (3 - 1)])), $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 151:
 
-                $this->semValue = new Node\Const_(new Node\Identifier($this->semStack[$stackPos-(3-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)],  $this->tokenEndStack[$stackPos-(3-1)])), $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\Const_(new Node\Identifier($this->semStack[$stackPos - (3 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos - (3 - 1)])), $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 152:
 
-                if ($this->semStack[$stackPos-(2-2)] !== null) { $this->semStack[$stackPos-(2-1)][] = $this->semStack[$stackPos-(2-2)]; } $this->semValue = $this->semStack[$stackPos-(2-1)];;
+                if ($this->semStack[$stackPos - (2 - 2)] !== null) {
+                    $this->semStack[$stackPos - (2 - 1)][] = $this->semStack[$stackPos - (2 - 2)];
+                } $this->semValue = $this->semStack[$stackPos - (2 - 1)];
+                ;
                 return true;
             case 153:
 
@@ -1498,106 +1525,110 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 154:
 
-                $nop = $this->maybeCreateZeroLengthNop($this->tokenPos);;
-                if ($nop !== null) { $this->semStack[$stackPos-(1-1)][] = $nop; } $this->semValue = $this->semStack[$stackPos-(1-1)];
+                $nop = $this->maybeCreateZeroLengthNop($this->tokenPos);
+                ;
+                if ($nop !== null) {
+                    $this->semStack[$stackPos - (1 - 1)][] = $nop;
+                } $this->semValue = $this->semStack[$stackPos - (1 - 1)];
                 return true;
             case 158:
 
-                throw new Error('__HALT_COMPILER() can only be used from the outermost scope', $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                throw new Error('__HALT_COMPILER() can only be used from the outermost scope', $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 159:
 
-                $this->semValue = new Stmt\Block($this->semStack[$stackPos-(3-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Block($this->semStack[$stackPos - (3 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 160:
 
-                $this->semValue = new Stmt\If_($this->semStack[$stackPos-(7-3)], ['stmts' => $this->semStack[$stackPos-(7-5)], 'elseifs' => $this->semStack[$stackPos-(7-6)], 'else' => $this->semStack[$stackPos-(7-7)]], $this->getAttributes($this->tokenStartStack[$stackPos-(7-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\If_($this->semStack[$stackPos - (7 - 3)], ['stmts' => $this->semStack[$stackPos - (7 - 5)], 'elseifs' => $this->semStack[$stackPos - (7 - 6)], 'else' => $this->semStack[$stackPos - (7 - 7)]], $this->getAttributes($this->tokenStartStack[$stackPos - (7 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 161:
 
-                $this->semValue = new Stmt\If_($this->semStack[$stackPos-(10-3)], ['stmts' => $this->semStack[$stackPos-(10-6)], 'elseifs' => $this->semStack[$stackPos-(10-7)], 'else' => $this->semStack[$stackPos-(10-8)]], $this->getAttributes($this->tokenStartStack[$stackPos-(10-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\If_($this->semStack[$stackPos - (10 - 3)], ['stmts' => $this->semStack[$stackPos - (10 - 6)], 'elseifs' => $this->semStack[$stackPos - (10 - 7)], 'else' => $this->semStack[$stackPos - (10 - 8)]], $this->getAttributes($this->tokenStartStack[$stackPos - (10 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 162:
 
-                $this->semValue = new Stmt\While_($this->semStack[$stackPos-(5-3)], $this->semStack[$stackPos-(5-5)], $this->getAttributes($this->tokenStartStack[$stackPos-(5-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\While_($this->semStack[$stackPos - (5 - 3)], $this->semStack[$stackPos - (5 - 5)], $this->getAttributes($this->tokenStartStack[$stackPos - (5 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 163:
 
-                $this->semValue = new Stmt\Do_($this->semStack[$stackPos-(7-5)], $this->semStack[$stackPos-(7-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(7-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Do_($this->semStack[$stackPos - (7 - 5)], $this->semStack[$stackPos - (7 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (7 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 164:
 
-                $this->semValue = new Stmt\For_(['init' => $this->semStack[$stackPos-(9-3)], 'cond' => $this->semStack[$stackPos-(9-5)], 'loop' => $this->semStack[$stackPos-(9-7)], 'stmts' => $this->semStack[$stackPos-(9-9)]], $this->getAttributes($this->tokenStartStack[$stackPos-(9-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\For_(['init' => $this->semStack[$stackPos - (9 - 3)], 'cond' => $this->semStack[$stackPos - (9 - 5)], 'loop' => $this->semStack[$stackPos - (9 - 7)], 'stmts' => $this->semStack[$stackPos - (9 - 9)]], $this->getAttributes($this->tokenStartStack[$stackPos - (9 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 165:
 
-                $this->semValue = new Stmt\Switch_($this->semStack[$stackPos-(5-3)], $this->semStack[$stackPos-(5-5)], $this->getAttributes($this->tokenStartStack[$stackPos-(5-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Switch_($this->semStack[$stackPos - (5 - 3)], $this->semStack[$stackPos - (5 - 5)], $this->getAttributes($this->tokenStartStack[$stackPos - (5 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 166:
 
-                $this->semValue = new Stmt\Break_($this->semStack[$stackPos-(3-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Break_($this->semStack[$stackPos - (3 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 167:
 
-                $this->semValue = new Stmt\Continue_($this->semStack[$stackPos-(3-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Continue_($this->semStack[$stackPos - (3 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 168:
 
-                $this->semValue = new Stmt\Return_($this->semStack[$stackPos-(3-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Return_($this->semStack[$stackPos - (3 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 169:
 
-                $this->semValue = new Stmt\Global_($this->semStack[$stackPos-(3-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Global_($this->semStack[$stackPos - (3 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 170:
 
-                $this->semValue = new Stmt\Static_($this->semStack[$stackPos-(3-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Static_($this->semStack[$stackPos - (3 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 171:
 
-                $this->semValue = new Stmt\Echo_($this->semStack[$stackPos-(3-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Echo_($this->semStack[$stackPos - (3 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 172:
 
 
-                $this->semValue = new Stmt\InlineHTML($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
-                $this->semValue->setAttribute('hasLeadingNewline', $this->inlineHtmlHasLeadingNewline($stackPos-(1-1)));
+                $this->semValue = new Stmt\InlineHTML($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue->setAttribute('hasLeadingNewline', $this->inlineHtmlHasLeadingNewline($stackPos - (1 - 1)));
                 return true;
             case 173:
 
-                $this->semValue = new Stmt\Expression($this->semStack[$stackPos-(2-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Expression($this->semStack[$stackPos - (2 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 174:
 
-                $this->semValue = new Stmt\Unset_($this->semStack[$stackPos-(5-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(5-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Unset_($this->semStack[$stackPos - (5 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (5 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 175:
 
-                $this->semValue = new Stmt\Foreach_($this->semStack[$stackPos-(7-3)], $this->semStack[$stackPos-(7-5)][0], ['keyVar' => null, 'byRef' => $this->semStack[$stackPos-(7-5)][1], 'stmts' => $this->semStack[$stackPos-(7-7)]], $this->getAttributes($this->tokenStartStack[$stackPos-(7-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Foreach_($this->semStack[$stackPos - (7 - 3)], $this->semStack[$stackPos - (7 - 5)][0], ['keyVar' => null, 'byRef' => $this->semStack[$stackPos - (7 - 5)][1], 'stmts' => $this->semStack[$stackPos - (7 - 7)]], $this->getAttributes($this->tokenStartStack[$stackPos - (7 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 176:
 
-                $this->semValue = new Stmt\Foreach_($this->semStack[$stackPos-(9-3)], $this->semStack[$stackPos-(9-7)][0], ['keyVar' => $this->semStack[$stackPos-(9-5)], 'byRef' => $this->semStack[$stackPos-(9-7)][1], 'stmts' => $this->semStack[$stackPos-(9-9)]], $this->getAttributes($this->tokenStartStack[$stackPos-(9-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Foreach_($this->semStack[$stackPos - (9 - 3)], $this->semStack[$stackPos - (9 - 7)][0], ['keyVar' => $this->semStack[$stackPos - (9 - 5)], 'byRef' => $this->semStack[$stackPos - (9 - 7)][1], 'stmts' => $this->semStack[$stackPos - (9 - 9)]], $this->getAttributes($this->tokenStartStack[$stackPos - (9 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 177:
 
-                $this->semValue = new Stmt\Foreach_($this->semStack[$stackPos-(6-3)], new Expr\Error($this->getAttributes($this->tokenStartStack[$stackPos-(6-4)],  $this->tokenEndStack[$stackPos-(6-4)])), ['stmts' => $this->semStack[$stackPos-(6-6)]], $this->getAttributes($this->tokenStartStack[$stackPos-(6-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Foreach_($this->semStack[$stackPos - (6 - 3)], new Expr\Error($this->getAttributes($this->tokenStartStack[$stackPos - (6 - 4)], $this->tokenEndStack[$stackPos - (6 - 4)])), ['stmts' => $this->semStack[$stackPos - (6 - 6)]], $this->getAttributes($this->tokenStartStack[$stackPos - (6 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 178:
 
-                $this->semValue = new Stmt\Declare_($this->semStack[$stackPos-(5-3)], $this->semStack[$stackPos-(5-5)], $this->getAttributes($this->tokenStartStack[$stackPos-(5-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Declare_($this->semStack[$stackPos - (5 - 3)], $this->semStack[$stackPos - (5 - 5)], $this->getAttributes($this->tokenStartStack[$stackPos - (5 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 179:
 
-                $this->semValue = new Stmt\TryCatch($this->semStack[$stackPos-(6-3)], $this->semStack[$stackPos-(6-5)], $this->semStack[$stackPos-(6-6)], $this->getAttributes($this->tokenStartStack[$stackPos-(6-1)], $this->tokenEndStack[$stackPos])); $this->checkTryCatch($this->semValue);
+                $this->semValue = new Stmt\TryCatch($this->semStack[$stackPos - (6 - 3)], $this->semStack[$stackPos - (6 - 5)], $this->semStack[$stackPos - (6 - 6)], $this->getAttributes($this->tokenStartStack[$stackPos - (6 - 1)], $this->tokenEndStack[$stackPos]));
+                $this->checkTryCatch($this->semValue);
                 return true;
             case 180:
 
-                $this->semValue = new Stmt\Goto_($this->semStack[$stackPos-(3-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Goto_($this->semStack[$stackPos - (3 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 181:
 
-                $this->semValue = new Stmt\Label($this->semStack[$stackPos-(2-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Label($this->semStack[$stackPos - (2 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 182:
 
@@ -1605,11 +1636,17 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 184:
 
-                $this->semValue = $this->maybeCreateNop($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]);
+                $this->semValue = $this->maybeCreateNop($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]);
                 return true;
             case 185:
 
-                if ($this->semStack[$stackPos-(1-1)] instanceof Stmt\Block) { $this->semValue = $this->semStack[$stackPos-(1-1)]->stmts; } else if ($this->semStack[$stackPos-(1-1)] === null) { $this->semValue = []; } else { $this->semValue = [$this->semStack[$stackPos-(1-1)]]; };
+                if ($this->semStack[$stackPos - (1 - 1)] instanceof Stmt\Block) {
+                    $this->semValue = $this->semStack[$stackPos - (1 - 1)]->stmts;
+                } elseif ($this->semStack[$stackPos - (1 - 1)] === null) {
+                    $this->semValue = [];
+                } else {
+                    $this->semValue = [$this->semStack[$stackPos - (1 - 1)]];
+                };
                 return true;
             case 186:
 
@@ -1617,19 +1654,21 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 187:
 
-                $this->semStack[$stackPos-(2-1)][] = $this->semStack[$stackPos-(2-2)]; $this->semValue = $this->semStack[$stackPos-(2-1)];
+                $this->semStack[$stackPos - (2 - 1)][] = $this->semStack[$stackPos - (2 - 2)];
+                $this->semValue = $this->semStack[$stackPos - (2 - 1)];
                 return true;
             case 188:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 189:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 190:
 
-                $this->semValue = new Stmt\Catch_($this->semStack[$stackPos-(8-3)], $this->semStack[$stackPos-(8-4)], $this->semStack[$stackPos-(8-7)], $this->getAttributes($this->tokenStartStack[$stackPos-(8-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Catch_($this->semStack[$stackPos - (8 - 3)], $this->semStack[$stackPos - (8 - 4)], $this->semStack[$stackPos - (8 - 7)], $this->getAttributes($this->tokenStartStack[$stackPos - (8 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 191:
 
@@ -1637,15 +1676,16 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 192:
 
-                $this->semValue = new Stmt\Finally_($this->semStack[$stackPos-(4-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Finally_($this->semStack[$stackPos - (4 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 194:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 195:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 196:
 
@@ -1673,7 +1713,7 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 202:
 
-                $this->semValue = $this->semStack[$stackPos-(3-2)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 2)];
                 return true;
             case 203:
 
@@ -1681,47 +1721,47 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 205:
 
-                $this->semValue = new Node\Identifier($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\Identifier($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 206:
 
-                $this->semValue = new Node\Identifier($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\Identifier($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 207:
 
-                $this->semValue = new Node\Identifier($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\Identifier($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 208:
 
-                $this->semValue = new Stmt\Function_($this->semStack[$stackPos-(8-3)], ['byRef' => $this->semStack[$stackPos-(8-2)], 'params' => $this->semStack[$stackPos-(8-5)], 'returnType' => $this->semStack[$stackPos-(8-7)], 'stmts' => $this->semStack[$stackPos-(8-8)], 'attrGroups' => []], $this->getAttributes($this->tokenStartStack[$stackPos-(8-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Function_($this->semStack[$stackPos - (8 - 3)], ['byRef' => $this->semStack[$stackPos - (8 - 2)], 'params' => $this->semStack[$stackPos - (8 - 5)], 'returnType' => $this->semStack[$stackPos - (8 - 7)], 'stmts' => $this->semStack[$stackPos - (8 - 8)], 'attrGroups' => []], $this->getAttributes($this->tokenStartStack[$stackPos - (8 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 209:
 
-                $this->semValue = new Stmt\Function_($this->semStack[$stackPos-(9-4)], ['byRef' => $this->semStack[$stackPos-(9-3)], 'params' => $this->semStack[$stackPos-(9-6)], 'returnType' => $this->semStack[$stackPos-(9-8)], 'stmts' => $this->semStack[$stackPos-(9-9)], 'attrGroups' => $this->semStack[$stackPos-(9-1)]], $this->getAttributes($this->tokenStartStack[$stackPos-(9-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Function_($this->semStack[$stackPos - (9 - 4)], ['byRef' => $this->semStack[$stackPos - (9 - 3)], 'params' => $this->semStack[$stackPos - (9 - 6)], 'returnType' => $this->semStack[$stackPos - (9 - 8)], 'stmts' => $this->semStack[$stackPos - (9 - 9)], 'attrGroups' => $this->semStack[$stackPos - (9 - 1)]], $this->getAttributes($this->tokenStartStack[$stackPos - (9 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 210:
 
-                $this->semValue = new Stmt\Class_($this->semStack[$stackPos-(7-2)], ['type' => $this->semStack[$stackPos-(7-1)], 'extends' => $this->semStack[$stackPos-(7-3)], 'implements' => $this->semStack[$stackPos-(7-4)], 'stmts' => $this->semStack[$stackPos-(7-6)], 'attrGroups' => []], $this->getAttributes($this->tokenStartStack[$stackPos-(7-1)], $this->tokenEndStack[$stackPos]));
-                $this->checkClass($this->semValue, $stackPos-(7-2));
+                $this->semValue = new Stmt\Class_($this->semStack[$stackPos - (7 - 2)], ['type' => $this->semStack[$stackPos - (7 - 1)], 'extends' => $this->semStack[$stackPos - (7 - 3)], 'implements' => $this->semStack[$stackPos - (7 - 4)], 'stmts' => $this->semStack[$stackPos - (7 - 6)], 'attrGroups' => []], $this->getAttributes($this->tokenStartStack[$stackPos - (7 - 1)], $this->tokenEndStack[$stackPos]));
+                $this->checkClass($this->semValue, $stackPos - (7 - 2));
                 return true;
             case 211:
 
-                $this->semValue = new Stmt\Class_($this->semStack[$stackPos-(8-3)], ['type' => $this->semStack[$stackPos-(8-2)], 'extends' => $this->semStack[$stackPos-(8-4)], 'implements' => $this->semStack[$stackPos-(8-5)], 'stmts' => $this->semStack[$stackPos-(8-7)], 'attrGroups' => $this->semStack[$stackPos-(8-1)]], $this->getAttributes($this->tokenStartStack[$stackPos-(8-1)], $this->tokenEndStack[$stackPos]));
-                $this->checkClass($this->semValue, $stackPos-(8-3));
+                $this->semValue = new Stmt\Class_($this->semStack[$stackPos - (8 - 3)], ['type' => $this->semStack[$stackPos - (8 - 2)], 'extends' => $this->semStack[$stackPos - (8 - 4)], 'implements' => $this->semStack[$stackPos - (8 - 5)], 'stmts' => $this->semStack[$stackPos - (8 - 7)], 'attrGroups' => $this->semStack[$stackPos - (8 - 1)]], $this->getAttributes($this->tokenStartStack[$stackPos - (8 - 1)], $this->tokenEndStack[$stackPos]));
+                $this->checkClass($this->semValue, $stackPos - (8 - 3));
                 return true;
             case 212:
 
-                $this->semValue = new Stmt\Interface_($this->semStack[$stackPos-(7-3)], ['extends' => $this->semStack[$stackPos-(7-4)], 'stmts' => $this->semStack[$stackPos-(7-6)], 'attrGroups' => $this->semStack[$stackPos-(7-1)]], $this->getAttributes($this->tokenStartStack[$stackPos-(7-1)], $this->tokenEndStack[$stackPos]));
-                $this->checkInterface($this->semValue, $stackPos-(7-3));
+                $this->semValue = new Stmt\Interface_($this->semStack[$stackPos - (7 - 3)], ['extends' => $this->semStack[$stackPos - (7 - 4)], 'stmts' => $this->semStack[$stackPos - (7 - 6)], 'attrGroups' => $this->semStack[$stackPos - (7 - 1)]], $this->getAttributes($this->tokenStartStack[$stackPos - (7 - 1)], $this->tokenEndStack[$stackPos]));
+                $this->checkInterface($this->semValue, $stackPos - (7 - 3));
                 return true;
             case 213:
 
-                $this->semValue = new Stmt\Trait_($this->semStack[$stackPos-(6-3)], ['stmts' => $this->semStack[$stackPos-(6-5)], 'attrGroups' => $this->semStack[$stackPos-(6-1)]], $this->getAttributes($this->tokenStartStack[$stackPos-(6-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Trait_($this->semStack[$stackPos - (6 - 3)], ['stmts' => $this->semStack[$stackPos - (6 - 5)], 'attrGroups' => $this->semStack[$stackPos - (6 - 1)]], $this->getAttributes($this->tokenStartStack[$stackPos - (6 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 214:
 
-                $this->semValue = new Stmt\Enum_($this->semStack[$stackPos-(8-3)], ['scalarType' => $this->semStack[$stackPos-(8-4)], 'implements' => $this->semStack[$stackPos-(8-5)], 'stmts' => $this->semStack[$stackPos-(8-7)], 'attrGroups' => $this->semStack[$stackPos-(8-1)]], $this->getAttributes($this->tokenStartStack[$stackPos-(8-1)], $this->tokenEndStack[$stackPos]));
-                $this->checkEnum($this->semValue, $stackPos-(8-3));
+                $this->semValue = new Stmt\Enum_($this->semStack[$stackPos - (8 - 3)], ['scalarType' => $this->semStack[$stackPos - (8 - 4)], 'implements' => $this->semStack[$stackPos - (8 - 5)], 'stmts' => $this->semStack[$stackPos - (8 - 7)], 'attrGroups' => $this->semStack[$stackPos - (8 - 1)]], $this->getAttributes($this->tokenStartStack[$stackPos - (8 - 1)], $this->tokenEndStack[$stackPos]));
+                $this->checkEnum($this->semValue, $stackPos - (8 - 3));
                 return true;
             case 215:
 
@@ -1729,7 +1769,7 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 216:
 
-                $this->semValue = $this->semStack[$stackPos-(2-2)];
+                $this->semValue = $this->semStack[$stackPos - (2 - 2)];
                 return true;
             case 217:
 
@@ -1737,7 +1777,7 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 218:
 
-                $this->semValue = $this->semStack[$stackPos-(2-2)];
+                $this->semValue = $this->semStack[$stackPos - (2 - 2)];
                 return true;
             case 219:
 
@@ -1745,7 +1785,8 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 222:
 
-                $this->checkClassModifier($this->semStack[$stackPos-(2-1)], $this->semStack[$stackPos-(2-2)], $stackPos-(2-2)); $this->semValue = $this->semStack[$stackPos-(2-1)] | $this->semStack[$stackPos-(2-2)];
+                $this->checkClassModifier($this->semStack[$stackPos - (2 - 1)], $this->semStack[$stackPos - (2 - 2)], $stackPos - (2 - 2));
+                $this->semValue = $this->semStack[$stackPos - (2 - 1)] | $this->semStack[$stackPos - (2 - 2)];
                 return true;
             case 223:
 
@@ -1765,7 +1806,7 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 227:
 
-                $this->semValue = $this->semStack[$stackPos-(2-2)];
+                $this->semValue = $this->semStack[$stackPos - (2 - 2)];
                 return true;
             case 228:
 
@@ -1773,7 +1814,7 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 229:
 
-                $this->semValue = $this->semStack[$stackPos-(2-2)];
+                $this->semValue = $this->semStack[$stackPos - (2 - 2)];
                 return true;
             case 230:
 
@@ -1781,27 +1822,34 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 231:
 
-                $this->semValue = $this->semStack[$stackPos-(2-2)];
+                $this->semValue = $this->semStack[$stackPos - (2 - 2)];
                 return true;
             case 233:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 234:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 236:
 
-                $this->semValue = $this->semStack[$stackPos-(4-2)];
+                $this->semValue = $this->semStack[$stackPos - (4 - 2)];
                 return true;
             case 238:
 
-                $this->semValue = $this->semStack[$stackPos-(4-2)];
+                $this->semValue = $this->semStack[$stackPos - (4 - 2)];
                 return true;
             case 239:
 
-                if ($this->semStack[$stackPos-(1-1)] instanceof Stmt\Block) { $this->semValue = $this->semStack[$stackPos-(1-1)]->stmts; } else if ($this->semStack[$stackPos-(1-1)] === null) { $this->semValue = []; } else { $this->semValue = [$this->semStack[$stackPos-(1-1)]]; };
+                if ($this->semStack[$stackPos - (1 - 1)] instanceof Stmt\Block) {
+                    $this->semValue = $this->semStack[$stackPos - (1 - 1)]->stmts;
+                } elseif ($this->semStack[$stackPos - (1 - 1)] === null) {
+                    $this->semValue = [];
+                } else {
+                    $this->semValue = [$this->semStack[$stackPos - (1 - 1)]];
+                };
                 return true;
             case 240:
 
@@ -1809,35 +1857,36 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 241:
 
-                $this->semValue = $this->semStack[$stackPos-(4-2)];
+                $this->semValue = $this->semStack[$stackPos - (4 - 2)];
                 return true;
             case 243:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 244:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 245:
 
-                $this->semValue = new Node\DeclareItem($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\DeclareItem($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 246:
 
-                $this->semValue = $this->semStack[$stackPos-(3-2)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 2)];
                 return true;
             case 247:
 
-                $this->semValue = $this->semStack[$stackPos-(4-3)];
+                $this->semValue = $this->semStack[$stackPos - (4 - 3)];
                 return true;
             case 248:
 
-                $this->semValue = $this->semStack[$stackPos-(4-2)];
+                $this->semValue = $this->semStack[$stackPos - (4 - 2)];
                 return true;
             case 249:
 
-                $this->semValue = $this->semStack[$stackPos-(5-3)];
+                $this->semValue = $this->semStack[$stackPos - (5 - 3)];
                 return true;
             case 250:
 
@@ -1845,19 +1894,20 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 251:
 
-                $this->semStack[$stackPos-(2-1)][] = $this->semStack[$stackPos-(2-2)]; $this->semValue = $this->semStack[$stackPos-(2-1)];
+                $this->semStack[$stackPos - (2 - 1)][] = $this->semStack[$stackPos - (2 - 2)];
+                $this->semValue = $this->semStack[$stackPos - (2 - 1)];
                 return true;
             case 252:
 
-                $this->semValue = new Stmt\Case_($this->semStack[$stackPos-(4-2)], $this->semStack[$stackPos-(4-4)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Case_($this->semStack[$stackPos - (4 - 2)], $this->semStack[$stackPos - (4 - 4)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 253:
 
-                $this->semValue = new Stmt\Case_(null, $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Case_(null, $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 256:
 
-                $this->semValue = new Expr\Match_($this->semStack[$stackPos-(7-3)], $this->semStack[$stackPos-(7-6)], $this->getAttributes($this->tokenStartStack[$stackPos-(7-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Match_($this->semStack[$stackPos - (7 - 3)], $this->semStack[$stackPos - (7 - 6)], $this->getAttributes($this->tokenStartStack[$stackPos - (7 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 257:
 
@@ -1865,27 +1915,28 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 259:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 260:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 261:
 
-                $this->semValue = new Node\MatchArm($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\MatchArm($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 262:
 
-                $this->semValue = new Node\MatchArm(null, $this->semStack[$stackPos-(4-4)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\MatchArm(null, $this->semStack[$stackPos - (4 - 4)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 263:
 
-                $this->semValue = $this->semStack[$stackPos-(1-1)];
+                $this->semValue = $this->semStack[$stackPos - (1 - 1)];
                 return true;
             case 264:
 
-                $this->semValue = $this->semStack[$stackPos-(4-2)];
+                $this->semValue = $this->semStack[$stackPos - (4 - 2)];
                 return true;
             case 265:
 
@@ -1893,11 +1944,12 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 266:
 
-                $this->semStack[$stackPos-(2-1)][] = $this->semStack[$stackPos-(2-2)]; $this->semValue = $this->semStack[$stackPos-(2-1)];
+                $this->semStack[$stackPos - (2 - 1)][] = $this->semStack[$stackPos - (2 - 2)];
+                $this->semValue = $this->semStack[$stackPos - (2 - 1)];
                 return true;
             case 267:
 
-                $this->semValue = new Stmt\ElseIf_($this->semStack[$stackPos-(5-3)], $this->semStack[$stackPos-(5-5)], $this->getAttributes($this->tokenStartStack[$stackPos-(5-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\ElseIf_($this->semStack[$stackPos - (5 - 3)], $this->semStack[$stackPos - (5 - 5)], $this->getAttributes($this->tokenStartStack[$stackPos - (5 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 268:
 
@@ -1905,11 +1957,13 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 269:
 
-                $this->semStack[$stackPos-(2-1)][] = $this->semStack[$stackPos-(2-2)]; $this->semValue = $this->semStack[$stackPos-(2-1)];
+                $this->semStack[$stackPos - (2 - 1)][] = $this->semStack[$stackPos - (2 - 2)];
+                $this->semValue = $this->semStack[$stackPos - (2 - 1)];
                 return true;
             case 270:
 
-                $this->semValue = new Stmt\ElseIf_($this->semStack[$stackPos-(6-3)], $this->semStack[$stackPos-(6-6)], $this->getAttributes($this->tokenStartStack[$stackPos-(6-1)], $this->tokenEndStack[$stackPos])); $this->fixupAlternativeElse($this->semValue);
+                $this->semValue = new Stmt\ElseIf_($this->semStack[$stackPos - (6 - 3)], $this->semStack[$stackPos - (6 - 6)], $this->getAttributes($this->tokenStartStack[$stackPos - (6 - 1)], $this->tokenEndStack[$stackPos]));
+                $this->fixupAlternativeElse($this->semValue);
                 return true;
             case 271:
 
@@ -1917,7 +1971,7 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 272:
 
-                $this->semValue = new Stmt\Else_($this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\Else_($this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 273:
 
@@ -1925,23 +1979,24 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 274:
 
-                $this->semValue = new Stmt\Else_($this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos])); $this->fixupAlternativeElse($this->semValue);
+                $this->semValue = new Stmt\Else_($this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
+                $this->fixupAlternativeElse($this->semValue);
                 return true;
             case 275:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)], false);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)], false);
                 return true;
             case 276:
 
-                $this->semValue = array($this->semStack[$stackPos-(2-2)], true);
+                $this->semValue = array($this->semStack[$stackPos - (2 - 2)], true);
                 return true;
             case 277:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)], false);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)], false);
                 return true;
             case 278:
 
-                $this->semValue = array($this->fixupArrayDestructuring($this->semStack[$stackPos-(1-1)]), false);
+                $this->semValue = array($this->fixupArrayDestructuring($this->semStack[$stackPos - (1 - 1)]), false);
                 return true;
             case 280:
 
@@ -1949,11 +2004,12 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 281:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 282:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 283:
 
@@ -1961,7 +2017,8 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 284:
 
-                $this->checkModifier($this->semStack[$stackPos-(2-1)], $this->semStack[$stackPos-(2-2)], $stackPos-(2-2)); $this->semValue = $this->semStack[$stackPos-(2-1)] | $this->semStack[$stackPos-(2-2)];
+                $this->checkModifier($this->semStack[$stackPos - (2 - 1)], $this->semStack[$stackPos - (2 - 2)], $stackPos - (2 - 2));
+                $this->semValue = $this->semStack[$stackPos - (2 - 1)] | $this->semStack[$stackPos - (2 - 2)];
                 return true;
             case 285:
 
@@ -1997,99 +2054,103 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 293:
 
-                $this->semValue = new Node\Param($this->semStack[$stackPos-(7-6)], null, $this->semStack[$stackPos-(7-3)], $this->semStack[$stackPos-(7-4)], $this->semStack[$stackPos-(7-5)], $this->getAttributes($this->tokenStartStack[$stackPos-(7-1)], $this->tokenEndStack[$stackPos]), $this->semStack[$stackPos-(7-2)], $this->semStack[$stackPos-(7-1)], $this->semStack[$stackPos-(7-7)]);
+                $this->semValue = new Node\Param($this->semStack[$stackPos - (7 - 6)], null, $this->semStack[$stackPos - (7 - 3)], $this->semStack[$stackPos - (7 - 4)], $this->semStack[$stackPos - (7 - 5)], $this->getAttributes($this->tokenStartStack[$stackPos - (7 - 1)], $this->tokenEndStack[$stackPos]), $this->semStack[$stackPos - (7 - 2)], $this->semStack[$stackPos - (7 - 1)], $this->semStack[$stackPos - (7 - 7)]);
                 $this->checkParam($this->semValue);
                 $this->addPropertyNameToHooks($this->semValue);
                 return true;
             case 294:
 
-                $this->semValue = new Node\Param($this->semStack[$stackPos-(9-6)], $this->semStack[$stackPos-(9-8)], $this->semStack[$stackPos-(9-3)], $this->semStack[$stackPos-(9-4)], $this->semStack[$stackPos-(9-5)], $this->getAttributes($this->tokenStartStack[$stackPos-(9-1)], $this->tokenEndStack[$stackPos]), $this->semStack[$stackPos-(9-2)], $this->semStack[$stackPos-(9-1)], $this->semStack[$stackPos-(9-9)]);
+                $this->semValue = new Node\Param($this->semStack[$stackPos - (9 - 6)], $this->semStack[$stackPos - (9 - 8)], $this->semStack[$stackPos - (9 - 3)], $this->semStack[$stackPos - (9 - 4)], $this->semStack[$stackPos - (9 - 5)], $this->getAttributes($this->tokenStartStack[$stackPos - (9 - 1)], $this->tokenEndStack[$stackPos]), $this->semStack[$stackPos - (9 - 2)], $this->semStack[$stackPos - (9 - 1)], $this->semStack[$stackPos - (9 - 9)]);
                 $this->checkParam($this->semValue);
                 $this->addPropertyNameToHooks($this->semValue);
                 return true;
             case 295:
 
-                $this->semValue = new Node\Param(new Expr\Error($this->getAttributes($this->tokenStartStack[$stackPos-(6-1)], $this->tokenEndStack[$stackPos])), null, $this->semStack[$stackPos-(6-3)], $this->semStack[$stackPos-(6-4)], $this->semStack[$stackPos-(6-5)], $this->getAttributes($this->tokenStartStack[$stackPos-(6-1)], $this->tokenEndStack[$stackPos]), $this->semStack[$stackPos-(6-2)], $this->semStack[$stackPos-(6-1)]);
+                $this->semValue = new Node\Param(new Expr\Error($this->getAttributes($this->tokenStartStack[$stackPos - (6 - 1)], $this->tokenEndStack[$stackPos])), null, $this->semStack[$stackPos - (6 - 3)], $this->semStack[$stackPos - (6 - 4)], $this->semStack[$stackPos - (6 - 5)], $this->getAttributes($this->tokenStartStack[$stackPos - (6 - 1)], $this->tokenEndStack[$stackPos]), $this->semStack[$stackPos - (6 - 2)], $this->semStack[$stackPos - (6 - 1)]);
                 return true;
             case 297:
 
-                $this->semValue = new Node\NullableType($this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\NullableType($this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 298:
 
-                $this->semValue = new Node\UnionType($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\UnionType($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 301:
 
-                $this->semValue = new Node\Name('static', $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\Name('static', $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 302:
 
-                $this->semValue = $this->handleBuiltinTypes($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = $this->handleBuiltinTypes($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 303:
 
-                $this->semValue = new Node\Identifier('array', $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\Identifier('array', $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 304:
 
-                $this->semValue = new Node\Identifier('callable', $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\Identifier('callable', $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 306:
 
-                $this->semValue = $this->semStack[$stackPos-(3-2)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 2)];
                 return true;
             case 307:
 
-                $this->semValue = array($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)]);
+                $this->semValue = array($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)]);
                 return true;
             case 308:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 310:
 
-                $this->semValue = $this->semStack[$stackPos-(3-2)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 2)];
                 return true;
             case 311:
 
-                $this->semValue = array($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)]);
+                $this->semValue = array($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)]);
                 return true;
             case 312:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 313:
 
-                $this->semValue = array($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)]);
+                $this->semValue = array($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)]);
                 return true;
             case 314:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 315:
 
-                $this->semValue = new Node\IntersectionType($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\IntersectionType($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 316:
 
-                $this->semValue = array($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)]);
+                $this->semValue = array($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)]);
                 return true;
             case 317:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 318:
 
-                $this->semValue = new Node\IntersectionType($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\IntersectionType($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 320:
 
-                $this->semValue = new Node\NullableType($this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\NullableType($this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 321:
 
-                $this->semValue = new Node\UnionType($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\UnionType($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 323:
 
@@ -2101,7 +2162,7 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 326:
 
-                $this->semValue = $this->semStack[$stackPos-(2-2)];
+                $this->semValue = $this->semStack[$stackPos - (2 - 2)];
                 return true;
             case 327:
 
@@ -2113,11 +2174,11 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 329:
 
-                $this->semValue = $this->semStack[$stackPos-(4-2)];
+                $this->semValue = $this->semStack[$stackPos - (4 - 2)];
                 return true;
             case 330:
 
-                $this->semValue = array($this->semStack[$stackPos-(3-2)]);
+                $this->semValue = array($this->semStack[$stackPos - (3 - 2)]);
                 return true;
             case 331:
 
@@ -2125,87 +2186,96 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 332:
 
-                $this->semValue = $this->semStack[$stackPos-(4-2)];
+                $this->semValue = $this->semStack[$stackPos - (4 - 2)];
                 return true;
             case 333:
 
-                $this->semValue = array(new Node\Arg($this->semStack[$stackPos-(4-2)], false, false, $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos])));
+                $this->semValue = array(new Node\Arg($this->semStack[$stackPos - (4 - 2)], false, false, $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos])));
                 return true;
             case 334:
 
-                $this->semValue = array($this->semStack[$stackPos-(3-2)]);
+                $this->semValue = array($this->semStack[$stackPos - (3 - 2)]);
                 return true;
             case 335:
 
-                $this->semValue = array(new Node\Arg($this->semStack[$stackPos-(3-1)], false, false, $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)],  $this->tokenEndStack[$stackPos-(3-1)])), $this->semStack[$stackPos-(3-3)]);
+                $this->semValue = array(new Node\Arg($this->semStack[$stackPos - (3 - 1)], false, false, $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos - (3 - 1)])), $this->semStack[$stackPos - (3 - 3)]);
                 return true;
             case 336:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 337:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 338:
 
-                $this->semValue = new Node\VariadicPlaceholder($this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\VariadicPlaceholder($this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 339:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 340:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 341:
 
-                $this->semValue = new Node\Arg($this->semStack[$stackPos-(2-2)], true, false, $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\Arg($this->semStack[$stackPos - (2 - 2)], true, false, $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 342:
 
-                $this->semValue = new Node\Arg($this->semStack[$stackPos-(2-2)], false, true, $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\Arg($this->semStack[$stackPos - (2 - 2)], false, true, $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 343:
 
-                $this->semValue = new Node\Arg($this->semStack[$stackPos-(3-3)], false, false, $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]), $this->semStack[$stackPos-(3-1)]);
+                $this->semValue = new Node\Arg($this->semStack[$stackPos - (3 - 3)], false, false, $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]), $this->semStack[$stackPos - (3 - 1)]);
                 return true;
             case 344:
 
-                $this->semValue = new Node\Arg($this->semStack[$stackPos-(1-1)], false, false, $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\Arg($this->semStack[$stackPos - (1 - 1)], false, false, $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 345:
 
-                $this->semValue = $this->semStack[$stackPos-(1-1)];
+                $this->semValue = $this->semStack[$stackPos - (1 - 1)];
                 return true;
             case 347:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 348:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 351:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 352:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 353:
 
-                $this->semValue = new Node\StaticVar($this->semStack[$stackPos-(1-1)], null, $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\StaticVar($this->semStack[$stackPos - (1 - 1)], null, $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 354:
 
-                $this->semValue = new Node\StaticVar($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\StaticVar($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 355:
 
-                if ($this->semStack[$stackPos-(2-2)] !== null) { $this->semStack[$stackPos-(2-1)][] = $this->semStack[$stackPos-(2-2)]; $this->semValue = $this->semStack[$stackPos-(2-1)]; } else { $this->semValue = $this->semStack[$stackPos-(2-1)]; }
+                if ($this->semStack[$stackPos - (2 - 2)] !== null) {
+                    $this->semStack[$stackPos - (2 - 1)][] = $this->semStack[$stackPos - (2 - 2)];
+                    $this->semValue = $this->semStack[$stackPos - (2 - 1)];
+                } else {
+                    $this->semValue = $this->semStack[$stackPos - (2 - 1)];
+                }
                 return true;
             case 356:
 
@@ -2213,42 +2283,45 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 357:
 
-                $nop = $this->maybeCreateZeroLengthNop($this->tokenPos);;
-                if ($nop !== null) { $this->semStack[$stackPos-(1-1)][] = $nop; } $this->semValue = $this->semStack[$stackPos-(1-1)];
+                $nop = $this->maybeCreateZeroLengthNop($this->tokenPos);
+                ;
+                if ($nop !== null) {
+                    $this->semStack[$stackPos - (1 - 1)][] = $nop;
+                } $this->semValue = $this->semStack[$stackPos - (1 - 1)];
                 return true;
             case 358:
 
-                $this->semValue = new Stmt\Property($this->semStack[$stackPos-(5-2)], $this->semStack[$stackPos-(5-4)], $this->getAttributes($this->tokenStartStack[$stackPos-(5-1)], $this->tokenEndStack[$stackPos]), $this->semStack[$stackPos-(5-3)], $this->semStack[$stackPos-(5-1)]);
+                $this->semValue = new Stmt\Property($this->semStack[$stackPos - (5 - 2)], $this->semStack[$stackPos - (5 - 4)], $this->getAttributes($this->tokenStartStack[$stackPos - (5 - 1)], $this->tokenEndStack[$stackPos]), $this->semStack[$stackPos - (5 - 3)], $this->semStack[$stackPos - (5 - 1)]);
                 return true;
             case 359:
 
-                $this->semValue = new Stmt\Property($this->semStack[$stackPos-(7-2)], $this->semStack[$stackPos-(7-4)], $this->getAttributes($this->tokenStartStack[$stackPos-(7-1)], $this->tokenEndStack[$stackPos]), $this->semStack[$stackPos-(7-3)], $this->semStack[$stackPos-(7-1)], $this->semStack[$stackPos-(7-6)]);
-                $this->checkPropertyHooksForMultiProperty($this->semValue, $stackPos-(7-5));
-                $this->checkEmptyPropertyHookList($this->semStack[$stackPos-(7-6)], $stackPos-(7-5));
+                $this->semValue = new Stmt\Property($this->semStack[$stackPos - (7 - 2)], $this->semStack[$stackPos - (7 - 4)], $this->getAttributes($this->tokenStartStack[$stackPos - (7 - 1)], $this->tokenEndStack[$stackPos]), $this->semStack[$stackPos - (7 - 3)], $this->semStack[$stackPos - (7 - 1)], $this->semStack[$stackPos - (7 - 6)]);
+                $this->checkPropertyHooksForMultiProperty($this->semValue, $stackPos - (7 - 5));
+                $this->checkEmptyPropertyHookList($this->semStack[$stackPos - (7 - 6)], $stackPos - (7 - 5));
                 $this->addPropertyNameToHooks($this->semValue);
                 return true;
             case 360:
 
-                $this->semValue = new Stmt\ClassConst($this->semStack[$stackPos-(5-4)], $this->semStack[$stackPos-(5-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(5-1)], $this->tokenEndStack[$stackPos]), $this->semStack[$stackPos-(5-1)]);
-                $this->checkClassConst($this->semValue, $stackPos-(5-2));
+                $this->semValue = new Stmt\ClassConst($this->semStack[$stackPos - (5 - 4)], $this->semStack[$stackPos - (5 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (5 - 1)], $this->tokenEndStack[$stackPos]), $this->semStack[$stackPos - (5 - 1)]);
+                $this->checkClassConst($this->semValue, $stackPos - (5 - 2));
                 return true;
             case 361:
 
-                $this->semValue = new Stmt\ClassConst($this->semStack[$stackPos-(6-5)], $this->semStack[$stackPos-(6-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(6-1)], $this->tokenEndStack[$stackPos]), $this->semStack[$stackPos-(6-1)], $this->semStack[$stackPos-(6-4)]);
-                $this->checkClassConst($this->semValue, $stackPos-(6-2));
+                $this->semValue = new Stmt\ClassConst($this->semStack[$stackPos - (6 - 5)], $this->semStack[$stackPos - (6 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (6 - 1)], $this->tokenEndStack[$stackPos]), $this->semStack[$stackPos - (6 - 1)], $this->semStack[$stackPos - (6 - 4)]);
+                $this->checkClassConst($this->semValue, $stackPos - (6 - 2));
                 return true;
             case 362:
 
-                $this->semValue = new Stmt\ClassMethod($this->semStack[$stackPos-(10-5)], ['type' => $this->semStack[$stackPos-(10-2)], 'byRef' => $this->semStack[$stackPos-(10-4)], 'params' => $this->semStack[$stackPos-(10-7)], 'returnType' => $this->semStack[$stackPos-(10-9)], 'stmts' => $this->semStack[$stackPos-(10-10)], 'attrGroups' => $this->semStack[$stackPos-(10-1)]], $this->getAttributes($this->tokenStartStack[$stackPos-(10-1)], $this->tokenEndStack[$stackPos]));
-                $this->checkClassMethod($this->semValue, $stackPos-(10-2));
+                $this->semValue = new Stmt\ClassMethod($this->semStack[$stackPos - (10 - 5)], ['type' => $this->semStack[$stackPos - (10 - 2)], 'byRef' => $this->semStack[$stackPos - (10 - 4)], 'params' => $this->semStack[$stackPos - (10 - 7)], 'returnType' => $this->semStack[$stackPos - (10 - 9)], 'stmts' => $this->semStack[$stackPos - (10 - 10)], 'attrGroups' => $this->semStack[$stackPos - (10 - 1)]], $this->getAttributes($this->tokenStartStack[$stackPos - (10 - 1)], $this->tokenEndStack[$stackPos]));
+                $this->checkClassMethod($this->semValue, $stackPos - (10 - 2));
                 return true;
             case 363:
 
-                $this->semValue = new Stmt\TraitUse($this->semStack[$stackPos-(3-2)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\TraitUse($this->semStack[$stackPos - (3 - 2)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 364:
 
-                $this->semValue = new Stmt\EnumCase($this->semStack[$stackPos-(5-3)], $this->semStack[$stackPos-(5-4)], $this->semStack[$stackPos-(5-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(5-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\EnumCase($this->semStack[$stackPos - (5 - 3)], $this->semStack[$stackPos - (5 - 4)], $this->semStack[$stackPos - (5 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (5 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 365:
 
@@ -2260,7 +2333,7 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 367:
 
-                $this->semValue = $this->semStack[$stackPos-(3-2)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 2)];
                 return true;
             case 368:
 
@@ -2268,35 +2341,36 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 369:
 
-                $this->semStack[$stackPos-(2-1)][] = $this->semStack[$stackPos-(2-2)]; $this->semValue = $this->semStack[$stackPos-(2-1)];
+                $this->semStack[$stackPos - (2 - 1)][] = $this->semStack[$stackPos - (2 - 2)];
+                $this->semValue = $this->semStack[$stackPos - (2 - 1)];
                 return true;
             case 370:
 
-                $this->semValue = new Stmt\TraitUseAdaptation\Precedence($this->semStack[$stackPos-(4-1)][0], $this->semStack[$stackPos-(4-1)][1], $this->semStack[$stackPos-(4-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\TraitUseAdaptation\Precedence($this->semStack[$stackPos - (4 - 1)][0], $this->semStack[$stackPos - (4 - 1)][1], $this->semStack[$stackPos - (4 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 371:
 
-                $this->semValue = new Stmt\TraitUseAdaptation\Alias($this->semStack[$stackPos-(5-1)][0], $this->semStack[$stackPos-(5-1)][1], $this->semStack[$stackPos-(5-3)], $this->semStack[$stackPos-(5-4)], $this->getAttributes($this->tokenStartStack[$stackPos-(5-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\TraitUseAdaptation\Alias($this->semStack[$stackPos - (5 - 1)][0], $this->semStack[$stackPos - (5 - 1)][1], $this->semStack[$stackPos - (5 - 3)], $this->semStack[$stackPos - (5 - 4)], $this->getAttributes($this->tokenStartStack[$stackPos - (5 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 372:
 
-                $this->semValue = new Stmt\TraitUseAdaptation\Alias($this->semStack[$stackPos-(4-1)][0], $this->semStack[$stackPos-(4-1)][1], $this->semStack[$stackPos-(4-3)], null, $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\TraitUseAdaptation\Alias($this->semStack[$stackPos - (4 - 1)][0], $this->semStack[$stackPos - (4 - 1)][1], $this->semStack[$stackPos - (4 - 3)], null, $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 373:
 
-                $this->semValue = new Stmt\TraitUseAdaptation\Alias($this->semStack[$stackPos-(4-1)][0], $this->semStack[$stackPos-(4-1)][1], null, $this->semStack[$stackPos-(4-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\TraitUseAdaptation\Alias($this->semStack[$stackPos - (4 - 1)][0], $this->semStack[$stackPos - (4 - 1)][1], null, $this->semStack[$stackPos - (4 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 374:
 
-                $this->semValue = new Stmt\TraitUseAdaptation\Alias($this->semStack[$stackPos-(4-1)][0], $this->semStack[$stackPos-(4-1)][1], null, $this->semStack[$stackPos-(4-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Stmt\TraitUseAdaptation\Alias($this->semStack[$stackPos - (4 - 1)][0], $this->semStack[$stackPos - (4 - 1)][1], null, $this->semStack[$stackPos - (4 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 375:
 
-                $this->semValue = array($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)]);
+                $this->semValue = array($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)]);
                 return true;
             case 377:
 
-                $this->semValue = array(null, $this->semStack[$stackPos-(1-1)]);
+                $this->semValue = array(null, $this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 378:
 
@@ -2312,7 +2386,8 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 385:
 
-                $this->checkModifier($this->semStack[$stackPos-(2-1)], $this->semStack[$stackPos-(2-2)], $stackPos-(2-2)); $this->semValue = $this->semStack[$stackPos-(2-1)] | $this->semStack[$stackPos-(2-2)];
+                $this->checkModifier($this->semStack[$stackPos - (2 - 1)], $this->semStack[$stackPos - (2 - 2)], $stackPos - (2 - 2));
+                $this->semValue = $this->semStack[$stackPos - (2 - 1)] | $this->semStack[$stackPos - (2 - 2)];
                 return true;
             case 386:
 
@@ -2356,23 +2431,24 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 397:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 398:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 399:
 
-                $this->semValue = new Node\VarLikeIdentifier(substr($this->semStack[$stackPos-(1-1)], 1), $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\VarLikeIdentifier(substr($this->semStack[$stackPos - (1 - 1)], 1), $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 400:
 
-                $this->semValue = new Node\PropertyItem($this->semStack[$stackPos-(1-1)], null, $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\PropertyItem($this->semStack[$stackPos - (1 - 1)], null, $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 401:
 
-                $this->semValue = new Node\PropertyItem($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\PropertyItem($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 402:
 
@@ -2380,7 +2456,8 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 403:
 
-                $this->semStack[$stackPos-(2-1)][] = $this->semStack[$stackPos-(2-2)]; $this->semValue = $this->semStack[$stackPos-(2-1)];
+                $this->semStack[$stackPos - (2 - 1)][] = $this->semStack[$stackPos - (2 - 2)];
+                $this->semValue = $this->semStack[$stackPos - (2 - 1)];
                 return true;
             case 404:
 
@@ -2388,17 +2465,18 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 405:
 
-                $this->semValue = $this->semStack[$stackPos-(3-2)]; $this->checkEmptyPropertyHookList($this->semStack[$stackPos-(3-2)], $stackPos-(3-1));
+                $this->semValue = $this->semStack[$stackPos - (3 - 2)];
+                $this->checkEmptyPropertyHookList($this->semStack[$stackPos - (3 - 2)], $stackPos - (3 - 1));
                 return true;
             case 406:
 
-                $this->semValue = new Node\PropertyHook($this->semStack[$stackPos-(5-4)], $this->semStack[$stackPos-(5-5)], ['flags' => $this->semStack[$stackPos-(5-2)], 'byRef' => $this->semStack[$stackPos-(5-3)], 'params' => [], 'attrGroups' => $this->semStack[$stackPos-(5-1)]], $this->getAttributes($this->tokenStartStack[$stackPos-(5-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\PropertyHook($this->semStack[$stackPos - (5 - 4)], $this->semStack[$stackPos - (5 - 5)], ['flags' => $this->semStack[$stackPos - (5 - 2)], 'byRef' => $this->semStack[$stackPos - (5 - 3)], 'params' => [], 'attrGroups' => $this->semStack[$stackPos - (5 - 1)]], $this->getAttributes($this->tokenStartStack[$stackPos - (5 - 1)], $this->tokenEndStack[$stackPos]));
                 $this->checkPropertyHook($this->semValue, null);
                 return true;
             case 407:
 
-                $this->semValue = new Node\PropertyHook($this->semStack[$stackPos-(8-4)], $this->semStack[$stackPos-(8-8)], ['flags' => $this->semStack[$stackPos-(8-2)], 'byRef' => $this->semStack[$stackPos-(8-3)], 'params' => $this->semStack[$stackPos-(8-6)], 'attrGroups' => $this->semStack[$stackPos-(8-1)]], $this->getAttributes($this->tokenStartStack[$stackPos-(8-1)], $this->tokenEndStack[$stackPos]));
-                $this->checkPropertyHook($this->semValue, $stackPos-(8-5));
+                $this->semValue = new Node\PropertyHook($this->semStack[$stackPos - (8 - 4)], $this->semStack[$stackPos - (8 - 8)], ['flags' => $this->semStack[$stackPos - (8 - 2)], 'byRef' => $this->semStack[$stackPos - (8 - 3)], 'params' => $this->semStack[$stackPos - (8 - 6)], 'attrGroups' => $this->semStack[$stackPos - (8 - 1)]], $this->getAttributes($this->tokenStartStack[$stackPos - (8 - 1)], $this->tokenEndStack[$stackPos]));
+                $this->checkPropertyHook($this->semValue, $stackPos - (8 - 5));
                 return true;
             case 408:
 
@@ -2406,11 +2484,11 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 409:
 
-                $this->semValue = $this->semStack[$stackPos-(3-2)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 2)];
                 return true;
             case 410:
 
-                $this->semValue = $this->semStack[$stackPos-(3-2)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 2)];
                 return true;
             case 411:
 
@@ -2418,15 +2496,17 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 412:
 
-                $this->checkPropertyHookModifiers($this->semStack[$stackPos-(2-1)], $this->semStack[$stackPos-(2-2)], $stackPos-(2-2)); $this->semValue = $this->semStack[$stackPos-(2-1)] | $this->semStack[$stackPos-(2-2)];
+                $this->checkPropertyHookModifiers($this->semStack[$stackPos - (2 - 1)], $this->semStack[$stackPos - (2 - 2)], $stackPos - (2 - 2));
+                $this->semValue = $this->semStack[$stackPos - (2 - 1)] | $this->semStack[$stackPos - (2 - 2)];
                 return true;
             case 415:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 416:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 417:
 
@@ -2434,409 +2514,410 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 420:
 
-                $this->semValue = new Expr\Assign($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Assign($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 421:
 
-                $this->semValue = new Expr\Assign($this->fixupArrayDestructuring($this->semStack[$stackPos-(3-1)]), $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Assign($this->fixupArrayDestructuring($this->semStack[$stackPos - (3 - 1)]), $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 422:
 
-                $this->semValue = new Expr\Assign($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Assign($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 423:
 
-                $this->semValue = new Expr\AssignRef($this->semStack[$stackPos-(4-1)], $this->semStack[$stackPos-(4-4)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\AssignRef($this->semStack[$stackPos - (4 - 1)], $this->semStack[$stackPos - (4 - 4)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 424:
 
-                $this->semValue = new Expr\AssignRef($this->semStack[$stackPos-(4-1)], $this->semStack[$stackPos-(4-4)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\AssignRef($this->semStack[$stackPos - (4 - 1)], $this->semStack[$stackPos - (4 - 4)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 if (!$this->phpVersion->allowsAssignNewByReference()) {
-                $this->emitError(new Error('Cannot assign new by reference', $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos])));
+                    $this->emitError(new Error('Cannot assign new by reference', $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos])));
                 }
                 return true;
             case 427:
 
-                $this->semValue = new Expr\FuncCall(new Node\Name($this->semStack[$stackPos-(2-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)],  $this->tokenEndStack[$stackPos-(2-1)])), $this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\FuncCall(new Node\Name($this->semStack[$stackPos - (2 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos - (2 - 1)])), $this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 428:
 
-                $this->semValue = new Expr\Clone_($this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Clone_($this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 429:
 
-                $this->semValue = new Expr\AssignOp\Plus($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\AssignOp\Plus($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 430:
 
-                $this->semValue = new Expr\AssignOp\Minus($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\AssignOp\Minus($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 431:
 
-                $this->semValue = new Expr\AssignOp\Mul($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\AssignOp\Mul($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 432:
 
-                $this->semValue = new Expr\AssignOp\Div($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\AssignOp\Div($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 433:
 
-                $this->semValue = new Expr\AssignOp\Concat($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\AssignOp\Concat($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 434:
 
-                $this->semValue = new Expr\AssignOp\Mod($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\AssignOp\Mod($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 435:
 
-                $this->semValue = new Expr\AssignOp\BitwiseAnd($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\AssignOp\BitwiseAnd($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 436:
 
-                $this->semValue = new Expr\AssignOp\BitwiseOr($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\AssignOp\BitwiseOr($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 437:
 
-                $this->semValue = new Expr\AssignOp\BitwiseXor($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\AssignOp\BitwiseXor($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 438:
 
-                $this->semValue = new Expr\AssignOp\ShiftLeft($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\AssignOp\ShiftLeft($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 439:
 
-                $this->semValue = new Expr\AssignOp\ShiftRight($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\AssignOp\ShiftRight($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 440:
 
-                $this->semValue = new Expr\AssignOp\Pow($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\AssignOp\Pow($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 441:
 
-                $this->semValue = new Expr\AssignOp\Coalesce($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\AssignOp\Coalesce($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 442:
 
-                $this->semValue = new Expr\PostInc($this->semStack[$stackPos-(2-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\PostInc($this->semStack[$stackPos - (2 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 443:
 
-                $this->semValue = new Expr\PreInc($this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\PreInc($this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 444:
 
-                $this->semValue = new Expr\PostDec($this->semStack[$stackPos-(2-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\PostDec($this->semStack[$stackPos - (2 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 445:
 
-                $this->semValue = new Expr\PreDec($this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\PreDec($this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 446:
 
-                $this->semValue = new Expr\BinaryOp\BooleanOr($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\BooleanOr($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 447:
 
-                $this->semValue = new Expr\BinaryOp\BooleanAnd($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\BooleanAnd($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 448:
 
-                $this->semValue = new Expr\BinaryOp\LogicalOr($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\LogicalOr($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 449:
 
-                $this->semValue = new Expr\BinaryOp\LogicalAnd($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\LogicalAnd($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 450:
 
-                $this->semValue = new Expr\BinaryOp\LogicalXor($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\LogicalXor($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 451:
 
-                $this->semValue = new Expr\BinaryOp\BitwiseOr($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\BitwiseOr($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 452:
 
-                $this->semValue = new Expr\BinaryOp\BitwiseAnd($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\BitwiseAnd($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 453:
 
-                $this->semValue = new Expr\BinaryOp\BitwiseAnd($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\BitwiseAnd($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 454:
 
-                $this->semValue = new Expr\BinaryOp\BitwiseXor($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\BitwiseXor($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 455:
 
-                $this->semValue = new Expr\BinaryOp\Concat($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\Concat($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 456:
 
-                $this->semValue = new Expr\BinaryOp\Plus($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\Plus($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 457:
 
-                $this->semValue = new Expr\BinaryOp\Minus($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\Minus($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 458:
 
-                $this->semValue = new Expr\BinaryOp\Mul($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\Mul($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 459:
 
-                $this->semValue = new Expr\BinaryOp\Div($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\Div($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 460:
 
-                $this->semValue = new Expr\BinaryOp\Mod($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\Mod($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 461:
 
-                $this->semValue = new Expr\BinaryOp\ShiftLeft($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\ShiftLeft($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 462:
 
-                $this->semValue = new Expr\BinaryOp\ShiftRight($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\ShiftRight($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 463:
 
-                $this->semValue = new Expr\BinaryOp\Pow($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\Pow($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 464:
 
-                $this->semValue = new Expr\UnaryPlus($this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\UnaryPlus($this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 465:
 
-                $this->semValue = new Expr\UnaryMinus($this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\UnaryMinus($this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 466:
 
-                $this->semValue = new Expr\BooleanNot($this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BooleanNot($this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 467:
 
-                $this->semValue = new Expr\BitwiseNot($this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BitwiseNot($this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 468:
 
-                $this->semValue = new Expr\BinaryOp\Identical($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\Identical($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 469:
 
-                $this->semValue = new Expr\BinaryOp\NotIdentical($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\NotIdentical($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 470:
 
-                $this->semValue = new Expr\BinaryOp\Equal($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\Equal($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 471:
 
-                $this->semValue = new Expr\BinaryOp\NotEqual($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\NotEqual($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 472:
 
-                $this->semValue = new Expr\BinaryOp\Spaceship($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\Spaceship($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 473:
 
-                $this->semValue = new Expr\BinaryOp\Smaller($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\Smaller($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 474:
 
-                $this->semValue = new Expr\BinaryOp\SmallerOrEqual($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\SmallerOrEqual($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 475:
 
-                $this->semValue = new Expr\BinaryOp\Greater($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\Greater($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 476:
 
-                $this->semValue = new Expr\BinaryOp\GreaterOrEqual($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\GreaterOrEqual($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 477:
 
 
-                $this->semValue = new Expr\BinaryOp\Pipe($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
-                $this->checkPipeOperatorParentheses($this->semStack[$stackPos-(3-3)]);
+                $this->semValue = new Expr\BinaryOp\Pipe($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
+                $this->checkPipeOperatorParentheses($this->semStack[$stackPos - (3 - 3)]);
                 return true;
             case 478:
 
-                $this->semValue = new Expr\Instanceof_($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Instanceof_($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 479:
 
 
-                $this->semValue = $this->semStack[$stackPos-(3-2)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 2)];
                 if ($this->semValue instanceof Expr\ArrowFunction) {
-                $this->parenthesizedArrowFunctions->offsetSet($this->semValue);
+                    $this->parenthesizedArrowFunctions->offsetSet($this->semValue);
                 }
                 return true;
             case 480:
 
-                $this->semValue = new Expr\Ternary($this->semStack[$stackPos-(5-1)], $this->semStack[$stackPos-(5-3)], $this->semStack[$stackPos-(5-5)], $this->getAttributes($this->tokenStartStack[$stackPos-(5-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Ternary($this->semStack[$stackPos - (5 - 1)], $this->semStack[$stackPos - (5 - 3)], $this->semStack[$stackPos - (5 - 5)], $this->getAttributes($this->tokenStartStack[$stackPos - (5 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 481:
 
-                $this->semValue = new Expr\Ternary($this->semStack[$stackPos-(4-1)], null, $this->semStack[$stackPos-(4-4)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Ternary($this->semStack[$stackPos - (4 - 1)], null, $this->semStack[$stackPos - (4 - 4)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 482:
 
-                $this->semValue = new Expr\BinaryOp\Coalesce($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\BinaryOp\Coalesce($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 483:
 
-                $this->semValue = new Expr\Isset_($this->semStack[$stackPos-(4-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Isset_($this->semStack[$stackPos - (4 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 484:
 
-                $this->semValue = new Expr\Empty_($this->semStack[$stackPos-(4-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Empty_($this->semStack[$stackPos - (4 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 485:
 
-                $this->semValue = new Expr\Include_($this->semStack[$stackPos-(2-2)], Expr\Include_::TYPE_INCLUDE, $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Include_($this->semStack[$stackPos - (2 - 2)], Expr\Include_::TYPE_INCLUDE, $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 486:
 
-                $this->semValue = new Expr\Include_($this->semStack[$stackPos-(2-2)], Expr\Include_::TYPE_INCLUDE_ONCE, $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Include_($this->semStack[$stackPos - (2 - 2)], Expr\Include_::TYPE_INCLUDE_ONCE, $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 487:
 
-                $this->semValue = new Expr\Eval_($this->semStack[$stackPos-(4-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Eval_($this->semStack[$stackPos - (4 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 488:
 
-                $this->semValue = new Expr\Include_($this->semStack[$stackPos-(2-2)], Expr\Include_::TYPE_REQUIRE, $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Include_($this->semStack[$stackPos - (2 - 2)], Expr\Include_::TYPE_REQUIRE, $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 489:
 
-                $this->semValue = new Expr\Include_($this->semStack[$stackPos-(2-2)], Expr\Include_::TYPE_REQUIRE_ONCE, $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Include_($this->semStack[$stackPos - (2 - 2)], Expr\Include_::TYPE_REQUIRE_ONCE, $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 490:
 
-                $attrs = $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]);
-                $attrs['kind'] = $this->getIntCastKind($this->semStack[$stackPos-(2-1)]);
-                $this->semValue = new Expr\Cast\Int_($this->semStack[$stackPos-(2-2)], $attrs);
+                $attrs = $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]);
+                $attrs['kind'] = $this->getIntCastKind($this->semStack[$stackPos - (2 - 1)]);
+                $this->semValue = new Expr\Cast\Int_($this->semStack[$stackPos - (2 - 2)], $attrs);
                 return true;
             case 491:
 
-                $attrs = $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]);
-                $attrs['kind'] = $this->getFloatCastKind($this->semStack[$stackPos-(2-1)]);
-                $this->semValue = new Expr\Cast\Double($this->semStack[$stackPos-(2-2)], $attrs);
+                $attrs = $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]);
+                $attrs['kind'] = $this->getFloatCastKind($this->semStack[$stackPos - (2 - 1)]);
+                $this->semValue = new Expr\Cast\Double($this->semStack[$stackPos - (2 - 2)], $attrs);
                 return true;
             case 492:
 
-                $attrs = $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]);
-                $attrs['kind'] = $this->getStringCastKind($this->semStack[$stackPos-(2-1)]);
-                $this->semValue = new Expr\Cast\String_($this->semStack[$stackPos-(2-2)], $attrs);
+                $attrs = $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]);
+                $attrs['kind'] = $this->getStringCastKind($this->semStack[$stackPos - (2 - 1)]);
+                $this->semValue = new Expr\Cast\String_($this->semStack[$stackPos - (2 - 2)], $attrs);
                 return true;
             case 493:
 
-                $this->semValue = new Expr\Cast\Array_($this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Cast\Array_($this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 494:
 
-                $this->semValue = new Expr\Cast\Object_($this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Cast\Object_($this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 495:
 
-                $attrs = $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]);
-                $attrs['kind'] = $this->getBoolCastKind($this->semStack[$stackPos-(2-1)]);
-                $this->semValue = new Expr\Cast\Bool_($this->semStack[$stackPos-(2-2)], $attrs);
+                $attrs = $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]);
+                $attrs['kind'] = $this->getBoolCastKind($this->semStack[$stackPos - (2 - 1)]);
+                $this->semValue = new Expr\Cast\Bool_($this->semStack[$stackPos - (2 - 2)], $attrs);
                 return true;
             case 496:
 
-                $this->semValue = new Expr\Cast\Unset_($this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Cast\Unset_($this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 497:
 
-                $this->semValue = new Expr\Cast\Void_($this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Cast\Void_($this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 498:
 
-                $this->semValue = $this->createExitExpr($this->semStack[$stackPos-(2-1)], $stackPos-(2-1), $this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = $this->createExitExpr($this->semStack[$stackPos - (2 - 1)], $stackPos - (2 - 1), $this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 499:
 
-                $this->semValue = new Expr\ErrorSuppress($this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\ErrorSuppress($this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 501:
 
-                $this->semValue = new Expr\ShellExec($this->semStack[$stackPos-(3-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\ShellExec($this->semStack[$stackPos - (3 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 502:
 
-                $this->semValue = new Expr\Print_($this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Print_($this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 503:
 
-                $this->semValue = new Expr\Yield_(null, null, $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Yield_(null, null, $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 504:
 
-                $this->semValue = new Expr\Yield_($this->semStack[$stackPos-(2-2)], null, $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Yield_($this->semStack[$stackPos - (2 - 2)], null, $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 505:
 
-                $this->semValue = new Expr\Yield_($this->semStack[$stackPos-(4-4)], $this->semStack[$stackPos-(4-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Yield_($this->semStack[$stackPos - (4 - 4)], $this->semStack[$stackPos - (4 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 506:
 
-                $this->semValue = new Expr\YieldFrom($this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\YieldFrom($this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 507:
 
-                $this->semValue = new Expr\Throw_($this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Throw_($this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 508:
 
-                $this->semValue = new Expr\ArrowFunction(['static' => false, 'byRef' => $this->semStack[$stackPos-(8-2)], 'params' => $this->semStack[$stackPos-(8-4)], 'returnType' => $this->semStack[$stackPos-(8-6)], 'expr' => $this->semStack[$stackPos-(8-8)], 'attrGroups' => []], $this->getAttributes($this->tokenStartStack[$stackPos-(8-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\ArrowFunction(['static' => false, 'byRef' => $this->semStack[$stackPos - (8 - 2)], 'params' => $this->semStack[$stackPos - (8 - 4)], 'returnType' => $this->semStack[$stackPos - (8 - 6)], 'expr' => $this->semStack[$stackPos - (8 - 8)], 'attrGroups' => []], $this->getAttributes($this->tokenStartStack[$stackPos - (8 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 509:
 
-                $this->semValue = new Expr\ArrowFunction(['static' => true, 'byRef' => $this->semStack[$stackPos-(9-3)], 'params' => $this->semStack[$stackPos-(9-5)], 'returnType' => $this->semStack[$stackPos-(9-7)], 'expr' => $this->semStack[$stackPos-(9-9)], 'attrGroups' => []], $this->getAttributes($this->tokenStartStack[$stackPos-(9-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\ArrowFunction(['static' => true, 'byRef' => $this->semStack[$stackPos - (9 - 3)], 'params' => $this->semStack[$stackPos - (9 - 5)], 'returnType' => $this->semStack[$stackPos - (9 - 7)], 'expr' => $this->semStack[$stackPos - (9 - 9)], 'attrGroups' => []], $this->getAttributes($this->tokenStartStack[$stackPos - (9 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 510:
 
-                $this->semValue = new Expr\Closure(['static' => false, 'byRef' => $this->semStack[$stackPos-(8-2)], 'params' => $this->semStack[$stackPos-(8-4)], 'uses' => $this->semStack[$stackPos-(8-6)], 'returnType' => $this->semStack[$stackPos-(8-7)], 'stmts' => $this->semStack[$stackPos-(8-8)], 'attrGroups' => []], $this->getAttributes($this->tokenStartStack[$stackPos-(8-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Closure(['static' => false, 'byRef' => $this->semStack[$stackPos - (8 - 2)], 'params' => $this->semStack[$stackPos - (8 - 4)], 'uses' => $this->semStack[$stackPos - (8 - 6)], 'returnType' => $this->semStack[$stackPos - (8 - 7)], 'stmts' => $this->semStack[$stackPos - (8 - 8)], 'attrGroups' => []], $this->getAttributes($this->tokenStartStack[$stackPos - (8 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 511:
 
-                $this->semValue = new Expr\Closure(['static' => true, 'byRef' => $this->semStack[$stackPos-(9-3)], 'params' => $this->semStack[$stackPos-(9-5)], 'uses' => $this->semStack[$stackPos-(9-7)], 'returnType' => $this->semStack[$stackPos-(9-8)], 'stmts' => $this->semStack[$stackPos-(9-9)], 'attrGroups' => []], $this->getAttributes($this->tokenStartStack[$stackPos-(9-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Closure(['static' => true, 'byRef' => $this->semStack[$stackPos - (9 - 3)], 'params' => $this->semStack[$stackPos - (9 - 5)], 'uses' => $this->semStack[$stackPos - (9 - 7)], 'returnType' => $this->semStack[$stackPos - (9 - 8)], 'stmts' => $this->semStack[$stackPos - (9 - 9)], 'attrGroups' => []], $this->getAttributes($this->tokenStartStack[$stackPos - (9 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 512:
 
-                $this->semValue = new Expr\ArrowFunction(['static' => false, 'byRef' => $this->semStack[$stackPos-(9-3)], 'params' => $this->semStack[$stackPos-(9-5)], 'returnType' => $this->semStack[$stackPos-(9-7)], 'expr' => $this->semStack[$stackPos-(9-9)], 'attrGroups' => $this->semStack[$stackPos-(9-1)]], $this->getAttributes($this->tokenStartStack[$stackPos-(9-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\ArrowFunction(['static' => false, 'byRef' => $this->semStack[$stackPos - (9 - 3)], 'params' => $this->semStack[$stackPos - (9 - 5)], 'returnType' => $this->semStack[$stackPos - (9 - 7)], 'expr' => $this->semStack[$stackPos - (9 - 9)], 'attrGroups' => $this->semStack[$stackPos - (9 - 1)]], $this->getAttributes($this->tokenStartStack[$stackPos - (9 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 513:
 
-                $this->semValue = new Expr\ArrowFunction(['static' => true, 'byRef' => $this->semStack[$stackPos-(10-4)], 'params' => $this->semStack[$stackPos-(10-6)], 'returnType' => $this->semStack[$stackPos-(10-8)], 'expr' => $this->semStack[$stackPos-(10-10)], 'attrGroups' => $this->semStack[$stackPos-(10-1)]], $this->getAttributes($this->tokenStartStack[$stackPos-(10-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\ArrowFunction(['static' => true, 'byRef' => $this->semStack[$stackPos - (10 - 4)], 'params' => $this->semStack[$stackPos - (10 - 6)], 'returnType' => $this->semStack[$stackPos - (10 - 8)], 'expr' => $this->semStack[$stackPos - (10 - 10)], 'attrGroups' => $this->semStack[$stackPos - (10 - 1)]], $this->getAttributes($this->tokenStartStack[$stackPos - (10 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 514:
 
-                $this->semValue = new Expr\Closure(['static' => false, 'byRef' => $this->semStack[$stackPos-(9-3)], 'params' => $this->semStack[$stackPos-(9-5)], 'uses' => $this->semStack[$stackPos-(9-7)], 'returnType' => $this->semStack[$stackPos-(9-8)], 'stmts' => $this->semStack[$stackPos-(9-9)], 'attrGroups' => $this->semStack[$stackPos-(9-1)]], $this->getAttributes($this->tokenStartStack[$stackPos-(9-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Closure(['static' => false, 'byRef' => $this->semStack[$stackPos - (9 - 3)], 'params' => $this->semStack[$stackPos - (9 - 5)], 'uses' => $this->semStack[$stackPos - (9 - 7)], 'returnType' => $this->semStack[$stackPos - (9 - 8)], 'stmts' => $this->semStack[$stackPos - (9 - 9)], 'attrGroups' => $this->semStack[$stackPos - (9 - 1)]], $this->getAttributes($this->tokenStartStack[$stackPos - (9 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 515:
 
-                $this->semValue = new Expr\Closure(['static' => true, 'byRef' => $this->semStack[$stackPos-(10-4)], 'params' => $this->semStack[$stackPos-(10-6)], 'uses' => $this->semStack[$stackPos-(10-8)], 'returnType' => $this->semStack[$stackPos-(10-9)], 'stmts' => $this->semStack[$stackPos-(10-10)], 'attrGroups' => $this->semStack[$stackPos-(10-1)]], $this->getAttributes($this->tokenStartStack[$stackPos-(10-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Closure(['static' => true, 'byRef' => $this->semStack[$stackPos - (10 - 4)], 'params' => $this->semStack[$stackPos - (10 - 6)], 'uses' => $this->semStack[$stackPos - (10 - 8)], 'returnType' => $this->semStack[$stackPos - (10 - 9)], 'stmts' => $this->semStack[$stackPos - (10 - 10)], 'attrGroups' => $this->semStack[$stackPos - (10 - 1)]], $this->getAttributes($this->tokenStartStack[$stackPos - (10 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 516:
 
-                $this->semValue = array(new Stmt\Class_(null, ['type' => $this->semStack[$stackPos-(8-2)], 'extends' => $this->semStack[$stackPos-(8-4)], 'implements' => $this->semStack[$stackPos-(8-5)], 'stmts' => $this->semStack[$stackPos-(8-7)], 'attrGroups' => $this->semStack[$stackPos-(8-1)]], $this->getAttributes($this->tokenStartStack[$stackPos-(8-1)], $this->tokenEndStack[$stackPos])), $this->semStack[$stackPos-(8-3)]);
+                $this->semValue = array(new Stmt\Class_(null, ['type' => $this->semStack[$stackPos - (8 - 2)], 'extends' => $this->semStack[$stackPos - (8 - 4)], 'implements' => $this->semStack[$stackPos - (8 - 5)], 'stmts' => $this->semStack[$stackPos - (8 - 7)], 'attrGroups' => $this->semStack[$stackPos - (8 - 1)]], $this->getAttributes($this->tokenStartStack[$stackPos - (8 - 1)], $this->tokenEndStack[$stackPos])), $this->semStack[$stackPos - (8 - 3)]);
                 $this->checkClass($this->semValue[0], -1);
                 return true;
             case 517:
 
-                $this->semValue = new Expr\New_($this->semStack[$stackPos-(3-2)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\New_($this->semStack[$stackPos - (3 - 2)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 518:
 
-                list($class, $ctorArgs) = $this->semStack[$stackPos-(2-2)]; $this->semValue = new Expr\New_($class, $ctorArgs, $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                list($class, $ctorArgs) = $this->semStack[$stackPos - (2 - 2)];
+                $this->semValue = new Expr\New_($class, $ctorArgs, $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 519:
 
-                $this->semValue = new Expr\New_($this->semStack[$stackPos-(2-2)], [], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\New_($this->semStack[$stackPos - (2 - 2)], [], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 522:
 
@@ -2844,67 +2925,69 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 523:
 
-                $this->semValue = $this->semStack[$stackPos-(4-3)];
+                $this->semValue = $this->semStack[$stackPos - (4 - 3)];
                 return true;
             case 525:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 526:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 527:
 
-                $this->semValue = new Node\ClosureUse($this->semStack[$stackPos-(2-2)], $this->semStack[$stackPos-(2-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\ClosureUse($this->semStack[$stackPos - (2 - 2)], $this->semStack[$stackPos - (2 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 528:
 
-                $this->semValue = new Name($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Name($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 529:
 
-                $this->semValue = new Expr\FuncCall($this->semStack[$stackPos-(2-1)], $this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\FuncCall($this->semStack[$stackPos - (2 - 1)], $this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 530:
 
-                $this->semValue = new Expr\FuncCall($this->semStack[$stackPos-(2-1)], $this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\FuncCall($this->semStack[$stackPos - (2 - 1)], $this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 531:
 
-                $this->semValue = new Expr\FuncCall($this->semStack[$stackPos-(2-1)], $this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\FuncCall($this->semStack[$stackPos - (2 - 1)], $this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 532:
 
-                $this->semValue = new Expr\StaticCall($this->semStack[$stackPos-(4-1)], $this->semStack[$stackPos-(4-3)], $this->semStack[$stackPos-(4-4)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\StaticCall($this->semStack[$stackPos - (4 - 1)], $this->semStack[$stackPos - (4 - 3)], $this->semStack[$stackPos - (4 - 4)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 533:
 
-                $this->semValue = new Name($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Name($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 535:
 
-                $this->semValue = new Name($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Name($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 536:
 
-                $this->semValue = new Name($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Name($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 537:
 
-                $this->semValue = new Name\FullyQualified(substr($this->semStack[$stackPos-(1-1)], 1), $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Name\FullyQualified(substr($this->semStack[$stackPos - (1 - 1)], 1), $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 538:
 
-                $this->semValue = new Name\Relative(substr($this->semStack[$stackPos-(1-1)], 10), $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Name\Relative(substr($this->semStack[$stackPos - (1 - 1)], 10), $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 541:
 
-                $this->semValue = $this->semStack[$stackPos-(3-2)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 2)];
                 return true;
             case 542:
 
-                $this->semValue = new Expr\Error($this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos])); $this->errorState = 2;
+                $this->semValue = new Expr\Error($this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
+                $this->errorState = 2;
                 return true;
             case 545:
 
@@ -2912,11 +2995,21 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 546:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)]); foreach ($this->semValue as $s) { if ($s instanceof Node\InterpolatedStringPart) { $s->value = Node\Scalar\String_::parseEscapeSequences($s->value, '`', $this->phpVersion->supportsUnicodeEscapes()); } };
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)]);
+                foreach ($this->semValue as $s) {
+                    if ($s instanceof Node\InterpolatedStringPart) {
+                        $s->value = Node\Scalar\String_::parseEscapeSequences($s->value, '`', $this->phpVersion->supportsUnicodeEscapes());
+                    }
+                };
                 return true;
             case 547:
 
-                foreach ($this->semStack[$stackPos-(1-1)] as $s) { if ($s instanceof Node\InterpolatedStringPart) { $s->value = Node\Scalar\String_::parseEscapeSequences($s->value, '`', $this->phpVersion->supportsUnicodeEscapes()); } }; $this->semValue = $this->semStack[$stackPos-(1-1)];
+                foreach ($this->semStack[$stackPos - (1 - 1)] as $s) {
+                    if ($s instanceof Node\InterpolatedStringPart) {
+                        $s->value = Node\Scalar\String_::parseEscapeSequences($s->value, '`', $this->phpVersion->supportsUnicodeEscapes());
+                    }
+                };
+                $this->semValue = $this->semStack[$stackPos - (1 - 1)];
                 return true;
             case 548:
 
@@ -2924,99 +3017,109 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 550:
 
-                $this->semValue = new Expr\ConstFetch($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\ConstFetch($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 551:
 
-                $this->semValue = new Scalar\MagicConst\Line($this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Scalar\MagicConst\Line($this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 552:
 
-                $this->semValue = new Scalar\MagicConst\File($this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Scalar\MagicConst\File($this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 553:
 
-                $this->semValue = new Scalar\MagicConst\Dir($this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Scalar\MagicConst\Dir($this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 554:
 
-                $this->semValue = new Scalar\MagicConst\Class_($this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Scalar\MagicConst\Class_($this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 555:
 
-                $this->semValue = new Scalar\MagicConst\Trait_($this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Scalar\MagicConst\Trait_($this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 556:
 
-                $this->semValue = new Scalar\MagicConst\Method($this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Scalar\MagicConst\Method($this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 557:
 
-                $this->semValue = new Scalar\MagicConst\Function_($this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Scalar\MagicConst\Function_($this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 558:
 
-                $this->semValue = new Scalar\MagicConst\Namespace_($this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Scalar\MagicConst\Namespace_($this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 559:
 
-                $this->semValue = new Scalar\MagicConst\Property($this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Scalar\MagicConst\Property($this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 560:
 
-                $this->semValue = new Expr\ClassConstFetch($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\ClassConstFetch($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 561:
 
-                $this->semValue = new Expr\ClassConstFetch($this->semStack[$stackPos-(5-1)], $this->semStack[$stackPos-(5-4)], $this->getAttributes($this->tokenStartStack[$stackPos-(5-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\ClassConstFetch($this->semStack[$stackPos - (5 - 1)], $this->semStack[$stackPos - (5 - 4)], $this->getAttributes($this->tokenStartStack[$stackPos - (5 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 562:
 
-                $this->semValue = new Expr\ClassConstFetch($this->semStack[$stackPos-(3-1)], new Expr\Error($this->getAttributes($this->tokenStartStack[$stackPos-(3-3)],  $this->tokenEndStack[$stackPos-(3-3)])), $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos])); $this->errorState = 2;
+                $this->semValue = new Expr\ClassConstFetch($this->semStack[$stackPos - (3 - 1)], new Expr\Error($this->getAttributes($this->tokenStartStack[$stackPos - (3 - 3)], $this->tokenEndStack[$stackPos - (3 - 3)])), $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
+                $this->errorState = 2;
                 return true;
             case 563:
 
-                $attrs = $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]); $attrs['kind'] = Expr\Array_::KIND_SHORT;
-                $this->semValue = new Expr\Array_($this->semStack[$stackPos-(3-2)], $attrs);
+                $attrs = $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]);
+                $attrs['kind'] = Expr\Array_::KIND_SHORT;
+                $this->semValue = new Expr\Array_($this->semStack[$stackPos - (3 - 2)], $attrs);
                 return true;
             case 564:
 
-                $attrs = $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]); $attrs['kind'] = Expr\Array_::KIND_LONG;
-                $this->semValue = new Expr\Array_($this->semStack[$stackPos-(4-3)], $attrs);
+                $attrs = $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]);
+                $attrs['kind'] = Expr\Array_::KIND_LONG;
+                $this->semValue = new Expr\Array_($this->semStack[$stackPos - (4 - 3)], $attrs);
                 $this->createdArrays->offsetSet($this->semValue);
                 return true;
             case 565:
 
-                $this->semValue = $this->semStack[$stackPos-(1-1)]; $this->createdArrays->offsetSet($this->semValue);
+                $this->semValue = $this->semStack[$stackPos - (1 - 1)];
+                $this->createdArrays->offsetSet($this->semValue);
                 return true;
             case 566:
 
-                $this->semValue = Scalar\String_::fromString($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]), $this->phpVersion->supportsUnicodeEscapes());
+                $this->semValue = Scalar\String_::fromString($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]), $this->phpVersion->supportsUnicodeEscapes());
                 return true;
             case 567:
 
-                $attrs = $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]); $attrs['kind'] = Scalar\String_::KIND_DOUBLE_QUOTED;
-                foreach ($this->semStack[$stackPos-(3-2)] as $s) { if ($s instanceof Node\InterpolatedStringPart) { $s->value = Node\Scalar\String_::parseEscapeSequences($s->value, '"', $this->phpVersion->supportsUnicodeEscapes()); } }; $this->semValue = new Scalar\InterpolatedString($this->semStack[$stackPos-(3-2)], $attrs);
+                $attrs = $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]);
+                $attrs['kind'] = Scalar\String_::KIND_DOUBLE_QUOTED;
+                foreach ($this->semStack[$stackPos - (3 - 2)] as $s) {
+                    if ($s instanceof Node\InterpolatedStringPart) {
+                        $s->value = Node\Scalar\String_::parseEscapeSequences($s->value, '"', $this->phpVersion->supportsUnicodeEscapes());
+                    }
+                };
+                $this->semValue = new Scalar\InterpolatedString($this->semStack[$stackPos - (3 - 2)], $attrs);
                 return true;
             case 568:
 
-                $this->semValue = $this->parseLNumber($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]), $this->phpVersion->allowsInvalidOctals());
+                $this->semValue = $this->parseLNumber($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]), $this->phpVersion->allowsInvalidOctals());
                 return true;
             case 569:
 
-                $this->semValue = Scalar\Float_::fromString($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = Scalar\Float_::fromString($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 573:
 
-                $this->semValue = $this->parseDocString($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-2)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]), $this->getAttributes($this->tokenStartStack[$stackPos-(3-3)],  $this->tokenEndStack[$stackPos-(3-3)]), true);
+                $this->semValue = $this->parseDocString($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 2)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]), $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 3)], $this->tokenEndStack[$stackPos - (3 - 3)]), true);
                 return true;
             case 574:
 
-                $this->semValue = $this->parseDocString($this->semStack[$stackPos-(2-1)], '', $this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]), $this->getAttributes($this->tokenStartStack[$stackPos-(2-2)],  $this->tokenEndStack[$stackPos-(2-2)]), true);
+                $this->semValue = $this->parseDocString($this->semStack[$stackPos - (2 - 1)], '', $this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]), $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 2)], $this->tokenEndStack[$stackPos - (2 - 2)]), true);
                 return true;
             case 575:
 
-                $this->semValue = $this->parseDocString($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-2)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]), $this->getAttributes($this->tokenStartStack[$stackPos-(3-3)],  $this->tokenEndStack[$stackPos-(3-3)]), true);
+                $this->semValue = $this->parseDocString($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 2)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]), $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 3)], $this->tokenEndStack[$stackPos - (3 - 3)]), true);
                 return true;
             case 576:
 
@@ -3024,23 +3127,23 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 579:
 
-                $this->semValue = $this->semStack[$stackPos-(3-2)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 2)];
                 return true;
             case 586:
 
-                $this->semValue = $this->semStack[$stackPos-(3-2)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 2)];
                 return true;
             case 590:
 
-                $this->semValue = new Expr\ArrayDimFetch($this->semStack[$stackPos-(4-1)], $this->semStack[$stackPos-(4-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\ArrayDimFetch($this->semStack[$stackPos - (4 - 1)], $this->semStack[$stackPos - (4 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 592:
 
-                $this->semValue = new Expr\MethodCall($this->semStack[$stackPos-(4-1)], $this->semStack[$stackPos-(4-3)], $this->semStack[$stackPos-(4-4)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\MethodCall($this->semStack[$stackPos - (4 - 1)], $this->semStack[$stackPos - (4 - 3)], $this->semStack[$stackPos - (4 - 4)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 593:
 
-                $this->semValue = new Expr\NullsafeMethodCall($this->semStack[$stackPos-(4-1)], $this->semStack[$stackPos-(4-3)], $this->semStack[$stackPos-(4-4)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\NullsafeMethodCall($this->semStack[$stackPos - (4 - 1)], $this->semStack[$stackPos - (4 - 3)], $this->semStack[$stackPos - (4 - 4)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 594:
 
@@ -3048,72 +3151,80 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 598:
 
-                $this->semValue = new Expr\PropertyFetch($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\PropertyFetch($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 599:
 
-                $this->semValue = new Expr\NullsafePropertyFetch($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\NullsafePropertyFetch($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 601:
 
-                $this->semValue = new Expr\Variable($this->semStack[$stackPos-(4-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Variable($this->semStack[$stackPos - (4 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 602:
 
-                $this->semValue = new Expr\Variable($this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Variable($this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 603:
 
-                $this->semValue = new Expr\Variable(new Expr\Error($this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos])), $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos])); $this->errorState = 2;
+                $this->semValue = new Expr\Variable(new Expr\Error($this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos])), $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
+                $this->errorState = 2;
                 return true;
             case 604:
 
-                $var = $this->semStack[$stackPos-(1-1)]->name; $this->semValue = \is_string($var) ? new Node\VarLikeIdentifier($var, $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos])) : $var;
+                $var = $this->semStack[$stackPos - (1 - 1)]->name;
+                $this->semValue = \is_string($var) ? new Node\VarLikeIdentifier($var, $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos])) : $var;
                 return true;
             case 605:
 
-                $this->semValue = new Expr\StaticPropertyFetch($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\StaticPropertyFetch($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 607:
 
-                $this->semValue = new Expr\ArrayDimFetch($this->semStack[$stackPos-(4-1)], $this->semStack[$stackPos-(4-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\ArrayDimFetch($this->semStack[$stackPos - (4 - 1)], $this->semStack[$stackPos - (4 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 608:
 
-                $this->semValue = new Expr\PropertyFetch($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\PropertyFetch($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 609:
 
-                $this->semValue = new Expr\NullsafePropertyFetch($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\NullsafePropertyFetch($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 610:
 
-                $this->semValue = new Expr\StaticPropertyFetch($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\StaticPropertyFetch($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 611:
 
-                $this->semValue = new Expr\StaticPropertyFetch($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\StaticPropertyFetch($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 613:
 
-                $this->semValue = $this->semStack[$stackPos-(3-2)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 2)];
                 return true;
             case 616:
 
-                $this->semValue = $this->semStack[$stackPos-(3-2)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 2)];
                 return true;
             case 618:
 
-                $this->semValue = new Expr\Error($this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos])); $this->errorState = 2;
+                $this->semValue = new Expr\Error($this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
+                $this->errorState = 2;
                 return true;
             case 619:
 
-                $this->semValue = new Expr\List_($this->semStack[$stackPos-(4-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos])); $this->semValue->setAttribute('kind', Expr\List_::KIND_LIST);
+                $this->semValue = new Expr\List_($this->semStack[$stackPos - (4 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue->setAttribute('kind', Expr\List_::KIND_LIST);
                 $this->postprocessList($this->semValue);
                 return true;
             case 620:
 
-                $this->semValue = $this->semStack[$stackPos-(1-1)]; $end = count($this->semValue)-1; if ($this->semValue[$end]->value instanceof Expr\Error) array_pop($this->semValue);
+                $this->semValue = $this->semStack[$stackPos - (1 - 1)];
+                $end = count($this->semValue) - 1;
+                if ($this->semValue[$end]->value instanceof Expr\Error) {
+                    array_pop($this->semValue);
+                }
                 return true;
             case 622:
 
@@ -3121,39 +3232,40 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 623:
 
-                $this->semStack[$stackPos-(3-1)][] = $this->semStack[$stackPos-(3-3)]; $this->semValue = $this->semStack[$stackPos-(3-1)];
+                $this->semStack[$stackPos - (3 - 1)][] = $this->semStack[$stackPos - (3 - 3)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 1)];
                 return true;
             case 624:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 625:
 
-                $this->semValue = new Node\ArrayItem($this->semStack[$stackPos-(1-1)], null, false, $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\ArrayItem($this->semStack[$stackPos - (1 - 1)], null, false, $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 626:
 
-                $this->semValue = new Node\ArrayItem($this->semStack[$stackPos-(2-2)], null, true, $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\ArrayItem($this->semStack[$stackPos - (2 - 2)], null, true, $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 627:
 
-                $this->semValue = new Node\ArrayItem($this->semStack[$stackPos-(1-1)], null, false, $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\ArrayItem($this->semStack[$stackPos - (1 - 1)], null, false, $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 628:
 
-                $this->semValue = new Node\ArrayItem($this->semStack[$stackPos-(3-3)], $this->semStack[$stackPos-(3-1)], false, $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\ArrayItem($this->semStack[$stackPos - (3 - 3)], $this->semStack[$stackPos - (3 - 1)], false, $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 629:
 
-                $this->semValue = new Node\ArrayItem($this->semStack[$stackPos-(4-4)], $this->semStack[$stackPos-(4-1)], true, $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\ArrayItem($this->semStack[$stackPos - (4 - 4)], $this->semStack[$stackPos - (4 - 1)], true, $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 630:
 
-                $this->semValue = new Node\ArrayItem($this->semStack[$stackPos-(3-3)], $this->semStack[$stackPos-(3-1)], false, $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Node\ArrayItem($this->semStack[$stackPos - (3 - 3)], $this->semStack[$stackPos - (3 - 1)], false, $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 631:
 
-                $this->semValue = new Node\ArrayItem($this->semStack[$stackPos-(2-2)], null, false, $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]), true);
+                $this->semValue = new Node\ArrayItem($this->semStack[$stackPos - (2 - 2)], null, false, $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]), true);
                 return true;
             case 632:
 
@@ -3164,67 +3276,71 @@ class Php8 extends \PhpParser\ParserAbstract
                 return true;
             case 633:
 
-                $this->semStack[$stackPos-(2-1)][] = $this->semStack[$stackPos-(2-2)]; $this->semValue = $this->semStack[$stackPos-(2-1)];
+                $this->semStack[$stackPos - (2 - 1)][] = $this->semStack[$stackPos - (2 - 2)];
+                $this->semValue = $this->semStack[$stackPos - (2 - 1)];
                 return true;
             case 634:
 
-                $this->semStack[$stackPos-(2-1)][] = $this->semStack[$stackPos-(2-2)]; $this->semValue = $this->semStack[$stackPos-(2-1)];
+                $this->semStack[$stackPos - (2 - 1)][] = $this->semStack[$stackPos - (2 - 2)];
+                $this->semValue = $this->semStack[$stackPos - (2 - 1)];
                 return true;
             case 635:
 
-                $this->semValue = array($this->semStack[$stackPos-(1-1)]);
+                $this->semValue = array($this->semStack[$stackPos - (1 - 1)]);
                 return true;
             case 636:
 
-                $this->semValue = array($this->semStack[$stackPos-(2-1)], $this->semStack[$stackPos-(2-2)]);
+                $this->semValue = array($this->semStack[$stackPos - (2 - 1)], $this->semStack[$stackPos - (2 - 2)]);
                 return true;
             case 637:
 
-                $attrs = $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]); $attrs['rawValue'] = $this->semStack[$stackPos-(1-1)]; $this->semValue = new Node\InterpolatedStringPart($this->semStack[$stackPos-(1-1)], $attrs);
+                $attrs = $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]);
+                $attrs['rawValue'] = $this->semStack[$stackPos - (1 - 1)];
+                $this->semValue = new Node\InterpolatedStringPart($this->semStack[$stackPos - (1 - 1)], $attrs);
                 return true;
             case 638:
 
-                $this->semValue = new Expr\Variable($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Variable($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 640:
 
-                $this->semValue = new Expr\ArrayDimFetch($this->semStack[$stackPos-(4-1)], $this->semStack[$stackPos-(4-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(4-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\ArrayDimFetch($this->semStack[$stackPos - (4 - 1)], $this->semStack[$stackPos - (4 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (4 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 641:
 
-                $this->semValue = new Expr\PropertyFetch($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\PropertyFetch($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 642:
 
-                $this->semValue = new Expr\NullsafePropertyFetch($this->semStack[$stackPos-(3-1)], $this->semStack[$stackPos-(3-3)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\NullsafePropertyFetch($this->semStack[$stackPos - (3 - 1)], $this->semStack[$stackPos - (3 - 3)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 643:
 
-                $this->semValue = new Expr\Variable($this->semStack[$stackPos-(3-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Variable($this->semStack[$stackPos - (3 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 644:
 
-                $this->semValue = new Expr\Variable($this->semStack[$stackPos-(3-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(3-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\Variable($this->semStack[$stackPos - (3 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (3 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 645:
 
-                $this->semValue = new Expr\ArrayDimFetch($this->semStack[$stackPos-(6-2)], $this->semStack[$stackPos-(6-4)], $this->getAttributes($this->tokenStartStack[$stackPos-(6-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Expr\ArrayDimFetch($this->semStack[$stackPos - (6 - 2)], $this->semStack[$stackPos - (6 - 4)], $this->getAttributes($this->tokenStartStack[$stackPos - (6 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 646:
 
-                $this->semValue = $this->semStack[$stackPos-(3-2)];
+                $this->semValue = $this->semStack[$stackPos - (3 - 2)];
                 return true;
             case 647:
 
-                $this->semValue = new Scalar\String_($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = new Scalar\String_($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 648:
 
-                $this->semValue = $this->parseNumString($this->semStack[$stackPos-(1-1)], $this->getAttributes($this->tokenStartStack[$stackPos-(1-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = $this->parseNumString($this->semStack[$stackPos - (1 - 1)], $this->getAttributes($this->tokenStartStack[$stackPos - (1 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             case 649:
 
-                $this->semValue = $this->parseNumString('-' . $this->semStack[$stackPos-(2-2)], $this->getAttributes($this->tokenStartStack[$stackPos-(2-1)], $this->tokenEndStack[$stackPos]));
+                $this->semValue = $this->parseNumString('-' . $this->semStack[$stackPos - (2 - 2)], $this->getAttributes($this->tokenStartStack[$stackPos - (2 - 1)], $this->tokenEndStack[$stackPos]));
                 return true;
             default:
                 return false;
