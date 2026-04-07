@@ -1246,6 +1246,13 @@ class Php8 extends \PhpParser\ParserAbstract
         $this->dropTokens = [];
     }
 
+    /** @param array<\PhpParser\Node\Stmt> $stmts */
+    protected function handleNamespaces(array $stmts): array
+    {
+        // picoHP compat: skip namespace handling (not needed for single-file non-namespaced code)
+        return $stmts;
+    }
+
     protected function initReduceCallbacks(): void
     {
         $this->reduceCallbacks = [];

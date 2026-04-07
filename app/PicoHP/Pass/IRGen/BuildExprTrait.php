@@ -788,7 +788,7 @@ trait BuildExprTrait
                 return $this->emitVirtualDispatch($objVal, $className, $methodName, $allArgs, $returnType);
             }
 
-            $ownerClass = $classMeta->methodOwner[$methodName] ?? $className;
+            $ownerClass = $lookupMeta->methodOwner[$methodName] ?? ($classMeta->methodOwner[$methodName] ?? $className);
             $qualifiedName = ClassSymbol::llvmMethodSymbol($ownerClass, $methodName);
             return $this->builder->createCall($qualifiedName, $allArgs, $returnType);
         } elseif ($expr instanceof \PhpParser\Node\Expr\StaticCall) {
