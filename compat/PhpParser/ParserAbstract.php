@@ -271,8 +271,6 @@ abstract class ParserAbstract implements Parser
         $this->errorState = 0;
 
         for (;;) {
-            //$this->traceNewState($state, $symbol);
-
             if ($this->actionBase[$state] === 0) {
                 $rule = $this->actionDefault[$state];
             } else {
@@ -370,7 +368,6 @@ abstract class ParserAbstract implements Parser
                     } else {
                         $state = $this->gotoDefault[$nonTerminal];
                     }
-
                     ++$stackPos;
                     $stateStack[$stackPos]     = $state;
                     $this->semStack[$stackPos] = $this->semValue;

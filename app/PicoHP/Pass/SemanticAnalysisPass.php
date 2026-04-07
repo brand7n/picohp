@@ -820,6 +820,10 @@ class SemanticAnalysisPass implements PassInterface
                         foreach ($classStmt->consts as $const) {
                             if ($const->value instanceof \PhpParser\Node\Scalar\Int_) {
                                 $classMeta->constants[$const->name->toString()] = $const->value->value;
+                            } elseif ($const->value instanceof \PhpParser\Node\Expr\UnaryMinus
+                                && $const->value->expr instanceof \PhpParser\Node\Scalar\Int_
+                            ) {
+                                $classMeta->constants[$const->name->toString()] = -$const->value->expr->value;
                             }
                         }
                     }
@@ -872,6 +876,10 @@ class SemanticAnalysisPass implements PassInterface
                         foreach ($enumStmt->consts as $const) {
                             if ($const->value instanceof \PhpParser\Node\Scalar\Int_) {
                                 $enumClassMeta->constants[$const->name->toString()] = $const->value->value;
+                            } elseif ($const->value instanceof \PhpParser\Node\Expr\UnaryMinus
+                                && $const->value->expr instanceof \PhpParser\Node\Scalar\Int_
+                            ) {
+                                $enumClassMeta->constants[$const->name->toString()] = -$const->value->expr->value;
                             }
                         }
                     }
