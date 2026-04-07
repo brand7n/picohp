@@ -428,7 +428,16 @@ trait BuildExprTrait
                     throw new \Exception("casting to string from unsupported type");
             }
         } elseif ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
-            CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Name);
+            if (!($expr->name instanceof \PhpParser\Node\Name)) {
+                // Dynamic function call ($callback(...)) — can't resolve at compile time.
+                // Emit args for side effects, return null. The call itself is a no-op.
+                foreach ($expr->args as $arg) {
+                    if ($arg instanceof \PhpParser\Node\Arg) {
+                        $this->buildExpr($arg->value);
+                    }
+                }
+                return new NullConstant(BaseType::PTR);
+            }
             $funcName = $expr->name->toLowerString();
             // Built-in functions
             if ($funcName === 'assert') {
@@ -621,7 +630,7 @@ trait BuildExprTrait
                 return new NullConstant(BaseType::PTR);
             }
             $varType = $this->getExprResolvedType($expr->var);
-            if ($varType->isArray() || $varType->isMixed()) {
+            if ($varType->isArray() || $varType->isMixed() || (!$varType->isEqualTo(PicoType::fromString('string')) && $varType->toBase() === BaseType::PTR)) {
                 CompilerInvariant::check($expr->dim !== null, "array read requires index");
                 $arrPtr = $this->buildExpr($expr->var);
                 $idx = $this->buildExpr($expr->dim);
@@ -1240,6 +1249,17 @@ trait BuildExprTrait
             $propType = $classMeta->staticProperties[$var->name->toString()];
             return new \App\PicoHP\LLVM\Value\Global_(ClassSymbol::mangle($className) . '_' . $var->name->toString(), $propType->toBase());
         }
+        if ($var instanceof \PhpParser\Node\Expr\PropertyFetch) {
+            CompilerInvariant::check($var->name instanceof \PhpParser\Node\Identifier);
+            $objVal = $this->buildExpr($var->var);
+            $varType = $this->getExprResolvedType($var->var);
+            $className = $varType->getClassName();
+            $classMeta = $this->classRegistry[$className];
+            $propName = $var->name->toString();
+            $fieldIndex = $classMeta->getPropertyIndex($propName);
+            $fieldType = $classMeta->getPropertyType($propName)->toBase();
+            return $this->builder->createStructGEP(ClassSymbol::mangle($className), $objVal, $fieldIndex, $fieldType);
+        }
         return PicoHPData::getPData($var)->getValue();
     }
 
@@ -1485,7 +1505,7 @@ trait BuildExprTrait
                 return PicoType::fromString('mixed');
             }
             $arrType = $this->getExprResolvedType($expr->var);
-            if ($arrType->isMixed()) {
+            if ($arrType->isMixed() || (!$arrType->isArray() && $arrType->toBase() === BaseType::PTR)) {
                 return PicoType::fromString('mixed');
             }
             CompilerInvariant::check($arrType->isArray());

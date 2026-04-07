@@ -66,7 +66,7 @@ trait BuildStmtTrait
                     $this->buildStmts($stmt->stmts);
                 } catch (\Throwable $e) {
                     // Clear partial IR and replace with a clean abort stub
-                    fwrite(STDERR, "[IR-STUB] {$stmt->name->toString()}: {$e->getMessage()}\n");
+                    fwrite(STDERR, "[IR-STUB] {$stmt->name->toString()}: {$e->getMessage()} at {$e->getFile()}:{$e->getLine()}\n");
                     CompilerInvariant::check($this->ctx->function !== null);
                     $this->ctx->function->clearBlocks();
                     $bb = $this->ctx->function->addBasicBlock('entry');
@@ -334,7 +334,10 @@ trait BuildStmtTrait
                         }
                     }
                 } catch (\Throwable $e) {
-                    fwrite(STDERR, "[IR-STUB] {$qualifiedName}: {$e->getMessage()}\n");
+                    $trace = $e->getTraceAsString();
+                    $lines = explode("\n", $trace);
+                    $traceStr = implode(" | ", array_slice($lines, 0, 3));
+                    fwrite(STDERR, "[IR-STUB] {$qualifiedName}: {$e->getMessage()} | {$traceStr}\n");
                     CompilerInvariant::check($this->ctx->function !== null);
                     $this->ctx->function->clearBlocks();
                     $bb = $this->ctx->function->addBasicBlock('entry');
@@ -382,12 +385,16 @@ trait BuildStmtTrait
             }
             $this->builder->createBranch([$condLabel]);
             $this->builder->setInsertPoint($condBB);
-            $conds = [];
-            foreach ($stmt->cond as $cond) {
-                $conds[] = $this->buildExpr($cond);
+            if ($stmt->cond === []) {
+                // for(;;) — unconditional infinite loop
+                $this->builder->createBranch([$bodyLabel]);
+            } else {
+                $conds = [];
+                foreach ($stmt->cond as $cond) {
+                    $conds[] = $this->buildExpr($cond);
+                }
+                $this->builder->createBranch([$this->coerceToBool($conds[0]), $bodyLabel, $endLabel]);
             }
-            CompilerInvariant::check(count($conds) > 0);
-            $this->builder->createBranch([$this->coerceToBool($conds[0]), $bodyLabel, $endLabel]);
             $this->builder->setInsertPoint($bodyBB);
             $this->buildStmts($stmt->stmts);
             $this->builder->createBranch([$forContinueLabel]);

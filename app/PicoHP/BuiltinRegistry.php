@@ -156,6 +156,13 @@ final class BuiltinRegistry
         $returnMatchesArgStr = self::parseAnnotation($docText, 'return-matches-arg');
         $returnElementTypeStr = self::parseAnnotation($docText, 'return-element-type');
 
+        $requiredCount = 0;
+        foreach ($params as $p) {
+            if (!$p['hasDefault']) {
+                $requiredCount++;
+            }
+        }
+
         return new BuiltinDef(
             name: $name,
             returnType: $returnType,
@@ -164,6 +171,7 @@ final class BuiltinRegistry
             intrinsic: $intrinsic,
             returnMatchesArg: $returnMatchesArgStr !== null ? (int) $returnMatchesArgStr : null,
             returnElementType: $returnElementTypeStr !== null ? (int) $returnElementTypeStr : null,
+            requiredCount: $requiredCount,
         );
     }
 

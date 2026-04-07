@@ -9,6 +9,8 @@ namespace App\PicoHP;
  */
 final class BuiltinDef
 {
+    public readonly int $requiredCount;
+
     /**
      * @param list<array{name: string, type: PicoType, hasDefault: bool, defaultValue: int|float|string|null}> $params
      */
@@ -20,7 +22,11 @@ final class BuiltinDef
         public readonly ?string $intrinsic,
         public readonly ?int $returnMatchesArg,
         public readonly ?int $returnElementType,
+        int $requiredCount = -1,
     ) {
+        // When requiredCount is not provided, assume all params are required.
+        // BuiltinRegistry always passes the correct value.
+        $this->requiredCount = $requiredCount >= 0 ? $requiredCount : count($params);
     }
 
     public function paramCount(): int
@@ -30,14 +36,7 @@ final class BuiltinDef
 
     public function requiredParamCount(): int
     {
-        $count = 0;
-        foreach ($this->params as $param) {
-            if (!$param['hasDefault']) {
-                $count++;
-            }
-        }
-
-        return $count;
+        return $this->requiredCount;
     }
 
     public function returnBaseType(): BaseType

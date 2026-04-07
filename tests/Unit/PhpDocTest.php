@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\PicoHP\SymbolTable\DocTypeParser;
-use PHPStan\PhpDocParser\Parser\ParserException;
 
 it('parses a PHPDocs', function () {
     $parser = new DocTypeParser();
@@ -11,7 +10,7 @@ it('parses a PHPDocs', function () {
     expect($parser->parseType('/** @var string $b */')->toString())->toBe('string');
     expect($parser->parseType('/** @picobuf 256 $c */')->toString())->toBe('string');
     $parser->parseType('');
-})->throws(ParserException::class);
+})->throws(\RuntimeException::class);
 
 it('parses PicoType::fromString for array generics', function () {
     $arr = \App\PicoHP\PicoType::fromString('array<string, int>');
@@ -30,7 +29,7 @@ it('parses PicoType::fromString for array generics', function () {
 it('fails to parse an empty PHPDoc', function () {
     $parser = new DocTypeParser();
     $parser->parseType('');
-})->throws(ParserException::class);
+})->throws(\RuntimeException::class);
 
 it('returns null for unsupported union @return types', function () {
     $parser = new DocTypeParser();

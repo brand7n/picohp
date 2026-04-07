@@ -4,158 +4,180 @@ declare(strict_types=1);
 
 namespace App\PicoHP\SymbolTable;
 
-use PHPStan\PhpDocParser\Lexer\Lexer;
-use PHPStan\PhpDocParser\ParserConfig;
-use PHPStan\PhpDocParser\Parser\ConstExprParser;
-use PHPStan\PhpDocParser\Parser\PhpDocParser;
-use PHPStan\PhpDocParser\Parser\TokenIterator;
-use PHPStan\PhpDocParser\Parser\TypeParser;
-use PHPStan\PhpDocParser\Ast\PhpDoc\{GenericTagValueNode};
-use PHPStan\PhpDocParser\Ast\Type\{GenericTypeNode, IdentifierTypeNode, NullableTypeNode, TypeNode, UnionTypeNode};
 use App\PicoHP\PicoType;
 
+/**
+ * Lightweight regex-based PHPDoc type parser.
+ * Handles @var, @return, @param for the type shapes picoHP uses.
+ */
 class DocTypeParser
 {
-    protected PhpDocParser $phpDocParser;
-    protected Lexer $lexer;
-
     public function __construct()
     {
-        $config = new ParserConfig(usedAttributes: []);
-        $this->lexer = new Lexer($config);
-        $constExprParser = new ConstExprParser($config);
-        $typeParser = new TypeParser($config, $constExprParser);
-        $this->phpDocParser = new PhpDocParser($config, $typeParser, $constExprParser);
     }
 
     public function parseType(string $docString): PicoType
     {
-        // parsing and reading a PHPDoc string
-        $tokens = new TokenIterator($this->lexer->tokenize($docString));
-        $phpDocNode = $this->phpDocParser->parse($tokens); // PhpDocNode
-        $varTags = $phpDocNode->getVarTagValues(); // ParamTagValueNode[]
-
-        foreach ($varTags as $tag) {
-            $typeNode = $tag->type;
-            if ($typeNode instanceof GenericTypeNode
-                && $typeNode->type->name === 'array'
-            ) {
-                if (count($typeNode->genericTypes) === 2
-                    && $typeNode->genericTypes[1] instanceof IdentifierTypeNode
-                ) {
-                    $arr = PicoType::array(PicoType::fromString($typeNode->genericTypes[1]->name));
-                    if ($typeNode->genericTypes[0] instanceof IdentifierTypeNode
-                        && $typeNode->genericTypes[0]->name === 'string'
-                    ) {
-                        $arr->setStringKeys();
-                    }
-                    return $arr;
-                }
-                if (count($typeNode->genericTypes) === 1
-                    && $typeNode->genericTypes[0] instanceof IdentifierTypeNode
-                ) {
-                    return PicoType::array(PicoType::fromString($typeNode->genericTypes[0]->name));
-                }
-            }
-            return PicoType::fromString((string)$typeNode);
+        if ($docString === '' || preg_match('/\S/', $docString) !== 1) {
+            throw new \RuntimeException('Empty PHPDoc string');
+        }
+        $type = $this->extractTagType($docString, 'var');
+        if ($type !== null) {
+            return $this->parseTypeString($type) ?? PicoType::fromString('mixed');
         }
 
-        $genericTag = $phpDocNode->getTagsByName('@picobuf');
-        if (count($genericTag) === 1
-            && $genericTag[0]->name === '@picobuf'
-            && $genericTag[0]->value instanceof GenericTagValueNode
-        ) {
-            // TODO: return something like a type buffer of size 256
+        if (preg_match('/@picobuf/', $docString) === 1) {
             return PicoType::fromString('string');
         }
-        // Unknown/unsupported PHPDoc shape for local inference; treat as mixed.
+
         return PicoType::fromString('mixed');
-        //dump($genericTag[0]->value);
-        //throw new \Exception("invalid doc type");
     }
 
-    /**
-     * Parse a `@return` tag from a method or function PHPDoc block.
-     * Returns null when there is no single `@return`, or the type shape is not supported here.
-     */
     public function parseReturnTypeFromPhpDoc(string $docString): ?PicoType
     {
-        $tokens = new TokenIterator($this->lexer->tokenize($docString));
-        $phpDocNode = $this->phpDocParser->parse($tokens);
-        $returns = $phpDocNode->getReturnTagValues();
-        if (count($returns) !== 1) {
-            return null;
-        }
-
-        return $this->phpDocTypeNodeToPicoType($returns[0]->type);
-    }
-
-    /**
-     * Resolve {@code @param} type for a parameter name from a method/function PHPDoc block.
-     */
-    public function parseParamTypeByName(string $docString, string $paramName): ?PicoType
-    {
-        $tokens = new TokenIterator($this->lexer->tokenize($docString));
-        $phpDocNode = $this->phpDocParser->parse($tokens);
-        $bare = ltrim($paramName, '$');
-        foreach ($phpDocNode->getParamTagValues() as $paramTag) {
-            $tagName = ltrim($paramTag->parameterName, '$');
-            if ($tagName !== $bare) {
-                continue;
-            }
-
-            return $this->phpDocTypeNodeToPicoType($paramTag->type);
+        $type = $this->extractTagType($docString, 'return');
+        if ($type !== null) {
+            return $this->parseTypeString($type);
         }
 
         return null;
     }
 
-    private function phpDocTypeNodeToPicoType(TypeNode $typeNode): ?PicoType
+    public function parseParamTypeByName(string $docString, string $paramName): ?PicoType
     {
-        if ($typeNode instanceof GenericTypeNode && $typeNode->type->name === 'list') {
-            if (count($typeNode->genericTypes) === 1) {
-                $inner = $this->phpDocTypeNodeToPicoType($typeNode->genericTypes[0]);
+        $bare = ltrim($paramName, '$');
+        // Match @param <type> $name — type may contain angle brackets with spaces
+        if (preg_match('/@param\s+(.+?)\s+\$' . preg_quote($bare, '/') . '(?:\s|$)/', $docString, $m) === 1) {
+            return $this->parseTypeString(trim($m[1]));
+        }
 
-                return $inner !== null ? PicoType::array($inner) : null;
-            }
+        return null;
+    }
 
+    /**
+     * Extract the type string after a @tag, handling angle brackets that may contain spaces.
+     */
+    private function extractTagType(string $docString, string $tag): ?string
+    {
+        $marker = '@' . $tag;
+        $pos = strpos($docString, $marker);
+        if ($pos === false) {
             return null;
         }
-        if ($typeNode instanceof GenericTypeNode && $typeNode->type->name === 'array') {
-            if (count($typeNode->genericTypes) === 2
-                && $typeNode->genericTypes[1] instanceof IdentifierTypeNode
-            ) {
-                $arr = PicoType::array(PicoType::fromString($typeNode->genericTypes[1]->name));
-                if ($typeNode->genericTypes[0] instanceof IdentifierTypeNode
-                    && $typeNode->genericTypes[0]->name === 'string'
-                ) {
+        $start = $pos + strlen($marker);
+        $len = strlen($docString);
+        // Skip whitespace after tag
+        while ($start < $len && ($docString[$start] === ' ' || $docString[$start] === "\t")) {
+            $start++;
+        }
+        if ($start >= $len) {
+            return null;
+        }
+        // Read until we hit whitespace at depth 0 or end
+        $depth = 0;
+        $end = $start;
+        while ($end < $len) {
+            $ch = $docString[$end];
+            if ($ch === '<') {
+                $depth++;
+            } elseif ($ch === '>') {
+                $depth--;
+            } elseif ($depth === 0 && ($ch === ' ' || $ch === "\t" || $ch === "\n" || $ch === "\r" || $ch === '*')) {
+                break;
+            }
+            $end++;
+        }
+        $result = substr($docString, $start, $end - $start);
+
+        return $result !== '' ? $result : null;
+    }
+
+    private function parseTypeString(string $type): ?PicoType
+    {
+        // Type[] shorthand (e.g. int[], Token[], string[])
+        if (str_ends_with($type, '[]')) {
+            $inner = substr($type, 0, -2);
+
+            return PicoType::array(PicoType::fromString($inner));
+        }
+
+        // array<KeyType, ValueType> or array<Type>
+        if (preg_match('/^array<(.+)>$/', $type, $m) === 1) {
+            $inner = $m[1];
+            $parts = $this->splitTopLevelComma($inner);
+            if (count($parts) === 2) {
+                $arr = PicoType::array(PicoType::fromString(trim($parts[1])));
+                if (trim($parts[0]) === 'string') {
                     $arr->setStringKeys();
                 }
 
                 return $arr;
             }
-            if (count($typeNode->genericTypes) === 1
-                && $typeNode->genericTypes[0] instanceof IdentifierTypeNode
-            ) {
-                return PicoType::array(PicoType::fromString($typeNode->genericTypes[0]->name));
+            if (count($parts) !== 1) {
+                return null;
             }
 
-            return null;
+            return PicoType::array(PicoType::fromString(trim($inner)));
         }
-        if ($typeNode instanceof IdentifierTypeNode) {
-            return PicoType::fromString($typeNode->name);
-        }
-        if ($typeNode instanceof NullableTypeNode) {
-            if ($typeNode->type instanceof IdentifierTypeNode) {
-                return PicoType::fromString('?' . $typeNode->type->name);
+
+        // list<Type>
+        if (preg_match('/^list<(.+)>$/', $type, $m) === 1) {
+            $parts = $this->splitTopLevelComma($m[1]);
+            if (count($parts) !== 1) {
+                return null;
             }
 
-            return null;
+            return PicoType::array(PicoType::fromString(trim($m[1])));
         }
-        if ($typeNode instanceof UnionTypeNode) {
+
+        // Nullable ?Type — only simple identifiers
+        if (str_starts_with($type, '?')) {
+            $inner = substr($type, 1);
+            if (str_contains($inner, '<') || str_contains($inner, '|')) {
+                return null;
+            }
+
+            return PicoType::fromString($type);
+        }
+
+        // Union Type1|Type2 — not supported
+        if (str_contains($type, '|')) {
             return null;
         }
 
-        return null;
+        return PicoType::fromString($type);
+    }
+
+    /**
+     * Split by top-level commas (not inside angle brackets).
+     *
+     * @return list<string>
+     */
+    private function splitTopLevelComma(string $s): array
+    {
+        $depth = 0;
+        $parts = [];
+        $current = '';
+        $len = strlen($s);
+        $i = 0;
+        while ($i < $len) {
+            $ch = $s[$i];
+            if ($ch === '<') {
+                $depth++;
+                $current .= $ch;
+            } elseif ($ch === '>') {
+                $depth--;
+                $current .= $ch;
+            } elseif ($ch === ',' && $depth === 0) {
+                $parts[] = $current;
+                $current = '';
+            } else {
+                $current .= $ch;
+            }
+            $i++;
+        }
+        $parts[] = $current;
+
+        return $parts;
     }
 }

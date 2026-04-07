@@ -364,17 +364,8 @@ class SemanticAnalysisPass implements PassInterface
             // Only php-parser types are safe to replace: user classes can be empty until traits apply.
             if ($meta->methods === [] && str_starts_with($fqcn, 'PhpParser\\')) {
                 if (class_exists($fqcn, true) || interface_exists($fqcn, true)) {
-                    if ($fqcn === 'PhpParser\ParserAbstract') {
-                        if (isset($meta->properties['lexer'])) {
-                        }
-                    }
                     unset($this->classRegistry[$fqcn], $this->typeIdMap[$fqcn]);
                     $this->registerClassHierarchyFromReflection($fqcn);
-                    if ($fqcn === 'PhpParser\ParserAbstract' && isset($this->classRegistry[$fqcn])) {
-                        $newMeta = $this->classRegistry[$fqcn];
-                        if (isset($newMeta->properties['lexer'])) {
-                        }
-                    }
                 }
             }
 
@@ -559,6 +550,16 @@ class SemanticAnalysisPass implements PassInterface
             return PicoType::fromString('mixed'); // @codeCoverageIgnore
         }
         $name = $rt->getName();
+        // For array properties, try to extract element type from PHPDoc (e.g. @var int[])
+        if ($name === 'array') {
+            $doc = $rp->getDocComment();
+            if ($doc !== false) {
+                $docType = $this->docTypeParser->parseType($doc);
+                if ($docType->isArray()) {
+                    return $rt->allowsNull() ? PicoType::fromString('?array') : $docType;
+                }
+            }
+        }
         $builtin = match ($name) {
             'int', 'float', 'bool', 'string', 'void', 'mixed', 'array', 'callable', 'iterable', 'object' => $name,
             'false', 'true' => 'bool', // @codeCoverageIgnore
@@ -1553,6 +1554,9 @@ class SemanticAnalysisPass implements PassInterface
             }
             // string indexing — or unrecognized type (e.g. int class constant used as array)
             if (!$type->isEqualTo(PicoType::fromString('string'))) {
+                if ($expr->dim !== null) {
+                    $this->resolveExpr($expr->dim);
+                }
                 $this->emitSemanticWarning('ArrayDimFetch on ' . $type->toString() . ' (expected string or array) — treating as mixed', $expr);
                 return PicoType::fromString('mixed');
             }
@@ -1660,7 +1664,11 @@ class SemanticAnalysisPass implements PassInterface
         } elseif ($expr instanceof \PhpParser\Node\Expr\ConstFetch) {
             return $this->picoTypeForConstFetchName($expr->name, $expr);
         } elseif ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
-            \App\PicoHP\CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Name);
+            if (!($expr->name instanceof \PhpParser\Node\Name)) {
+                // Dynamic function call ($callback(...)) — resolve args, return mixed
+                $this->resolveArgs($expr->args);
+                return PicoType::fromString('mixed');
+            }
             $funcName = $expr->name->toLowerString();
             $argTypes = $this->resolveArgs($expr->args);
             // Built-in functions — registry-driven lookup
