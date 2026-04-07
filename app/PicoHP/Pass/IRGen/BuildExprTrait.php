@@ -772,7 +772,12 @@ trait BuildExprTrait
             $className = $varType->getClassName();
             $classMeta = $this->classRegistry[$className];
             $methodName = $expr->name->toString();
-            $methodSymbol = $classMeta->methods[$methodName];
+            // Walk parent chain to find inherited methods
+            $lookupMeta = $classMeta;
+            while (!isset($lookupMeta->methods[$methodName]) && $lookupMeta->parentName !== null && isset($this->classRegistry[$lookupMeta->parentName])) {
+                $lookupMeta = $this->classRegistry[$lookupMeta->parentName];
+            }
+            $methodSymbol = $lookupMeta->methods[$methodName];
             $args = $this->buildArgsWithDefaults($expr->args, $methodSymbol);
             /** @var array<ValueAbstract> $allArgs */
             $allArgs = array_merge([$objVal], $args);

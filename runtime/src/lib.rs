@@ -786,10 +786,11 @@ pub extern "C" fn pico_array_get_ptr(arr: *const PicoArray, index: i32) -> *mut 
     let arr = unsafe { &*arr };
     let i = index as usize;
     if i >= arr.data.len() {
+        eprintln!("pico_array_get_ptr: index {} out of bounds (len {})", index, arr.data.len());
         return std::ptr::null_mut();
     }
-    match &arr.data[i] {
-        PicoValue::Ptr(v) => *v,
+    match arr.data[i] {
+        PicoValue::Ptr(v) => v,
         _ => std::ptr::null_mut(),
     }
 }

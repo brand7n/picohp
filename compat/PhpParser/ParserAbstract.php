@@ -211,33 +211,6 @@ abstract class ParserAbstract implements Parser
         $this->tokens = $this->lexer->tokenize($code, $this->errorHandler);
         $result = $this->doParse();
 
-        // Report errors for any empty elements used inside arrays. This is delayed until after the main parse,
-        // because we don't know a priori whether a given array expression will be used in a destructuring context
-        // or not.
-        foreach ($this->createdArrays as $node) {
-            foreach ($node->items as $item) {
-                if ($item->value instanceof Expr\Error) {
-                    $this->errorHandler->handleError(
-                        new Error('Cannot use empty array elements in arrays', $item->getAttributes())
-                    );
-                }
-            }
-        }
-
-        // Clear out some of the interior state, so we don't hold onto unnecessary
-        // memory between uses of the parser
-        $this->tokenStartStack = [];
-        $this->tokenEndStack = [];
-        $this->semStack = [];
-        $this->semValue = null;
-        $this->createdArrays = null;
-        $this->parenthesizedArrowFunctions = null;
-
-        if ($result !== null) {
-            $traverser = new NodeTraverser(new CommentAnnotatingVisitor($this->tokens));
-            $traverser->traverse($result);
-        }
-
         return $result;
     }
 

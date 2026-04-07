@@ -142,6 +142,13 @@ final class BuildCommand
                     return 1;
                 }
                 // @codeCoverageIgnoreEnd
+
+                if ($options->dumpAst) {
+                    echo "parsed " . count($ast) . " nodes\n";
+
+                    return 0;
+                }
+
                 $resolved = realpath($filename);
                 $ast = $this->annotateAstWithSourceFile($ast, $resolved !== false ? $resolved : $filename);
             }

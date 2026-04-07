@@ -1849,9 +1849,19 @@ class SemanticAnalysisPass implements PassInterface
                 throw new \Exception("class {$className} not found in registry for method call {$methodName}");
             }
             $classMeta = $this->classRegistry[$className];
-            \App\PicoHP\CompilerInvariant::check(isset($classMeta->methods[$methodName]), "method {$methodName} not found on class {$className}");
+            // Walk parent chain to find inherited methods
+            $resolvedMeta = $classMeta;
+            while (!isset($resolvedMeta->methods[$methodName]) && $resolvedMeta->parentName !== null) {
+                $parentFqcn = $resolvedMeta->parentName;
+                $this->ensureExternalClassReference($parentFqcn);
+                if (!isset($this->classRegistry[$parentFqcn])) {
+                    break;
+                }
+                $resolvedMeta = $this->classRegistry[$parentFqcn];
+            }
+            \App\PicoHP\CompilerInvariant::check(isset($resolvedMeta->methods[$methodName]), "method {$methodName} not found on class {$className}");
             $this->resolveArgs($expr->args);
-            return $classMeta->methods[$methodName]->type;
+            return $resolvedMeta->methods[$methodName]->type;
         } elseif ($expr instanceof \PhpParser\Node\Expr\StaticPropertyFetch) {
             $pData->lVal = $lVal;
             \App\PicoHP\CompilerInvariant::check($expr->class instanceof \PhpParser\Node\Name);
