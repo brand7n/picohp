@@ -32,21 +32,22 @@ final class NativeTokenPipeline
             $tokens[] = new Token($t->type, $t->value, $t->line, $pos);
             $pos += \strlen($t->value);
         }
-        self::postprocessTokens($tokens, $errorHandler);
+        $tokens = self::postprocessTokens($tokens, $errorHandler);
 
         return $tokens;
     }
 
     /**
      * @param list<\PhpParser\Token> $tokens
+     * @return list<\PhpParser\Token>
      */
-    private static function postprocessTokens(array &$tokens, ErrorHandler $errorHandler): void
+    private static function postprocessTokens(array $tokens, ErrorHandler $errorHandler): array
     {
         $numTokens = \count($tokens);
         if ($numTokens === 0) {
             $tokens[] = new Token(0, "\0", 1, 0);
 
-            return;
+            return $tokens;
         }
 
         for ($i = 0; $i < $numTokens; $i++) {
@@ -79,6 +80,8 @@ final class NativeTokenPipeline
         }
 
         $tokens[] = new Token(0, "\0", $lastToken->getEndLine(), $lastToken->getEndPos());
+
+        return $tokens;
     }
 
     private static function handleInvalidCharacter(Token $token, ErrorHandler $errorHandler): void
