@@ -1139,8 +1139,14 @@ trait BuildExprTrait
             }
             return new Void_();
         } elseif ($expr instanceof \PhpParser\Node\Expr\Array_) {
-            // Array literal as standalone expression (e.g. return [])
-            return $this->builder->createArrayNew();
+            if ($expr->items === []) {
+                return $this->builder->createArrayNew();
+            }
+            $arrayType = $this->getExprResolvedType($expr);
+
+            return ($arrayType->isArray() && $arrayType->hasStringKeys())
+                ? $this->buildMapInit($expr, $arrayType)
+                : $this->buildArrayInit($expr, $arrayType);
         } else {
             throw new \Exception("unknown node type in expr: " . get_class($expr));
         }
@@ -1610,6 +1616,9 @@ trait BuildExprTrait
             }
             return PicoType::fromString('mixed');
         }
+        if ($expr instanceof \PhpParser\Node\Expr\Array_) {
+            return PicoType::fromString('array');
+        }
         throw new \RuntimeException('getExprResolvedType: unsupported expr type ' . get_class($expr));
     }
 
@@ -1694,10 +1703,10 @@ trait BuildExprTrait
             return $this->buildMapInit($arrayExpr, $arrayType);
         }
         $arrPtr = $this->builder->createArrayNew();
-        $elementType = $arrayType->isMixed() ? BaseType::PTR : $arrayType->getElementBaseType();
         foreach ($arrayExpr->items as $item) {
             $elemVal = $this->buildExpr($item->value);
-            $this->builder->createArrayPush($arrPtr, $elemVal, $elementType);
+            // Use the value's actual LLVM type for the push call
+            $this->builder->createArrayPush($arrPtr, $elemVal, $elemVal->getType());
         }
         return $arrPtr;
     }
