@@ -784,9 +784,13 @@ pub extern "C" fn pico_array_push_ptr(arr: *mut PicoArray, val: *mut u8) {
 pub extern "C" fn pico_array_get_ptr(arr: *const PicoArray, index: i32) -> *mut u8 {
     null_check!(arr, "pico_array_get_ptr");
     let arr = unsafe { &*arr };
-    match &arr.data[index as usize] {
+    let i = index as usize;
+    if i >= arr.data.len() {
+        return std::ptr::null_mut();
+    }
+    match &arr.data[i] {
         PicoValue::Ptr(v) => *v,
-        _ => panic!("pico_array_get_ptr: element is not a pointer"),
+        _ => std::ptr::null_mut(),
     }
 }
 

@@ -337,7 +337,6 @@ abstract class ParserAbstract implements Parser
             for (;;) {
                 if ($rule === 0) {
                     /* accept */
-                    //$this->traceAccept();
                     return $this->semValue;
                 }
                 if ($rule !== $this->unexpectedTokenRule) {
@@ -382,6 +381,7 @@ abstract class ParserAbstract implements Parser
                     }
                 } else {
                     /* error */
+                    //$this->traceError($symbol, $state);
                     switch ($this->errorState) {
                         case 0:
                             $msg = $this->getErrorMessage($symbol, $state);
