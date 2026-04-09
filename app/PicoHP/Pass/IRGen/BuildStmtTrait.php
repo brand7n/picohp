@@ -690,7 +690,13 @@ trait BuildStmtTrait
         if ($baseType === BaseType::VOID) {
             $baseType = BaseType::PTR;
         }
-        return $this->builder->createAlloca($symbol->name, $baseType);
+        $alloca = $this->builder->createAlloca($symbol->name, $baseType);
+        // Initialize ptr allocas to null so unassigned nullable variables
+        // produce `ptr null` instead of `ptr 0` (invalid LLVM IR).
+        if ($baseType === BaseType::PTR || $baseType === BaseType::STRING) {
+            $this->builder->createStore(new NullConstant($baseType), $alloca);
+        }
+        return $alloca;
     }
 
     protected function emitPropertyDefaults(string $className, \App\PicoHP\SymbolTable\ClassMetadata $classMeta, ValueAbstract $objPtr): void

@@ -277,10 +277,13 @@ final class BuildCommand
             }
             $runtimeLink = "-L{$runtimePath} -lpico_rt -Wl,-rpath,{$runtimePath}";
             $debugFlag = $resolvedFile !== null ? '-g' : '';
-            exec("{$llvmPath}/clang -Wno-override-module {$debugFlag} {$sharedLibOpts} {$runtimeLink} -o {$exe} {$optimizedIR}", result_code: $result);
+            exec("{$llvmPath}/clang -Wno-override-module {$debugFlag} {$sharedLibOpts} {$runtimeLink} -o {$exe} {$optimizedIR} 2>&1", $clangOutput, $result);
             // @codeCoverageIgnoreStart
             if ($result !== 0) {
                 $io->error("clang failed with exit code {$result}");
+                foreach ($clangOutput as $line) {
+                    fwrite(STDERR, $line . PHP_EOL);
+                }
 
                 return 1;
             }
