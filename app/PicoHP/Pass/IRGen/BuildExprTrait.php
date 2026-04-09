@@ -601,6 +601,46 @@ trait BuildExprTrait
                 }
                 return $this->builder->createStringOrd($val);
             }
+            if ($funcName === 'picohp_debug') {
+                CompilerInvariant::check(count($expr->args) >= 1);
+                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                $argExpr = $expr->args[0]->value;
+                $val = $this->buildExpr($argExpr);
+                $picoType = $this->getExprResolvedType($argExpr);
+                $baseType = $val->getType();
+
+                // Build a label from the source expression
+                $label = '';
+                if ($argExpr instanceof \PhpParser\Node\Expr\Variable && is_string($argExpr->name)) {
+                    $label = '$' . $argExpr->name;
+                } elseif ($argExpr instanceof \PhpParser\Node\Expr\PropertyFetch
+                    && $argExpr->name instanceof \PhpParser\Node\Identifier) {
+                    $label = '->' . $argExpr->name->toString();
+                }
+
+                $typeStr = ($picoType->isNullable() ? '?' : '') . $picoType->toBase()->value;
+                if ($picoType->isArray()) {
+                    $typeStr = 'array<' . $picoType->getElementType()->toBase()->value . '>';
+                } elseif ($picoType->isMixed()) {
+                    $typeStr = 'mixed';
+                }
+                $info = "[picohp_debug] {$label} type={$typeStr} ir={$baseType->toLLVM()} val=";
+                $infoStr = $this->builder->createStringConstant($info);
+                $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.s, ptr {$infoStr->render()})", 1);
+                // Print value based on IR type
+                if ($baseType === BaseType::BOOL) {
+                    $val = $this->builder->createZext($val);
+                }
+                match ($baseType) {
+                    BaseType::INT, BaseType::BOOL => $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.d, i32 {$val->render()})", 1),
+                    BaseType::FLOAT => $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.f, double {$val->render()})", 1),
+                    BaseType::PTR, BaseType::STRING => $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.s, ptr {$val->render()})", 1),
+                    default => null,
+                };
+                $nlStr = $this->builder->createStringConstant("\n");
+                $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.s, ptr {$nlStr->render()})", 1);
+                return new Void_();
+            }
             // Registry-driven builtin codegen: call runtime symbol with args
             if ($this->builtinRegistry->has($funcName)) {
                 $def = $this->builtinRegistry->get($funcName);

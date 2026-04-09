@@ -135,6 +135,9 @@ final class BuildCommand
 
                 try {
                     $ast = $parser->parse($code);
+                    if ($ast !== null) {
+                        echo count($ast) . " AST nodes\n";
+                    }
                 } catch (\PhpParser\Error $e) {
                     $e->setRawMessage($filename . ': ' . $e->getRawMessage());
 
@@ -149,7 +152,6 @@ final class BuildCommand
                 // @codeCoverageIgnoreEnd
 
                 if ($options->dumpAst) {
-                    echo "dump AST\n";
                     echo "AST dump in native binary not implemented yet (array runtime issue)\n";
 
                     return 0;

@@ -1711,6 +1711,16 @@ class SemanticAnalysisPass implements PassInterface
                 return $def->returnType;
             }
             $funcNameRaw = $expr->name->name;
+            // Compiler intrinsics — no stub warning
+            if ($funcName === 'picohp_debug') {
+                $s = $this->symbolTable->lookup($funcNameRaw);
+                if ($s === null) {
+                    $s = $this->symbolTable->addSymbol($funcNameRaw, PicoType::fromString('void'), func: true);
+                    $s->params = [PicoType::fromString('mixed')];
+                }
+                $pData->symbol = $s;
+                return PicoType::fromString('void');
+            }
             $s = $this->symbolTable->lookup($funcNameRaw);
             if ($s === null) {
                 // Unknown function — register a stub that returns mixed.
