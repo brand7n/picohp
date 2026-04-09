@@ -270,19 +270,21 @@ trait BuildStmtTrait
                 $default = $classMeta->staticDefaults[$propName] ?? null;
                 $initVal = $llvmType === 'ptr' ? 'null' : '0';
                 if ($default instanceof \PhpParser\Node\Scalar\Int_) {
-                    $initVal = (string) $default->value;
+                    $initVal = $llvmType === 'ptr' ? 'null' : (string) $default->value;
                 } elseif ($default instanceof \PhpParser\Node\Scalar\Float_) {
                     $initVal = sprintf('%e', $default->value);
                 } elseif ($default instanceof \PhpParser\Node\Scalar\String_) {
                     $initVal = 'null'; // string pointers default to null
                 } elseif ($default instanceof \PhpParser\Node\Expr\ConstFetch) {
                     $name = $default->name->toLowerString();
-                    if ($name === 'true') {
+                    if ($llvmType === 'ptr') {
+                        $initVal = 'null';
+                    } elseif ($name === 'true') {
                         $initVal = '1';
                     } elseif ($name === 'false') {
                         $initVal = '0';
                     } elseif ($name === 'null') {
-                        $initVal = $llvmType === 'ptr' ? 'null' : '0';
+                        $initVal = '0';
                     }
                 }
                 $this->module->addLine(new IRLine("@{$llvmClass}_{$propName} = global {$llvmType} {$initVal}"));
