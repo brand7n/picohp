@@ -6,7 +6,7 @@ namespace App\PicoHP\Pass\IRGen;
 
 use App\PicoHP\{BaseType, ClassSymbol, CompilerInvariant};
 use App\PicoHP\LLVM\{Builder, IRLine, ValueAbstract};
-use App\PicoHP\LLVM\Value\{Constant, Void_, Label, Param, NullConstant};
+use App\PicoHP\LLVM\Value\{Constant, Instruction, Void_, Label, Param, NullConstant};
 use App\PicoHP\SymbolTable\{EnumMetadata, PicoHPData};
 
 trait BuildStmtTrait
