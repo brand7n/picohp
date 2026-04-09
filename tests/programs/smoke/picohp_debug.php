@@ -18,4 +18,8 @@ picohp_debug($n);
 $str = 'hello';
 picohp_debug($str);
 
+/** @var array<int> $arr */
+$arr = [10, 20, 30];
+picohp_debug($arr);
+
 testDebug(99, 'world', true, 3.14);

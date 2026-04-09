@@ -23,7 +23,9 @@ if (!function_exists('picohp_debug')) {
     function picohp_debug(mixed $value): void
     {
         $type = get_debug_type($value);
-        if (is_bool($value)) {
+        if (is_array($value)) {
+            $valStr = 'len=' . count($value);
+        } elseif (is_bool($value)) {
             $valStr = $value ? '1' : '0';
         } elseif (is_null($value)) {
             $valStr = 'null';

@@ -628,15 +628,46 @@ trait BuildExprTrait
                 $infoStr = $this->builder->createStringConstant($info);
                 $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.s, ptr {$infoStr->render()})", 1);
                 // Print value based on IR type
-                if ($baseType === BaseType::BOOL) {
+                if ($picoType->isArray()) {
+                    // Arrays: print null or length
+                    $isNull = $this->builder->createNullCheck($val);
+                    $nullStr = $this->builder->createStringConstant('null');
+                    $lenVal = $this->builder->createArrayLen($val);
+                    // Print "null" if null, otherwise print "len=N"
+                    $lenPrefixStr = $this->builder->createStringConstant('len=');
+                    // Use select to pick between printing null or length
+                    // Simple approach: branch
+                    CompilerInvariant::check($this->ctx->function !== null);
+                    $count = $pData->mycount;
+                    $nullBB = $this->ctx->function->addBasicBlock("debug_null{$count}");
+                    $lenBB = $this->ctx->function->addBasicBlock("debug_len{$count}");
+                    $endBB = $this->ctx->function->addBasicBlock("debug_end{$count}");
+                    $this->builder->createBranch([$isNull, new Label($nullBB->getName()), new Label($lenBB->getName())]);
+                    $this->builder->setInsertPoint($nullBB);
+                    $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.s, ptr {$nullStr->render()})", 1);
+                    $this->builder->createBranch([new Label($endBB->getName())]);
+                    $this->builder->setInsertPoint($lenBB);
+                    $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.s, ptr {$lenPrefixStr->render()})", 1);
+                    $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.d, i32 {$lenVal->render()})", 1);
+                    $this->builder->createBranch([new Label($endBB->getName())]);
+                    $this->builder->setInsertPoint($endBB);
+                } elseif ($baseType === BaseType::BOOL) {
                     $val = $this->builder->createZext($val);
+                    $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.d, i32 {$val->render()})", 1);
+                } elseif ($baseType === BaseType::INT) {
+                    $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.d, i32 {$val->render()})", 1);
+                } elseif ($baseType === BaseType::FLOAT) {
+                    $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.f, double {$val->render()})", 1);
+                } elseif ($baseType === BaseType::PTR || $baseType === BaseType::STRING) {
+                    if ($picoType->isNullable()) {
+                        $isNull = $this->builder->createNullCheck($val);
+                        $nullStr = $this->builder->createStringConstant('null');
+                        $printVal = $this->builder->createSelect($isNull, $nullStr, $val);
+                        $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.s, ptr {$printVal->render()})", 1);
+                    } else {
+                        $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.s, ptr {$val->render()})", 1);
+                    }
                 }
-                match ($baseType) {
-                    BaseType::INT, BaseType::BOOL => $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.d, i32 {$val->render()})", 1),
-                    BaseType::FLOAT => $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.f, double {$val->render()})", 1),
-                    BaseType::PTR, BaseType::STRING => $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.s, ptr {$val->render()})", 1),
-                    default => null,
-                };
                 $nlStr = $this->builder->createStringConstant("\n");
                 $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.s, ptr {$nlStr->render()})", 1);
                 return new Void_();

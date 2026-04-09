@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Commands;
 
+require_once __DIR__ . '/../../picohp_stubs.php';
+
 use App\Cli\BuildOptions;
 use App\Cli\ConsoleIo;
 use App\PicoHP\ClassToFunctionVisitor;
@@ -135,6 +137,7 @@ final class BuildCommand
 
                 try {
                     $ast = $parser->parse($code);
+                    picohp_debug($ast); /** @phpstan-ignore function.notFound */
                     if ($ast !== null) {
                         echo count($ast) . " AST nodes\n";
                     }
