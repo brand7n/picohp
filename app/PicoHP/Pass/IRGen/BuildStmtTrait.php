@@ -75,15 +75,21 @@ trait BuildStmtTrait
                     $pData->stubbed = true;
                 }
             }
-            if (!$pData->stubbed && $funcSymbol->type->toBase() === BaseType::VOID) {
+            if (!$pData->stubbed) {
                 $currentBB = $this->builder->getCurrentBasicBlock();
-                if ($currentBB === null || !$currentBB->hasTerminator()) {
-                    if ($funcSymbol->canThrow) {
-                        $okResult = $this->builder->createResultOk(new Void_(), BaseType::VOID);
-                        $structType = Builder::resultTypeName(BaseType::VOID);
-                        $this->builder->addLine("ret {$structType} {$okResult->render()}", 1);
+                if ($currentBB !== null && !$currentBB->hasTerminator()) {
+                    if ($funcSymbol->type->toBase() === BaseType::VOID) {
+                        if ($funcSymbol->canThrow) {
+                            $okResult = $this->builder->createResultOk(new Void_(), BaseType::VOID);
+                            $structType = Builder::resultTypeName(BaseType::VOID);
+                            $this->builder->addLine("ret {$structType} {$okResult->render()}", 1);
+                        } else {
+                            $this->builder->createRetVoid();
+                        }
                     } else {
-                        $this->builder->createRetVoid();
+                        // Non-void function with unterminated block (e.g. dead
+                        // code after switch where all cases return).
+                        $this->builder->addLine('unreachable', 1);
                     }
                 }
             }
@@ -128,10 +134,21 @@ trait BuildStmtTrait
                     $this->builder->createRetVoid();
                 } elseif ($this->ctx->function !== null && $this->ctx->function->canThrow) {
                     $retType = $this->ctx->function->getReturnType()->toBase();
+                    if ($retType === BaseType::PTR && $val->getType() !== BaseType::PTR && $val->getType() !== BaseType::STRING) {
+                        $castVal = new Instruction('inttoptr', BaseType::PTR);
+                        $this->builder->addLine("{$castVal->render()} = inttoptr {$val->getType()->toLLVM()} {$val->render()} to ptr", 1);
+                        $val = $castVal;
+                    }
                     $okResult = $this->builder->createResultOk($val, $retType);
                     $structType = Builder::resultTypeName($retType);
                     $this->builder->addLine("ret {$structType} {$okResult->render()}", 1);
                 } else {
+                    // Coerce value type to ptr for nullable return types (e.g. ?int → ptr)
+                    if ($funcRetType === BaseType::PTR && $val->getType() !== BaseType::PTR && $val->getType() !== BaseType::STRING) {
+                        $castVal = new Instruction('inttoptr', BaseType::PTR);
+                        $this->builder->addLine("{$castVal->render()} = inttoptr {$val->getType()->toLLVM()} {$val->render()} to ptr", 1);
+                        $val = $castVal;
+                    }
                     $this->builder->createInstruction('ret', [$val], false);
                 }
             }
@@ -327,10 +344,12 @@ trait BuildStmtTrait
                         $this->builder->createStore(new Param($paramIndex++, $type->toBase()), $paramPData->getValue());
                     }
                     $this->buildStmts($stmt->stmts);
-                    if ($funcSymbol->type->toBase() === \App\PicoHP\BaseType::VOID) {
-                        $currentBB = $this->builder->getCurrentBasicBlock();
-                        if ($currentBB === null || !$currentBB->hasTerminator()) {
+                    $currentBB = $this->builder->getCurrentBasicBlock();
+                    if ($currentBB !== null && !$currentBB->hasTerminator()) {
+                        if ($funcSymbol->type->toBase() === \App\PicoHP\BaseType::VOID) {
                             $this->builder->createRetVoid();
+                        } else {
+                            $this->builder->addLine('unreachable', 1);
                         }
                     }
                 } catch (\Throwable $e) {
@@ -471,12 +490,7 @@ trait BuildStmtTrait
             }
 
             array_pop($this->breakTargets);
-            // If switch_end has no terminator (no default case and no break fallthrough), seal it
-            if (!$endBB->hasTerminator()) {
-                $this->builder->setInsertPoint($endBB);
-            } else {
-                $this->builder->setInsertPoint($endBB);
-            }
+            $this->builder->setInsertPoint($endBB);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Break_) {
             CompilerInvariant::check(count($this->breakTargets) > 0, 'break outside of switch or loop');
             $target = end($this->breakTargets);

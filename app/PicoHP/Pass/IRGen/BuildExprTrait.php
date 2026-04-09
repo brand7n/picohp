@@ -155,6 +155,10 @@ trait BuildExprTrait
         } elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp\Coalesce) {
             $lval = $this->buildExpr($expr->left);
             $rval = $this->buildExpr($expr->right);
+            // Non-pointer left side can never be null — coalesce is a no-op.
+            if ($lval->getType() !== BaseType::PTR && $lval->getType() !== BaseType::STRING) {
+                return $lval;
+            }
             $isNull = $this->builder->createNullCheck($lval);
             // Coerce ptr/int mismatch for nullable value types (e.g. ?int stored as ptr)
             if ($lval->getType() === BaseType::PTR && $rval->getType() !== BaseType::PTR && $rval->getType() !== BaseType::STRING) {
@@ -586,6 +590,16 @@ trait BuildExprTrait
                     return $this->builder->createFpToSi($val);
                 }
                 return $val;
+            }
+            if ($funcName === 'ord') {
+                CompilerInvariant::check(count($expr->args) === 1);
+                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                $val = $this->buildExpr($expr->args[0]->value);
+                // String byte access already returns the byte as i32
+                if ($val->getType() === BaseType::INT) {
+                    return $val;
+                }
+                return $this->builder->createStringOrd($val);
             }
             // Registry-driven builtin codegen: call runtime symbol with args
             if ($this->builtinRegistry->has($funcName)) {

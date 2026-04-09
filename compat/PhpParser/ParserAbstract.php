@@ -37,7 +37,6 @@ use PhpParser\Node\Stmt\Nop;
 use PhpParser\Node\Stmt\Property;
 use PhpParser\Node\Stmt\TryCatch;
 use PhpParser\Node\UseItem;
-use PhpParser\NodeVisitor\CommentAnnotatingVisitor;
 
 abstract class ParserAbstract implements Parser
 {
@@ -316,7 +315,7 @@ abstract class ParserAbstract implements Parser
 
                     $ruleLength = $this->ruleToLength[$rule];
                     try {
-                        if (!$this->executeReduce($rule, $stackPos)) {
+                        if (!\PhpParser\Parser\Php8::executeReduceCompat($this, $rule, $stackPos)) {
                             if ($ruleLength > 0) {
                                 $this->semValue = $this->semStack[$stackPos - $ruleLength + 1];
                             }

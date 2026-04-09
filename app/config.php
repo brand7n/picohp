@@ -2,10 +2,15 @@
 
 declare(strict_types=1);
 
-$env = static function (string $key, ?string $default = null): string {
-    $v = getenv($key);
-    if ($v !== false && $v !== '') {
-        return $v;
+$isZendPhp = function_exists('zend_version');
+$env = static function (string $key, ?string $default = null) use ($isZendPhp): string {
+    // In self-compiled native binaries, getenv() may return invalid pointers.
+    // Use deterministic defaults there and only trust getenv() under Zend PHP.
+    if ($isZendPhp) {
+        $v = getenv($key);
+        if ($v !== false && $v !== '') {
+            return $v;
+        }
     }
 
     return $default ?? '';

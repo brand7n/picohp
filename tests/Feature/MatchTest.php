@@ -44,6 +44,20 @@ it('handles match returning different types (string and float)', function () {
     expect($compiled_output)->toBe($php_output);
 });
 
+it('handles match on string values', function () {
+    $file = 'tests/programs/control/match_string.php';
+
+    /** @phpstan-ignore-next-line */
+    $this->assertPicohpExitCode("build --debug {$file}");
+
+    $buildPath = config('app.build_path');
+    assert(is_string($buildPath));
+    $compiled_output = shell_exec("{$buildPath}/a.out");
+    $php_output = shell_exec("php {$file}");
+
+    expect($compiled_output)->toBe($php_output);
+});
+
 it('handles match with all arms explicit', function () {
     $file = 'tests/programs/control/match_no_default.php';
 

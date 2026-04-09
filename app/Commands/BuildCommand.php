@@ -13,7 +13,6 @@ use App\PicoHP\Pass\{IRGenerationPass, SemanticAnalysisPass};
 use App\PicoHP\Precompile\CompilationPlan;
 use App\PicoHP\Precompile\CompilationPlanner;
 use App\PicoHP\SourceFileAttributeVisitor;
-use App\Support\ProjectConfig;
 use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\PhpVersion;
@@ -64,6 +63,11 @@ final class BuildCommand
         $parser = new \PhpParser\Parser\Php8(new HandLexerAdapter(), PhpVersion::getNewestSupported());
         $filename = $options->filename;
         \App\PicoHP\CompilerInvariant::check(is_string($filename));
+        // Self-compiled binary path: avoid require()/ProjectConfig call paths that are currently
+        // not reliably lowered by IRGen in this branch.
+        $buildPath = '/tmp/picoHP';
+        $llvmPath = '/usr/bin';
+        $runtimePath = 'runtime/target/release';
 
         // Directory builds load the target project's vendor/autoload.php during reachability analysis.
         // That prepends a Composer autoloader, so the first load of App\PicoHP\HandLexer\TokenAdapter
@@ -82,8 +86,6 @@ final class BuildCommand
             $this->printPrecompilePlan($io, $plan);
 
             if ($options->debug === true) {
-                $buildPath = ProjectConfig::get('app.build_path');
-                \App\PicoHP\CompilerInvariant::check(is_string($buildPath));
                 if (!is_dir($buildPath)) {
                     mkdir($buildPath, 0700, true);
                 }
@@ -106,6 +108,9 @@ final class BuildCommand
 
                     return 1;
                 }
+                echo "build path: " . $buildPath . "\n";
+                echo "build input: " . $filename . "\n";
+
                 $code = file_get_contents($filename);
                 // @codeCoverageIgnoreStart
                 if ($code === false) {
@@ -144,7 +149,8 @@ final class BuildCommand
                 // @codeCoverageIgnoreEnd
 
                 if ($options->dumpAst) {
-                    echo "parsed " . count($ast) . " nodes\n";
+                    echo "dump AST\n";
+                    echo "AST dump in native binary not implemented yet (array runtime issue)\n";
 
                     return 0;
                 }
@@ -162,8 +168,6 @@ final class BuildCommand
             return 1;
         }
 
-        $buildPath = ProjectConfig::get('app.build_path');
-        \App\PicoHP\CompilerInvariant::check(is_string($buildPath));
         if (!is_dir($buildPath)) {
             // @codeCoverageIgnoreStart
             mkdir($buildPath, 0700, true);
@@ -249,8 +253,6 @@ final class BuildCommand
 
             $exe = "{$buildPath}/{$options->out}";
 
-            $llvmPath = ProjectConfig::get('app.llvm_path');
-            \App\PicoHP\CompilerInvariant::check(is_string($llvmPath));
             $llvmPath = $llvmPath . '/';
             $result = 0;
 
@@ -273,8 +275,6 @@ final class BuildCommand
             if ($options->sharedLib === true || !$globalToMain->hasMain) {
                 $sharedLibOpts = '-shared -undefined dynamic_lookup';
             }
-            $runtimePath = ProjectConfig::get('app.runtime_path');
-            \App\PicoHP\CompilerInvariant::check(is_string($runtimePath));
             $runtimeLink = "-L{$runtimePath} -lpico_rt -Wl,-rpath,{$runtimePath}";
             $debugFlag = $resolvedFile !== null ? '-g' : '';
             exec("{$llvmPath}/clang -Wno-override-module {$debugFlag} {$sharedLibOpts} {$runtimeLink} -o {$exe} {$optimizedIR}", result_code: $result);
@@ -502,4 +502,5 @@ final class BuildCommand
             }
         }
     }
+
 }

@@ -3394,4 +3394,17 @@ class Php8 extends \PhpParser\ParserAbstract
                 return false;
         }
     }
+
+    /**
+     * Compat bridge for self-compiled binaries where virtual dispatch on
+     * $this->executeReduce() inside ParserAbstract may devirtualize to base.
+     */
+    public static function executeReduceCompat(\PhpParser\ParserAbstract $self, int $rule, int $stackPos): bool
+    {
+        if ($self instanceof self) {
+            return $self->executeReduce($rule, $stackPos);
+        }
+
+        return false;
+    }
 }

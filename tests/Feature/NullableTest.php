@@ -85,3 +85,17 @@ it('handles nullable return type', function () {
 
     expect($compiled_output)->toBe($php_output);
 });
+
+it('handles null coalesce on nullable int and bool', function () {
+    $file = 'tests/programs/nullable/coalesce_nullable_int.php';
+
+    /** @phpstan-ignore-next-line */
+    $this->assertPicohpExitCode("build --debug {$file}");
+
+    $buildPath = config('app.build_path');
+    assert(is_string($buildPath));
+    $compiled_output = shell_exec("{$buildPath}/a.out");
+    $php_output = shell_exec("php {$file}");
+
+    expect($compiled_output)->toBe($php_output);
+});
