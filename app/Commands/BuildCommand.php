@@ -277,6 +277,8 @@ final class BuildCommand
             }
             $runtimeLink = "-L{$runtimePath} -lpico_rt -Wl,-rpath,{$runtimePath}";
             $debugFlag = $resolvedFile !== null ? '-g' : '';
+            /** @var array<string> $clangOutput */
+            $clangOutput = [];
             exec("{$llvmPath}/clang -Wno-override-module {$debugFlag} {$sharedLibOpts} {$runtimeLink} -o {$exe} {$optimizedIR} 2>&1", $clangOutput, $result);
             // @codeCoverageIgnoreStart
             if ($result !== 0) {
