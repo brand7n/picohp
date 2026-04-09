@@ -25,6 +25,7 @@ final class CompilerInvariant
 
         // Frame 0 is this function; its file/line are the call site of check() in the
         // caller's source file (not the line inside CompilerInvariant.php).
-        throw new CompilerInvariantException($message);
+        $ex = new CompilerInvariantException($message);
+        throw $ex;
     }
 }

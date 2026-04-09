@@ -14,6 +14,7 @@ final class BuildOptions
         public bool $sharedLib = false,
         public bool $precompilePlan = false,
         public bool $dumpTokens = false,
+        public bool $dumpAst = false,
         public int $verbosity = 0,
         public string $out = 'a.out',
         public string $withOptLl = 'off',
@@ -55,6 +56,12 @@ final class BuildOptions
             }
             if ($t === '--dump-tokens') {
                 $o->dumpTokens = true;
+                $i++;
+
+                continue;
+            }
+            if ($t === '--dump-ast') {
+                $o->dumpAst = true;
                 $i++;
 
                 continue;

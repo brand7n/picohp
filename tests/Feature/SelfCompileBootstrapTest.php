@@ -8,7 +8,13 @@ it('self-compiles picoHP to a linked binary', function () {
     }
     /** @phpstan-ignore-next-line */
     $this->assertPicohpExitCode(
-        "build --debug --entry=picoHP --override-class 'PhpParser\\Token' compat/PhpParser/Token.php ."
+        "build --debug --entry=picoHP"
+        . " --override-class 'PhpParser\\Token' compat/PhpParser/Token.php"
+        . " --override-class 'PhpParser\\Lexer' compat/PhpParser/Lexer.php"
+        . " --override-class 'PhpParser\\ParserAbstract' compat/PhpParser/ParserAbstract.php"
+        . " --override-class 'PhpParser\\Parser\\Php8' compat/PhpParser/Parser/Php8.php"
+        . " --override-class 'App\\PicoHP\\HandLexer\\TokenAdapter' compat/App/PicoHP/HandLexer/TokenAdapter.php"
+        . " ."
     );
 
     $buildPath = config('app.build_path');

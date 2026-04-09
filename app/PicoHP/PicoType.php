@@ -54,6 +54,10 @@ class PicoType
 
     public function toBase(): BaseType
     {
+        // Nullable value types must be stored as ptr so null is distinguishable from 0/false.
+        if ($this->nullable && ($this->type === BaseType::INT || $this->type === BaseType::FLOAT || $this->type === BaseType::BOOL)) {
+            return BaseType::PTR;
+        }
         return $this->type;
     }
 

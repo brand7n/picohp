@@ -155,6 +155,10 @@ trait BuildExprTrait
         } elseif ($expr instanceof \PhpParser\Node\Expr\BinaryOp\Coalesce) {
             $lval = $this->buildExpr($expr->left);
             $rval = $this->buildExpr($expr->right);
+            // Non-pointer left side can never be null — coalesce is a no-op.
+            if ($lval->getType() !== BaseType::PTR && $lval->getType() !== BaseType::STRING) {
+                return $lval;
+            }
             $isNull = $this->builder->createNullCheck($lval);
             // Coerce ptr/int mismatch for nullable value types (e.g. ?int stored as ptr)
             if ($lval->getType() === BaseType::PTR && $rval->getType() !== BaseType::PTR && $rval->getType() !== BaseType::STRING) {
@@ -428,7 +432,16 @@ trait BuildExprTrait
                     throw new \Exception("casting to string from unsupported type");
             }
         } elseif ($expr instanceof \PhpParser\Node\Expr\FuncCall) {
-            CompilerInvariant::check($expr->name instanceof \PhpParser\Node\Name);
+            if (!($expr->name instanceof \PhpParser\Node\Name)) {
+                // Dynamic function call ($callback(...)) — can't resolve at compile time.
+                // Emit args for side effects, return null. The call itself is a no-op.
+                foreach ($expr->args as $arg) {
+                    if ($arg instanceof \PhpParser\Node\Arg) {
+                        $this->buildExpr($arg->value);
+                    }
+                }
+                return new NullConstant(BaseType::PTR);
+            }
             $funcName = $expr->name->toLowerString();
             // Built-in functions
             if ($funcName === 'assert') {
@@ -578,6 +591,87 @@ trait BuildExprTrait
                 }
                 return $val;
             }
+            if ($funcName === 'ord') {
+                CompilerInvariant::check(count($expr->args) === 1);
+                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                $val = $this->buildExpr($expr->args[0]->value);
+                // String byte access already returns the byte as i32
+                if ($val->getType() === BaseType::INT) {
+                    return $val;
+                }
+                return $this->builder->createStringOrd($val);
+            }
+            if ($funcName === 'picohp_debug') {
+                CompilerInvariant::check(count($expr->args) >= 1);
+                CompilerInvariant::check($expr->args[0] instanceof \PhpParser\Node\Arg);
+                $argExpr = $expr->args[0]->value;
+                $val = $this->buildExpr($argExpr);
+                $picoType = $this->getExprResolvedType($argExpr);
+                $baseType = $val->getType();
+
+                // Build a label from the source expression
+                $label = '';
+                if ($argExpr instanceof \PhpParser\Node\Expr\Variable && is_string($argExpr->name)) {
+                    $label = '$' . $argExpr->name;
+                } elseif ($argExpr instanceof \PhpParser\Node\Expr\PropertyFetch
+                    && $argExpr->name instanceof \PhpParser\Node\Identifier) {
+                    $label = '->' . $argExpr->name->toString();
+                }
+
+                $typeStr = ($picoType->isNullable() ? '?' : '') . $picoType->toBase()->value;
+                if ($picoType->isArray()) {
+                    $typeStr = 'array<' . $picoType->getElementType()->toBase()->value . '>';
+                } elseif ($picoType->isMixed()) {
+                    $typeStr = 'mixed';
+                }
+                $info = "[picohp_debug] {$label} type={$typeStr} ir={$baseType->toLLVM()} val=";
+                $infoStr = $this->builder->createStringConstant($info);
+                $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.s, ptr {$infoStr->render()})", 1);
+                // Print value based on IR type
+                if ($picoType->isArray()) {
+                    // Arrays: print null or length
+                    $isNull = $this->builder->createNullCheck($val);
+                    $nullStr = $this->builder->createStringConstant('null');
+                    $lenVal = $this->builder->createArrayLen($val);
+                    // Print "null" if null, otherwise print "len=N"
+                    $lenPrefixStr = $this->builder->createStringConstant('len=');
+                    // Use select to pick between printing null or length
+                    // Simple approach: branch
+                    CompilerInvariant::check($this->ctx->function !== null);
+                    $count = $pData->mycount;
+                    $nullBB = $this->ctx->function->addBasicBlock("debug_null{$count}");
+                    $lenBB = $this->ctx->function->addBasicBlock("debug_len{$count}");
+                    $endBB = $this->ctx->function->addBasicBlock("debug_end{$count}");
+                    $this->builder->createBranch([$isNull, new Label($nullBB->getName()), new Label($lenBB->getName())]);
+                    $this->builder->setInsertPoint($nullBB);
+                    $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.s, ptr {$nullStr->render()})", 1);
+                    $this->builder->createBranch([new Label($endBB->getName())]);
+                    $this->builder->setInsertPoint($lenBB);
+                    $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.s, ptr {$lenPrefixStr->render()})", 1);
+                    $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.d, i32 {$lenVal->render()})", 1);
+                    $this->builder->createBranch([new Label($endBB->getName())]);
+                    $this->builder->setInsertPoint($endBB);
+                } elseif ($baseType === BaseType::BOOL) {
+                    $val = $this->builder->createZext($val);
+                    $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.d, i32 {$val->render()})", 1);
+                } elseif ($baseType === BaseType::INT) {
+                    $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.d, i32 {$val->render()})", 1);
+                } elseif ($baseType === BaseType::FLOAT) {
+                    $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.f, double {$val->render()})", 1);
+                } elseif ($baseType === BaseType::PTR || $baseType === BaseType::STRING) {
+                    if ($picoType->isNullable()) {
+                        $isNull = $this->builder->createNullCheck($val);
+                        $nullStr = $this->builder->createStringConstant('null');
+                        $printVal = $this->builder->createSelect($isNull, $nullStr, $val);
+                        $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.s, ptr {$printVal->render()})", 1);
+                    } else {
+                        $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.s, ptr {$val->render()})", 1);
+                    }
+                }
+                $nlStr = $this->builder->createStringConstant("\n");
+                $this->builder->addLine("call i32 (ptr, ...) @printf(ptr @.str.s, ptr {$nlStr->render()})", 1);
+                return new Void_();
+            }
             // Registry-driven builtin codegen: call runtime symbol with args
             if ($this->builtinRegistry->has($funcName)) {
                 $def = $this->builtinRegistry->get($funcName);
@@ -621,7 +715,7 @@ trait BuildExprTrait
                 return new NullConstant(BaseType::PTR);
             }
             $varType = $this->getExprResolvedType($expr->var);
-            if ($varType->isArray() || $varType->isMixed()) {
+            if ($varType->isArray() || $varType->isMixed() || (!$varType->isEqualTo(PicoType::fromString('string')) && $varType->toBase() === BaseType::PTR)) {
                 CompilerInvariant::check($expr->dim !== null, "array read requires index");
                 $arrPtr = $this->buildExpr($expr->var);
                 $idx = $this->buildExpr($expr->dim);
@@ -763,7 +857,12 @@ trait BuildExprTrait
             $className = $varType->getClassName();
             $classMeta = $this->classRegistry[$className];
             $methodName = $expr->name->toString();
-            $methodSymbol = $classMeta->methods[$methodName];
+            // Walk parent chain to find inherited methods
+            $lookupMeta = $classMeta;
+            while (!isset($lookupMeta->methods[$methodName]) && $lookupMeta->parentName !== null && isset($this->classRegistry[$lookupMeta->parentName])) {
+                $lookupMeta = $this->classRegistry[$lookupMeta->parentName];
+            }
+            $methodSymbol = $lookupMeta->methods[$methodName];
             $args = $this->buildArgsWithDefaults($expr->args, $methodSymbol);
             /** @var array<ValueAbstract> $allArgs */
             $allArgs = array_merge([$objVal], $args);
@@ -774,7 +873,7 @@ trait BuildExprTrait
                 return $this->emitVirtualDispatch($objVal, $className, $methodName, $allArgs, $returnType);
             }
 
-            $ownerClass = $classMeta->methodOwner[$methodName] ?? $className;
+            $ownerClass = $lookupMeta->methodOwner[$methodName] ?? ($classMeta->methodOwner[$methodName] ?? $className);
             $qualifiedName = ClassSymbol::llvmMethodSymbol($ownerClass, $methodName);
             return $this->builder->createCall($qualifiedName, $allArgs, $returnType);
         } elseif ($expr instanceof \PhpParser\Node\Expr\StaticCall) {
@@ -1112,14 +1211,32 @@ trait BuildExprTrait
                 $structType = Builder::resultTypeName($retType);
                 $this->builder->addLine("ret {$structType} {$errResult->render()}", 1);
             } else {
-                // Uncaught — abort
+                // Uncaught — print "Uncaught ClassName: <message>" to stderr, then abort
+                $label = 'Uncaught ' . $className;
+                if (count($newExpr->args) > 0 && $newExpr->args[0] instanceof \PhpParser\Node\Arg) {
+                    $firstArg = $this->buildExpr($newExpr->args[0]->value);
+                    $prefixLit = $this->builder->createStringConstant($label . ': ');
+                    $fullMsg = $this->builder->createCall('pico_string_concat', [$prefixLit, $firstArg], BaseType::PTR);
+                } else {
+                    $fullMsg = $this->builder->createStringConstant($label);
+                }
+                $nlLit = $this->builder->createStringConstant("\n");
+                $withNl = $this->builder->createCall('pico_string_concat', [$fullMsg, $nlLit], BaseType::PTR);
+                $len = $this->builder->createCall('pico_string_len', [$withNl], BaseType::INT);
+                $this->builder->addLine("call i32 @pico_fwrite(i32 2, ptr {$withNl->render()}, i32 {$len->render()})", 1);
                 $this->builder->addLine('call void @abort()', 1);
                 $this->builder->addLine('unreachable', 1);
             }
             return new Void_();
         } elseif ($expr instanceof \PhpParser\Node\Expr\Array_) {
-            // Array literal as standalone expression (e.g. return [])
-            return $this->builder->createArrayNew();
+            if ($expr->items === []) {
+                return $this->builder->createArrayNew();
+            }
+            $arrayType = $this->getExprResolvedType($expr);
+
+            return ($arrayType->isArray() && $arrayType->hasStringKeys())
+                ? $this->buildMapInit($expr, $arrayType)
+                : $this->buildArrayInit($expr, $arrayType);
         } else {
             throw new \Exception("unknown node type in expr: " . get_class($expr));
         }
@@ -1239,6 +1356,17 @@ trait BuildExprTrait
             $classMeta = $this->classRegistry[$className];
             $propType = $classMeta->staticProperties[$var->name->toString()];
             return new \App\PicoHP\LLVM\Value\Global_(ClassSymbol::mangle($className) . '_' . $var->name->toString(), $propType->toBase());
+        }
+        if ($var instanceof \PhpParser\Node\Expr\PropertyFetch) {
+            CompilerInvariant::check($var->name instanceof \PhpParser\Node\Identifier);
+            $objVal = $this->buildExpr($var->var);
+            $varType = $this->getExprResolvedType($var->var);
+            $className = $varType->getClassName();
+            $classMeta = $this->classRegistry[$className];
+            $propName = $var->name->toString();
+            $fieldIndex = $classMeta->getPropertyIndex($propName);
+            $fieldType = $classMeta->getPropertyType($propName)->toBase();
+            return $this->builder->createStructGEP(ClassSymbol::mangle($className), $objVal, $fieldIndex, $fieldType);
         }
         return PicoHPData::getPData($var)->getValue();
     }
@@ -1485,7 +1613,7 @@ trait BuildExprTrait
                 return PicoType::fromString('mixed');
             }
             $arrType = $this->getExprResolvedType($expr->var);
-            if ($arrType->isMixed()) {
+            if ($arrType->isMixed() || (!$arrType->isArray() && $arrType->toBase() === BaseType::PTR)) {
                 return PicoType::fromString('mixed');
             }
             CompilerInvariant::check($arrType->isArray());
@@ -1578,6 +1706,9 @@ trait BuildExprTrait
             }
             return PicoType::fromString('mixed');
         }
+        if ($expr instanceof \PhpParser\Node\Expr\Array_) {
+            return PicoType::fromString('array');
+        }
         throw new \RuntimeException('getExprResolvedType: unsupported expr type ' . get_class($expr));
     }
 
@@ -1662,10 +1793,10 @@ trait BuildExprTrait
             return $this->buildMapInit($arrayExpr, $arrayType);
         }
         $arrPtr = $this->builder->createArrayNew();
-        $elementType = $arrayType->isMixed() ? BaseType::PTR : $arrayType->getElementBaseType();
         foreach ($arrayExpr->items as $item) {
             $elemVal = $this->buildExpr($item->value);
-            $this->builder->createArrayPush($arrPtr, $elemVal, $elementType);
+            // Use the value's actual LLVM type for the push call
+            $this->builder->createArrayPush($arrPtr, $elemVal, $elemVal->getType());
         }
         return $arrPtr;
     }

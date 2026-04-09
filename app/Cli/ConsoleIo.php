@@ -31,17 +31,17 @@ final class ConsoleIo
 
     public function error(string $message): void
     {
-        fwrite(STDERR, "\n [ERROR] {$message}\n\n");
+        fwrite(STDERR, "\n [ERROR] " . $message . "\n\n");
     }
 
     public function warning(string $message): void
     {
-        fwrite(STDERR, "\n [WARNING] {$message}\n\n");
+        fwrite(STDERR, "\n [WARNING] " . $message . "\n\n");
     }
 
     public function note(string $message): void
     {
-        fwrite(STDERR, "\n ! {$message}\n\n");
+        fwrite(STDERR, "\n ! " . $message . "\n\n");
     }
 
     public function writeln(string $message = ''): void

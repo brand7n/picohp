@@ -6,7 +6,7 @@ namespace App\PicoHP\Pass\IRGen;
 
 use App\PicoHP\{BaseType, ClassSymbol, CompilerInvariant};
 use App\PicoHP\LLVM\{Builder, IRLine, ValueAbstract};
-use App\PicoHP\LLVM\Value\{Constant, Void_, Label, Param, NullConstant};
+use App\PicoHP\LLVM\Value\{Constant, Instruction, Void_, Label, Param, NullConstant};
 use App\PicoHP\SymbolTable\{EnumMetadata, PicoHPData};
 
 trait BuildStmtTrait
@@ -66,7 +66,7 @@ trait BuildStmtTrait
                     $this->buildStmts($stmt->stmts);
                 } catch (\Throwable $e) {
                     // Clear partial IR and replace with a clean abort stub
-                    fwrite(STDERR, "[IR-STUB] {$stmt->name->toString()}: {$e->getMessage()}\n");
+                    fwrite(STDERR, "[IR-STUB] {$stmt->name->toString()}: {$e->getMessage()} at {$e->getFile()}:{$e->getLine()}\n");
                     CompilerInvariant::check($this->ctx->function !== null);
                     $this->ctx->function->clearBlocks();
                     $bb = $this->ctx->function->addBasicBlock('entry');
@@ -75,15 +75,21 @@ trait BuildStmtTrait
                     $pData->stubbed = true;
                 }
             }
-            if (!$pData->stubbed && $funcSymbol->type->toBase() === BaseType::VOID) {
+            if (!$pData->stubbed) {
                 $currentBB = $this->builder->getCurrentBasicBlock();
-                if ($currentBB === null || !$currentBB->hasTerminator()) {
-                    if ($funcSymbol->canThrow) {
-                        $okResult = $this->builder->createResultOk(new Void_(), BaseType::VOID);
-                        $structType = Builder::resultTypeName(BaseType::VOID);
-                        $this->builder->addLine("ret {$structType} {$okResult->render()}", 1);
+                if ($currentBB !== null && !$currentBB->hasTerminator()) {
+                    if ($funcSymbol->type->toBase() === BaseType::VOID) {
+                        if ($funcSymbol->canThrow) {
+                            $okResult = $this->builder->createResultOk(new Void_(), BaseType::VOID);
+                            $structType = Builder::resultTypeName(BaseType::VOID);
+                            $this->builder->addLine("ret {$structType} {$okResult->render()}", 1);
+                        } else {
+                            $this->builder->createRetVoid();
+                        }
                     } else {
-                        $this->builder->createRetVoid();
+                        // Non-void function with unterminated block (e.g. dead
+                        // code after switch where all cases return).
+                        $this->builder->addLine('unreachable', 1);
                     }
                 }
             }
@@ -128,10 +134,21 @@ trait BuildStmtTrait
                     $this->builder->createRetVoid();
                 } elseif ($this->ctx->function !== null && $this->ctx->function->canThrow) {
                     $retType = $this->ctx->function->getReturnType()->toBase();
+                    if ($retType === BaseType::PTR && $val->getType() !== BaseType::PTR && $val->getType() !== BaseType::STRING) {
+                        $castVal = new Instruction('inttoptr', BaseType::PTR);
+                        $this->builder->addLine("{$castVal->render()} = inttoptr {$val->getType()->toLLVM()} {$val->render()} to ptr", 1);
+                        $val = $castVal;
+                    }
                     $okResult = $this->builder->createResultOk($val, $retType);
                     $structType = Builder::resultTypeName($retType);
                     $this->builder->addLine("ret {$structType} {$okResult->render()}", 1);
                 } else {
+                    // Coerce value type to ptr for nullable return types (e.g. ?int → ptr)
+                    if ($funcRetType === BaseType::PTR && $val->getType() !== BaseType::PTR && $val->getType() !== BaseType::STRING) {
+                        $castVal = new Instruction('inttoptr', BaseType::PTR);
+                        $this->builder->addLine("{$castVal->render()} = inttoptr {$val->getType()->toLLVM()} {$val->render()} to ptr", 1);
+                        $val = $castVal;
+                    }
                     $this->builder->createInstruction('ret', [$val], false);
                 }
             }
@@ -253,19 +270,21 @@ trait BuildStmtTrait
                 $default = $classMeta->staticDefaults[$propName] ?? null;
                 $initVal = $llvmType === 'ptr' ? 'null' : '0';
                 if ($default instanceof \PhpParser\Node\Scalar\Int_) {
-                    $initVal = (string) $default->value;
+                    $initVal = $llvmType === 'ptr' ? 'null' : (string) $default->value;
                 } elseif ($default instanceof \PhpParser\Node\Scalar\Float_) {
                     $initVal = sprintf('%e', $default->value);
                 } elseif ($default instanceof \PhpParser\Node\Scalar\String_) {
                     $initVal = 'null'; // string pointers default to null
                 } elseif ($default instanceof \PhpParser\Node\Expr\ConstFetch) {
                     $name = $default->name->toLowerString();
-                    if ($name === 'true') {
+                    if ($llvmType === 'ptr') {
+                        $initVal = 'null';
+                    } elseif ($name === 'true') {
                         $initVal = '1';
                     } elseif ($name === 'false') {
                         $initVal = '0';
                     } elseif ($name === 'null') {
-                        $initVal = $llvmType === 'ptr' ? 'null' : '0';
+                        $initVal = '0';
                     }
                 }
                 $this->module->addLine(new IRLine("@{$llvmClass}_{$propName} = global {$llvmType} {$initVal}"));
@@ -327,14 +346,19 @@ trait BuildStmtTrait
                         $this->builder->createStore(new Param($paramIndex++, $type->toBase()), $paramPData->getValue());
                     }
                     $this->buildStmts($stmt->stmts);
-                    if ($funcSymbol->type->toBase() === \App\PicoHP\BaseType::VOID) {
-                        $currentBB = $this->builder->getCurrentBasicBlock();
-                        if ($currentBB === null || !$currentBB->hasTerminator()) {
+                    $currentBB = $this->builder->getCurrentBasicBlock();
+                    if ($currentBB !== null && !$currentBB->hasTerminator()) {
+                        if ($funcSymbol->type->toBase() === \App\PicoHP\BaseType::VOID) {
                             $this->builder->createRetVoid();
+                        } else {
+                            $this->builder->addLine('unreachable', 1);
                         }
                     }
                 } catch (\Throwable $e) {
-                    fwrite(STDERR, "[IR-STUB] {$qualifiedName}: {$e->getMessage()}\n");
+                    $trace = $e->getTraceAsString();
+                    $lines = explode("\n", $trace);
+                    $traceStr = implode(" | ", array_slice($lines, 0, 3));
+                    fwrite(STDERR, "[IR-STUB] {$qualifiedName}: {$e->getMessage()} | {$traceStr}\n");
                     CompilerInvariant::check($this->ctx->function !== null);
                     $this->ctx->function->clearBlocks();
                     $bb = $this->ctx->function->addBasicBlock('entry');
@@ -382,12 +406,16 @@ trait BuildStmtTrait
             }
             $this->builder->createBranch([$condLabel]);
             $this->builder->setInsertPoint($condBB);
-            $conds = [];
-            foreach ($stmt->cond as $cond) {
-                $conds[] = $this->buildExpr($cond);
+            if ($stmt->cond === []) {
+                // for(;;) — unconditional infinite loop
+                $this->builder->createBranch([$bodyLabel]);
+            } else {
+                $conds = [];
+                foreach ($stmt->cond as $cond) {
+                    $conds[] = $this->buildExpr($cond);
+                }
+                $this->builder->createBranch([$this->coerceToBool($conds[0]), $bodyLabel, $endLabel]);
             }
-            CompilerInvariant::check(count($conds) > 0);
-            $this->builder->createBranch([$this->coerceToBool($conds[0]), $bodyLabel, $endLabel]);
             $this->builder->setInsertPoint($bodyBB);
             $this->buildStmts($stmt->stmts);
             $this->builder->createBranch([$forContinueLabel]);
@@ -464,12 +492,7 @@ trait BuildStmtTrait
             }
 
             array_pop($this->breakTargets);
-            // If switch_end has no terminator (no default case and no break fallthrough), seal it
-            if (!$endBB->hasTerminator()) {
-                $this->builder->setInsertPoint($endBB);
-            } else {
-                $this->builder->setInsertPoint($endBB);
-            }
+            $this->builder->setInsertPoint($endBB);
         } elseif ($stmt instanceof \PhpParser\Node\Stmt\Break_) {
             CompilerInvariant::check(count($this->breakTargets) > 0, 'break outside of switch or loop');
             $target = end($this->breakTargets);
@@ -669,7 +692,13 @@ trait BuildStmtTrait
         if ($baseType === BaseType::VOID) {
             $baseType = BaseType::PTR;
         }
-        return $this->builder->createAlloca($symbol->name, $baseType);
+        $alloca = $this->builder->createAlloca($symbol->name, $baseType);
+        // Initialize ptr allocas to null so unassigned nullable variables
+        // produce `ptr null` instead of `ptr 0` (invalid LLVM IR).
+        if ($baseType === BaseType::PTR || $baseType === BaseType::STRING) {
+            $this->builder->createStore(new NullConstant($baseType), $alloca);
+        }
+        return $alloca;
     }
 
     protected function emitPropertyDefaults(string $className, \App\PicoHP\SymbolTable\ClassMetadata $classMeta, ValueAbstract $objPtr): void

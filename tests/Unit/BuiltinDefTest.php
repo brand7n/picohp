@@ -18,6 +18,7 @@ it('reports param counts correctly', function () {
         intrinsic: null,
         returnMatchesArg: null,
         returnElementType: null,
+        requiredCount: 2,
     );
 
     expect($def->paramCount())->toBe(3);

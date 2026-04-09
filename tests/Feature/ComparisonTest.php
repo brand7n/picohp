@@ -10,6 +10,7 @@ $programs = [
     'logical or' => 'tests/programs/comparison/logical_or.php',
     'combined comparison and logic' => 'tests/programs/comparison/combined.php',
     'cross-type identity comparison' => 'tests/programs/comparison/cross_type_identity.php',
+    'string inequality' => 'tests/programs/comparison/string_inequality.php',
 ];
 
 foreach ($programs as $name => $file) {

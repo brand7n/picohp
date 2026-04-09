@@ -345,112 +345,6 @@ pub extern "C" fn pico_string_trim(s: *const c_char) -> *mut c_char {
 }
 
 // ---------------------------------------------------------------------------
-// Exception handling (setjmp/longjmp based)
-// ---------------------------------------------------------------------------
-
-struct ExceptionState {
-    /// Pointer to the current in-flight exception object (null if none).
-    exception_ptr: *mut u8,
-    /// The type_id of the current in-flight exception (for catch-clause matching).
-    exception_type_id: u32,
-    /// Stack of jmp_buf pointers — each try block pushes one.
-    handler_stack: Vec<*mut u8>,
-}
-
-static mut EXCEPTION_STATE: ExceptionState = ExceptionState {
-    exception_ptr: std::ptr::null_mut(),
-    exception_type_id: 0,
-    handler_stack: Vec::new(),
-};
-
-extern "C" {
-    fn longjmp(env: *mut u8, val: i32) -> !;
-}
-
-/// Push a jmp_buf pointer onto the exception handler stack.
-/// Called right before setjmp() in the generated IR.
-#[no_mangle]
-pub extern "C" fn picohp_eh_push(jmp_buf_ptr: *mut u8) {
-    unsafe {
-        EXCEPTION_STATE.handler_stack.push(jmp_buf_ptr);
-    }
-}
-
-/// Pop the top jmp_buf from the handler stack (normal exit from try block).
-#[no_mangle]
-pub extern "C" fn picohp_eh_pop() {
-    unsafe {
-        EXCEPTION_STATE.handler_stack.pop();
-    }
-}
-
-/// Throw an exception: store the object pointer and type_id, then longjmp.
-/// If no handler is on the stack, prints an error and aborts.
-#[no_mangle]
-pub extern "C" fn picohp_throw(exception_ptr: *mut u8, type_id: u32) {
-    unsafe {
-        EXCEPTION_STATE.exception_ptr = exception_ptr;
-        EXCEPTION_STATE.exception_type_id = type_id;
-        if let Some(&jmp_buf_ptr) = EXCEPTION_STATE.handler_stack.last() {
-            longjmp(jmp_buf_ptr, 1);
-        } else {
-            eprintln!("Fatal error: Uncaught exception (type_id={})", type_id);
-            std::process::exit(1);
-        }
-    }
-}
-
-/// Get the current in-flight exception object pointer.
-#[no_mangle]
-pub extern "C" fn picohp_eh_get_exception() -> *mut u8 {
-    unsafe { EXCEPTION_STATE.exception_ptr }
-}
-
-/// Get the type_id of the current in-flight exception.
-#[no_mangle]
-pub extern "C" fn picohp_eh_get_type_id() -> u32 {
-    unsafe { EXCEPTION_STATE.exception_type_id }
-}
-
-/// Check if exception type_id matches a given type_id or any of its ancestors.
-/// The ancestor_ids array is a null-terminated list of type_ids for the catch class
-/// and all its descendants. For simplicity, we just check if exception_type_id
-/// matches the given type_id.
-#[no_mangle]
-pub extern "C" fn picohp_eh_matches_type(catch_type_id: u32) -> i32 {
-    unsafe {
-        if EXCEPTION_STATE.exception_type_id == catch_type_id {
-            return 1;
-        }
-        0
-    }
-}
-
-/// Check if exception type matches any type in a list.
-/// type_ids is a pointer to an array of u32, count is the length.
-#[no_mangle]
-pub extern "C" fn picohp_eh_matches_any(type_ids: *const u32, count: u32) -> i32 {
-    unsafe {
-        let slice = std::slice::from_raw_parts(type_ids, count as usize);
-        for &tid in slice {
-            if EXCEPTION_STATE.exception_type_id == tid {
-                return 1;
-            }
-        }
-        0
-    }
-}
-
-/// Clear the current exception state (after it has been handled).
-#[no_mangle]
-pub extern "C" fn picohp_eh_clear() {
-    unsafe {
-        EXCEPTION_STATE.exception_ptr = std::ptr::null_mut();
-        EXCEPTION_STATE.exception_type_id = 0;
-    }
-}
-
-// ---------------------------------------------------------------------------
 // Object allocation
 // ---------------------------------------------------------------------------
 
@@ -597,6 +491,24 @@ pub struct PicoArray {
     data: Vec<PicoValue>,
 }
 
+impl PicoArray {
+    /// Grow the backing vec so that `index` is valid, filling gaps with int 0.
+    fn ensure_index(&mut self, index: usize) {
+        if index >= self.data.len() {
+            self.data.resize(index + 1, PicoValue::Int(0));
+        }
+    }
+}
+
+macro_rules! null_check {
+    ($ptr:expr, $fn_name:expr) => {
+        if $ptr.is_null() {
+            eprintln!("FATAL: null array pointer passed to {}", $fn_name);
+            std::process::abort();
+        }
+    };
+}
+
 #[no_mangle]
 pub extern "C" fn pico_array_new() -> *mut PicoArray {
     let arr = Box::new(PicoArray { data: Vec::new() });
@@ -605,6 +517,7 @@ pub extern "C" fn pico_array_new() -> *mut PicoArray {
 
 #[no_mangle]
 pub extern "C" fn pico_array_len(arr: *const PicoArray) -> i32 {
+    null_check!(arr, "pico_array_len");
     let arr = unsafe { &*arr };
     arr.data.len() as i32
 }
@@ -612,6 +525,7 @@ pub extern "C" fn pico_array_len(arr: *const PicoArray) -> i32 {
 /// Copy a range into a new array. `length < 0` means "to end" (PHP `array_slice` with omitted length).
 #[no_mangle]
 pub extern "C" fn pico_array_slice(arr: *const PicoArray, offset: i32, length: i32) -> *mut PicoArray {
+    null_check!(arr, "pico_array_slice");
     let arr = unsafe { &*arr };
     let n = arr.data.len() as i32;
     let start = if offset < 0 {
@@ -636,24 +550,28 @@ pub extern "C" fn pico_array_slice(arr: *const PicoArray, offset: i32, length: i
 
 #[no_mangle]
 pub extern "C" fn pico_array_push_int(arr: *mut PicoArray, val: i32) {
+    null_check!(arr, "pico_array_push_int");
     let arr = unsafe { &mut *arr };
     arr.data.push(PicoValue::Int(val));
 }
 
 #[no_mangle]
 pub extern "C" fn pico_array_push_float(arr: *mut PicoArray, val: f64) {
+    null_check!(arr, "pico_array_push_float");
     let arr = unsafe { &mut *arr };
     arr.data.push(PicoValue::Float(val));
 }
 
 #[no_mangle]
 pub extern "C" fn pico_array_push_bool(arr: *mut PicoArray, val: i32) {
+    null_check!(arr, "pico_array_push_bool");
     let arr = unsafe { &mut *arr };
     arr.data.push(PicoValue::Bool(val != 0));
 }
 
 #[no_mangle]
 pub extern "C" fn pico_array_push_str(arr: *mut PicoArray, val: *const c_char) {
+    null_check!(arr, "pico_array_push_str");
     let arr = unsafe { &mut *arr };
     arr.data.push(PicoValue::Str(val));
 }
@@ -662,6 +580,7 @@ pub extern "C" fn pico_array_push_str(arr: *mut PicoArray, val: *const c_char) {
 
 #[no_mangle]
 pub extern "C" fn pico_array_get_int(arr: *const PicoArray, index: i32) -> i32 {
+    null_check!(arr, "pico_array_get_int");
     let arr = unsafe { &*arr };
     match &arr.data[index as usize] {
         PicoValue::Int(v) => *v,
@@ -671,6 +590,7 @@ pub extern "C" fn pico_array_get_int(arr: *const PicoArray, index: i32) -> i32 {
 
 #[no_mangle]
 pub extern "C" fn pico_array_get_float(arr: *const PicoArray, index: i32) -> f64 {
+    null_check!(arr, "pico_array_get_float");
     let arr = unsafe { &*arr };
     match &arr.data[index as usize] {
         PicoValue::Float(v) => *v,
@@ -680,6 +600,7 @@ pub extern "C" fn pico_array_get_float(arr: *const PicoArray, index: i32) -> f64
 
 #[no_mangle]
 pub extern "C" fn pico_array_get_bool(arr: *const PicoArray, index: i32) -> i32 {
+    null_check!(arr, "pico_array_get_bool");
     let arr = unsafe { &*arr };
     match &arr.data[index as usize] {
         PicoValue::Bool(v) => *v as i32,
@@ -689,6 +610,7 @@ pub extern "C" fn pico_array_get_bool(arr: *const PicoArray, index: i32) -> i32 
 
 #[no_mangle]
 pub extern "C" fn pico_array_get_str(arr: *const PicoArray, index: i32) -> *const c_char {
+    null_check!(arr, "pico_array_get_str");
     let arr = unsafe { &*arr };
     match &arr.data[index as usize] {
         PicoValue::Str(v) => *v,
@@ -713,25 +635,33 @@ pub extern "C" fn pico_argv_to_array(argc: c_int, argv: *const *const c_char) ->
 
 #[no_mangle]
 pub extern "C" fn pico_array_set_int(arr: *mut PicoArray, index: i32, val: i32) {
+    null_check!(arr, "pico_array_set_int");
     let arr = unsafe { &mut *arr };
+    arr.ensure_index(index as usize);
     arr.data[index as usize] = PicoValue::Int(val);
 }
 
 #[no_mangle]
 pub extern "C" fn pico_array_set_float(arr: *mut PicoArray, index: i32, val: f64) {
+    null_check!(arr, "pico_array_set_float");
     let arr = unsafe { &mut *arr };
+    arr.ensure_index(index as usize);
     arr.data[index as usize] = PicoValue::Float(val);
 }
 
 #[no_mangle]
 pub extern "C" fn pico_array_set_bool(arr: *mut PicoArray, index: i32, val: i32) {
+    null_check!(arr, "pico_array_set_bool");
     let arr = unsafe { &mut *arr };
+    arr.ensure_index(index as usize);
     arr.data[index as usize] = PicoValue::Bool(val != 0);
 }
 
 #[no_mangle]
 pub extern "C" fn pico_array_set_str(arr: *mut PicoArray, index: i32, val: *const c_char) {
+    null_check!(arr, "pico_array_set_str");
     let arr = unsafe { &mut *arr };
+    arr.ensure_index(index as usize);
     arr.data[index as usize] = PicoValue::Str(val);
 }
 
@@ -739,22 +669,31 @@ pub extern "C" fn pico_array_set_str(arr: *mut PicoArray, index: i32, val: *cons
 
 #[no_mangle]
 pub extern "C" fn pico_array_push_ptr(arr: *mut PicoArray, val: *mut u8) {
+    null_check!(arr, "pico_array_push_ptr");
     let arr = unsafe { &mut *arr };
     arr.data.push(PicoValue::Ptr(val));
 }
 
 #[no_mangle]
 pub extern "C" fn pico_array_get_ptr(arr: *const PicoArray, index: i32) -> *mut u8 {
+    null_check!(arr, "pico_array_get_ptr");
     let arr = unsafe { &*arr };
-    match &arr.data[index as usize] {
-        PicoValue::Ptr(v) => *v,
-        _ => panic!("pico_array_get_ptr: element is not a pointer"),
+    let i = index as usize;
+    if i >= arr.data.len() {
+        eprintln!("pico_array_get_ptr: index {} out of bounds (len {})", index, arr.data.len());
+        return std::ptr::null_mut();
+    }
+    match arr.data[i] {
+        PicoValue::Ptr(v) => v,
+        _ => std::ptr::null_mut(),
     }
 }
 
 #[no_mangle]
 pub extern "C" fn pico_array_set_ptr(arr: *mut PicoArray, index: i32, val: *mut u8) {
+    null_check!(arr, "pico_array_set_ptr");
     let arr = unsafe { &mut *arr };
+    arr.ensure_index(index as usize);
     arr.data[index as usize] = PicoValue::Ptr(val);
 }
 
