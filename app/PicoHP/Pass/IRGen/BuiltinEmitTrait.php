@@ -133,7 +133,12 @@ trait BuiltinEmitTrait
         // If the current block is already terminated (e.g. after abort()), this is dead code
         $currentBB = $this->builder->getCurrentBasicBlock();
         if ($currentBB !== null && $currentBB->hasTerminator()) {
-            return $returnType === BaseType::VOID ? new Void_() : new Constant(0, $returnType);
+            if ($returnType === BaseType::VOID) {
+                return new Void_();
+            }
+            return ($returnType === BaseType::PTR || $returnType === BaseType::STRING)
+                ? new NullConstant($returnType)
+                : new Constant(0, $returnType);
         }
 
         // Call the function — returns a result struct
