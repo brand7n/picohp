@@ -30,6 +30,10 @@ class Constant extends ValueAbstract
         if ($this->getType() === BaseType::FLOAT) {
             return $this->floatToHex($this->value);
         }
+        // Pointer constants must use 'null' not '0' in LLVM IR.
+        if (($this->getType() === BaseType::PTR || $this->getType() === BaseType::STRING) && $this->value === 0) {
+            return 'null';
+        }
         return (string)$this->value;
     }
 
