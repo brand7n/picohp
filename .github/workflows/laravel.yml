@@ -51,9 +51,7 @@ jobs:
     - name: Install Dependencies
       run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
     - name: Self-compile picoHP
-      run: |
-        php -d memory_limit=1G ./picoHP build --debug --entry=picoHP \
-          --override-class 'PhpParser\Token' compat/PhpParser/Token.php .
+      run: bash scripts/self-compile.sh
     - name: Verify self-compiled binary exists
       run: test -x /tmp/picoHP/a.out
     - name: Run self-compiled binary
