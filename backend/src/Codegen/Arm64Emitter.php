@@ -70,6 +70,22 @@ class Arm64Emitter
 
     private ?Module $module = null;
 
+    // -- Register allocator state --
+    private bool $useRegAlloc = false;
+    private ?RegAllocator $allocator = null;
+    /** @var array<string, string> SSA ref => register (per block) */
+    private array $blockRegMap = [];
+    /** @var array<string, true> refs whose value is currently in their assigned register */
+    private array $regHot = [];
+    /** @var array<string, string> register => SSA ref currently in it */
+    private array $regOwner = [];
+
+    public function enableRegAlloc(): void
+    {
+        $this->useRegAlloc = true;
+        $this->allocator = new RegAllocator();
+    }
+
     public function emit(Module $module): string
     {
         $this->lines = [];
@@ -126,10 +142,34 @@ class Arm64Emitter
             if ($idx > 0) {
                 $this->line($this->bbLabel($bb->getName()) . ":");
             }
+
+            if ($this->useRegAlloc && $this->allocator !== null) {
+                $this->blockRegMap = $this->allocator->allocate($bb);
+                $this->regHot = [];
+                $this->regOwner = [];
+            }
+
             foreach ($bb->getInstructions() as $inst) {
                 $this->emitInstruction($inst);
             }
+
+            if ($this->useRegAlloc) {
+                $this->spillAll();
+            }
         }
+    }
+
+    private function spillAll(): void
+    {
+        foreach ($this->regHot as $ref => $_) {
+            if (isset($this->blockRegMap[$ref]) && isset($this->slots[$ref])) {
+                $reg = $this->blockRegMap[$ref];
+                $off = $this->slotOff($ref);
+                $this->inst("str {$reg}, [x29, #-{$off}]");
+            }
+        }
+        $this->regHot = [];
+        $this->regOwner = [];
     }
 
     private function assignSlots(Function_ $fn): void
@@ -413,8 +453,11 @@ class Arm64Emitter
         $ref = $inst->renderRef();
         $this->comment("call @{$inst->functionName}");
 
+        if ($this->useRegAlloc) {
+            $this->spillAll(); // caller-saved registers clobbered by call
+        }
+
         // Load each arg directly into its target register (x0-x7 / d0-d7).
-        // loadVal only touches the target register, so no clobber conflicts.
         foreach ($inst->args as $i => $arg) {
             $isFloat = $arg->getType() === BaseType::FLOAT;
             $this->loadVal($arg, "x{$i}", "d{$i}");
@@ -517,18 +560,55 @@ class Arm64Emitter
         $this->loadSlot($ref, $isFloat ? $floatReg : $intReg);
     }
 
-    /** Load a frame slot into a register. */
+    /** Load a frame slot into a register. With regalloc, uses cached register if hot. */
     private function loadSlot(string $ref, string $reg = 'x0'): void
     {
+        if ($this->useRegAlloc && isset($this->blockRegMap[$ref])) {
+            $assigned = $this->blockRegMap[$ref];
+            if (isset($this->regHot[$ref])) {
+                // Value is live in its register — use it
+                if ($assigned !== $reg) {
+                    $this->inst("mov {$reg}, {$assigned}");
+                }
+                return;
+            }
+            // First access in this block: load into assigned register, mark hot
+            $off = $this->slotOff($ref);
+            $this->inst("ldr {$assigned}, [x29, #-{$off}]");
+            $this->markHot($ref, $assigned);
+            if ($assigned !== $reg) {
+                $this->inst("mov {$reg}, {$assigned}");
+            }
+            return;
+        }
         $off = $this->slotOff($ref);
         $this->inst("ldr {$reg}, [x29, #-{$off}]");
     }
 
-    /** Store a register into a frame slot. */
+    /** Store a register into a frame slot. With regalloc, keeps value in register instead. */
     private function storeSlot(string $ref, string $reg = 'x0'): void
     {
+        if ($this->useRegAlloc && isset($this->blockRegMap[$ref])) {
+            $assigned = $this->blockRegMap[$ref];
+            if ($assigned !== $reg) {
+                $this->inst("mov {$assigned}, {$reg}");
+            }
+            $this->markHot($ref, $assigned);
+            return; // skip frame store — value lives in register
+        }
         $off = $this->slotOff($ref);
         $this->inst("str {$reg}, [x29, #-{$off}]");
+    }
+
+    private function markHot(string $ref, string $reg): void
+    {
+        // Evict previous owner of this register
+        $old = $this->regOwner[$reg] ?? null;
+        if ($old !== null && $old !== $ref) {
+            unset($this->regHot[$old]);
+        }
+        $this->regHot[$ref] = true;
+        $this->regOwner[$reg] = $ref;
     }
 
     /** Build a 64-bit immediate in a register via movz/movk. */

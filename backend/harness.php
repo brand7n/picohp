@@ -333,26 +333,66 @@ separator("FINAL: {$passed}/{$total} programs passed full pipeline");
 // ARM64 assembly output (stack-machine style)
 // ═══════════════════════════════════════════════════════════════════
 
-separator("ARM64 Assembly — Point program (after escape analysis + stack promotion)");
+// ═══════════════════════════════════════════════════════════════════
+// ARM64: stack-machine vs register-allocated (Point___construct)
+// ═══════════════════════════════════════════════════════════════════
 
-$pointArm = buildPointProgram();
+separator("ARM64 — Stack Machine (no regalloc)");
 
-// Run escape analysis
-$armAnalysis = new EscapeAnalysisPass();
-$armAnalysis->run($pointArm);
+$pointStack = buildPointProgram();
+$sa1 = new EscapeAnalysisPass(); $sa1->run($pointStack);
+$sp1 = new StackPromotionPass(); $sp1->run($pointStack, $sa1);
 
-// Run stack promotion
-$armPromotion = new StackPromotionPass();
-$armPromotion->run($pointArm, $armAnalysis);
-$armPromotion->printReport();
+$stackEmitter = new \PicoIR\Codegen\Arm64Emitter();
+$stackAsm = $stackEmitter->emit($pointStack);
+$stackLines = explode("\n", $stackAsm);
+// Show just Point___construct for comparison
+$inFn = false;
+$stackCount = 0;
+foreach ($stackLines as $line) {
+    if (str_contains($line, '_Point___construct:')) { $inFn = true; }
+    if ($inFn) {
+        echo $line . "\n";
+        if (str_starts_with(trim($line), 'ret') && !str_contains($line, 'return')) {
+            break;
+        }
+        if (str_starts_with($line, '    ') && !str_starts_with($line, '    ;')) {
+            $stackCount++;
+        }
+    }
+}
+echo "\n  instructions: {$stackCount}\n";
 
-// Emit ARM64
-$emitter = new \PicoIR\Codegen\Arm64Emitter();
-$asm = $emitter->emit($pointArm);
-echo $asm;
+separator("ARM64 — Linear Scan Register Allocation");
 
-echo "\n; Heap allocs promoted to stack — no _picohp_object_alloc needed.\n";
-echo "; To build: clang -o point point.s\n";
+$pointReg = buildPointProgram();
+$sa2 = new EscapeAnalysisPass(); $sa2->run($pointReg);
+$sp2 = new StackPromotionPass(); $sp2->run($pointReg, $sa2);
+
+$regEmitter = new \PicoIR\Codegen\Arm64Emitter();
+$regEmitter->enableRegAlloc();
+$regAsm = $regEmitter->emit($pointReg);
+$regLines = explode("\n", $regAsm);
+$inFn = false;
+$regCount = 0;
+foreach ($regLines as $line) {
+    if (str_contains($line, '_Point___construct:')) { $inFn = true; }
+    if ($inFn) {
+        echo $line . "\n";
+        if (str_starts_with(trim($line), 'ret') && !str_contains($line, 'return')) {
+            break;
+        }
+        if (str_starts_with($line, '    ') && !str_starts_with($line, '    ;')) {
+            $regCount++;
+        }
+    }
+}
+echo "\n  instructions: {$regCount}  (saved " . ($stackCount - $regCount) . ")\n";
+
+// Full program with regalloc for testing
+separator("Full ARM64 with regalloc (for testing)");
+echo $regAsm;
+echo "\n; To build: clang -o point point.s\n";
 echo "; ./point; echo \$?   # expected: 30\n";
 
 exit($passed === $total ? 0 : 1);
