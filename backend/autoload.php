@@ -22,6 +22,15 @@ spl_autoload_register(function (string $class): void {
         return;
     }
 
+    // Codegen namespace
+    if (str_starts_with($relative, 'Codegen\\')) {
+        $file = __DIR__ . '/src/' . str_replace('\\', '/', $relative) . '.php';
+        if (file_exists($file)) {
+            require_once $file;
+        }
+        return;
+    }
+
     // Transform namespace
     if (str_starts_with($relative, 'Transform\\')) {
         $file = __DIR__ . '/src/' . str_replace('\\', '/', $relative) . '.php';

@@ -328,4 +328,31 @@ if (runPipeline(
 }
 
 separator("FINAL: {$passed}/{$total} programs passed full pipeline");
+
+// ═══════════════════════════════════════════════════════════════════
+// ARM64 assembly output (stack-machine style)
+// ═══════════════════════════════════════════════════════════════════
+
+separator("ARM64 Assembly — Point program (after escape analysis + stack promotion)");
+
+$pointArm = buildPointProgram();
+
+// Run escape analysis
+$armAnalysis = new EscapeAnalysisPass();
+$armAnalysis->run($pointArm);
+
+// Run stack promotion
+$armPromotion = new StackPromotionPass();
+$armPromotion->run($pointArm, $armAnalysis);
+$armPromotion->printReport();
+
+// Emit ARM64
+$emitter = new \PicoIR\Codegen\Arm64Emitter();
+$asm = $emitter->emit($pointArm);
+echo $asm;
+
+echo "\n; Heap allocs promoted to stack — no _picohp_object_alloc needed.\n";
+echo "; To build: clang -o point point.s\n";
+echo "; ./point; echo \$?   # expected: 30\n";
+
 exit($passed === $total ? 0 : 1);

@@ -28,6 +28,12 @@ class Function_
         return $this->returnType;
     }
 
+    /** @return list<BaseType> */
+    public function getParamTypes(): array
+    {
+        return $this->paramTypes;
+    }
+
     public function addBasicBlock(string $name): BasicBlock
     {
         $bb = new BasicBlock($name);
