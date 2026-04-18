@@ -12,8 +12,8 @@ class BinaryOpInstruction extends Instruction
 {
     public function __construct(
         string $opcode,
-        public readonly ValueAbstract $lhs,
-        public readonly ValueAbstract $rhs,
+        public ValueAbstract $lhs,
+        public ValueAbstract $rhs,
         BaseType $resultType,
     ) {
         parent::__construct($opcode, [$lhs, $rhs], $resultType, $opcode);
@@ -42,7 +42,7 @@ class CastInstruction extends Instruction
 {
     public function __construct(
         public readonly CastKind $kind,
-        public readonly ValueAbstract $operand,
+        public ValueAbstract $operand,
         BaseType $fromType,
         BaseType $toType,
     ) {
@@ -62,9 +62,9 @@ class CastInstruction extends Instruction
 class SelectInstruction extends Instruction
 {
     public function __construct(
-        public readonly ValueAbstract $condition,
-        public readonly ValueAbstract $trueVal,
-        public readonly ValueAbstract $falseVal,
+        public ValueAbstract $condition,
+        public ValueAbstract $trueVal,
+        public ValueAbstract $falseVal,
     ) {
         parent::__construct('select', [$condition, $trueVal, $falseVal], $trueVal->getType(), 'sel');
     }
@@ -97,7 +97,7 @@ class AllocaInstruction extends Instruction
 class LoadInstruction extends Instruction
 {
     public function __construct(
-        public readonly ValueAbstract $pointer,
+        public ValueAbstract $pointer,
     ) {
         // Load type comes from the pointer's type (what it points to)
         parent::__construct('load', [$pointer], $pointer->getType(), 'load');
@@ -113,8 +113,8 @@ class LoadInstruction extends Instruction
 class StoreInstruction extends Instruction
 {
     public function __construct(
-        public readonly ValueAbstract $value,
-        public readonly ValueAbstract $pointer,
+        public ValueAbstract $value,
+        public ValueAbstract $pointer,
     ) {
         parent::__construct('store', [$value, $pointer], BaseType::VOID, 'store');
     }
@@ -137,7 +137,7 @@ class GepInstruction extends Instruction
 {
     public function __construct(
         public readonly string $structName,
-        public readonly ValueAbstract $basePtr,
+        public ValueAbstract $basePtr,
         public readonly int $fieldIndex,
         BaseType $resultFieldType,
     ) {
@@ -159,9 +159,13 @@ class CallInstruction extends Instruction
     /**
      * @param list<ValueAbstract> $args
      */
+    /**
+     * @param list<ValueAbstract> $args
+     */
     public function __construct(
         public readonly string $functionName,
-        public readonly array $args,
+        /** @var list<ValueAbstract> */
+        public array $args,
         BaseType $returnType,
     ) {
         parent::__construct('call', $args, $returnType, 'call');
@@ -186,7 +190,7 @@ class CallInstruction extends Instruction
 class BranchInstruction extends Instruction
 {
     public function __construct(
-        public readonly ?ValueAbstract $condition,
+        public ?ValueAbstract $condition,
         public readonly Label $target,
         public readonly ?Label $falseTarget = null,
     ) {
@@ -247,7 +251,7 @@ class SwitchInstruction extends Instruction
 class ReturnInstruction extends Instruction
 {
     public function __construct(
-        public readonly ?ValueAbstract $value = null,
+        public ?ValueAbstract $value = null,
     ) {
         $ops = $value !== null ? [$value] : [];
         $type = $value !== null ? $value->getType() : BaseType::VOID;

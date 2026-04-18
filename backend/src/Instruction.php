@@ -20,7 +20,8 @@ class Instruction extends ValueAbstract
      */
     public function __construct(
         public readonly string $opcode,
-        public readonly array $operands,
+        /** @var list<ValueAbstract> */
+        public array $operands,
         BaseType $resultType,
         string $nameHint = '',
     ) {
