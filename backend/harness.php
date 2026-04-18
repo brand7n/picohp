@@ -20,7 +20,7 @@ require_once __DIR__ . '/autoload.php';
 use PicoIR\{Module, Builder, BaseType, Instruction, Constant, NullConstant, Param, Label, HeapObject};
 use PicoIR\Instruction\CallInstruction;
 use PicoIR\Analysis\EscapeAnalysisPass;
-use PicoIR\Transform\StackPromotionPass;
+use PicoIR\Transform\{StackPromotionPass, StoreToLoadForwardingPass, DeadInstructionEliminationPass};
 use PicoIR\Interpreter;
 
 function separator(string $title): void
@@ -330,69 +330,212 @@ if (runPipeline(
 separator("FINAL: {$passed}/{$total} programs passed full pipeline");
 
 // ═══════════════════════════════════════════════════════════════════
-// ARM64 assembly output (stack-machine style)
+// Rect program: area/perimeter/diag — DCE eliminates dead computations
 // ═══════════════════════════════════════════════════════════════════
 
-// ═══════════════════════════════════════════════════════════════════
-// ARM64: stack-machine vs register-allocated (Point___construct)
-// ═══════════════════════════════════════════════════════════════════
+function buildRectProgram(): Module
+{
+    Instruction::resetCounter();
+    $module = new Module('rect_program');
+    $builder = new Builder($module);
 
-separator("ARM64 — Stack Machine (no regalloc)");
+    $module->addHeaderLine('%struct.Rect = type { i32, i32, i32 }');
+    $module->addHeaderLine('declare ptr @picohp_object_alloc(i64, i32)');
 
-$pointStack = buildPointProgram();
-$sa1 = new EscapeAnalysisPass(); $sa1->run($pointStack);
-$sp1 = new StackPromotionPass(); $sp1->run($pointStack, $sa1);
+    // Rect::__construct($this, $w, $h)
+    $ctor = $module->addFunction('Rect___construct', BaseType::VOID, [BaseType::PTR, BaseType::INT, BaseType::INT]);
+    $entry = $ctor->addBasicBlock('entry');
+    $builder->setInsertPoint($entry);
+    $thisSlot = $builder->createAlloca(BaseType::PTR, 'this');
+    $wSlot = $builder->createAlloca(BaseType::INT, 'w');
+    $hSlot = $builder->createAlloca(BaseType::INT, 'h');
+    $builder->createStore(new Param(0, BaseType::PTR), $thisSlot);
+    $builder->createStore(new Param(1, BaseType::INT), $wSlot);
+    $builder->createStore(new Param(2, BaseType::INT), $hSlot);
+    $thisVal = $builder->createLoad($thisSlot);
+    $wVal = $builder->createLoad($wSlot);
+    $hVal = $builder->createLoad($hSlot);
+    $wPtr = $builder->createStructGEP('Rect', $thisVal, 1, BaseType::INT);
+    $builder->createStore($wVal, $wPtr);
+    $hPtr = $builder->createStructGEP('Rect', $thisVal, 2, BaseType::INT);
+    $builder->createStore($hVal, $hPtr);
+    $builder->createRetVoid();
 
-$stackEmitter = new \PicoIR\Codegen\Arm64Emitter();
-$stackAsm = $stackEmitter->emit($pointStack);
-$stackLines = explode("\n", $stackAsm);
-// Show just Point___construct for comparison
-$inFn = false;
-$stackCount = 0;
-foreach ($stackLines as $line) {
-    if (str_contains($line, '_Point___construct:')) { $inFn = true; }
-    if ($inFn) {
-        echo $line . "\n";
-        if (str_starts_with(trim($line), 'ret') && !str_contains($line, 'return')) {
-            break;
-        }
-        if (str_starts_with($line, '    ') && !str_starts_with($line, '    ;')) {
-            $stackCount++;
-        }
-    }
+    // Rect::getW($this) → int
+    $getW = $module->addFunction('Rect__getW', BaseType::INT, [BaseType::PTR]);
+    $entry = $getW->addBasicBlock('entry');
+    $builder->setInsertPoint($entry);
+    $thisSlot = $builder->createAlloca(BaseType::PTR, 'this');
+    $builder->createStore(new Param(0, BaseType::PTR), $thisSlot);
+    $thisVal = $builder->createLoad($thisSlot);
+    $wPtr = $builder->createStructGEP('Rect', $thisVal, 1, BaseType::INT);
+    $wVal = $builder->createLoad($wPtr);
+    $builder->createRet($wVal);
+
+    // Rect::getH($this) → int
+    $getH = $module->addFunction('Rect__getH', BaseType::INT, [BaseType::PTR]);
+    $entry = $getH->addBasicBlock('entry');
+    $builder->setInsertPoint($entry);
+    $thisSlot = $builder->createAlloca(BaseType::PTR, 'this');
+    $builder->createStore(new Param(0, BaseType::PTR), $thisSlot);
+    $thisVal = $builder->createLoad($thisSlot);
+    $hPtr = $builder->createStructGEP('Rect', $thisVal, 2, BaseType::INT);
+    $hVal = $builder->createLoad($hPtr);
+    $builder->createRet($hVal);
+
+    // compute() → int: area=w*h (live), perim=(w+h)*2 (dead), diagSq=w²+h² (dead)
+    $compute = $module->addFunction('compute', BaseType::INT);
+    $entry = $compute->addBasicBlock('entry');
+    $builder->setInsertPoint($entry);
+    $rLocal = $builder->createAlloca(BaseType::PTR, 'r');
+    $rObj = emitNew($builder, 'Rect', 1);
+    $builder->createCall('Rect___construct', [$rObj, new Constant(5, BaseType::INT), new Constant(3, BaseType::INT)], BaseType::VOID);
+    $builder->createStore($rObj, $rLocal);
+    $rVal1 = $builder->createLoad($rLocal);
+    $w = $builder->createCall('Rect__getW', [$rVal1], BaseType::INT);
+    $rVal2 = $builder->createLoad($rLocal);
+    $h = $builder->createCall('Rect__getH', [$rVal2], BaseType::INT);
+    $area = $builder->createBinOp('mul', $w, $h);
+    $wPlusH = $builder->createAdd($w, $h);
+    $perim = $builder->createBinOp('mul', $wPlusH, new Constant(2, BaseType::INT));
+    $wSq = $builder->createBinOp('mul', $w, $w);
+    $hSq = $builder->createBinOp('mul', $h, $h);
+    $diagSq = $builder->createAdd($wSq, $hSq);
+    $builder->createRet($area);
+
+    // main
+    $main = $module->addFunction('main', BaseType::INT);
+    $entry = $main->addBasicBlock('entry');
+    $builder->setInsertPoint($entry);
+    $result = $builder->createCall('compute', [], BaseType::INT);
+    $builder->createRet($result);
+
+    return $module;
 }
-echo "\n  instructions: {$stackCount}\n";
 
-separator("ARM64 — Linear Scan Register Allocation");
+// ═══════════════════════════════════════════════════════════════════
+// Full optimization pipeline → ARM64 for both programs
+// ═══════════════════════════════════════════════════════════════════
 
-$pointReg = buildPointProgram();
-$sa2 = new EscapeAnalysisPass(); $sa2->run($pointReg);
-$sp2 = new StackPromotionPass(); $sp2->run($pointReg, $sa2);
-
-$regEmitter = new \PicoIR\Codegen\Arm64Emitter();
-$regEmitter->enableRegAlloc();
-$regAsm = $regEmitter->emit($pointReg);
-$regLines = explode("\n", $regAsm);
-$inFn = false;
-$regCount = 0;
-foreach ($regLines as $line) {
-    if (str_contains($line, '_Point___construct:')) { $inFn = true; }
-    if ($inFn) {
-        echo $line . "\n";
-        if (str_starts_with(trim($line), 'ret') && !str_contains($line, 'return')) {
-            break;
-        }
-        if (str_starts_with($line, '    ') && !str_starts_with($line, '    ;')) {
-            $regCount++;
-        }
-    }
+/**
+ * Run: escape analysis → stack promotion → store-to-load forwarding → DCE
+ */
+function optimizeModule(Module $module): void
+{
+    $ea = new EscapeAnalysisPass();
+    $ea->run($module);
+    $sp = new StackPromotionPass();
+    $sp->run($module, $ea);
+    $fwd = new StoreToLoadForwardingPass();
+    $fwd->run($module);
+    $dce = new DeadInstructionEliminationPass();
+    $dce->run($module);
 }
-echo "\n  instructions: {$regCount}  (saved " . ($stackCount - $regCount) . ")\n";
 
-// Full program with regalloc for testing
-separator("Full ARM64 with regalloc (for testing)");
-echo $regAsm;
-echo "\n; To build: clang -o point point.s\n";
-echo "; ./point; echo \$?   # expected: 30\n";
+function countInstructions(\PicoIR\Function_ $fn): int
+{
+    $count = 0;
+    foreach ($fn->getAllInstructions() as $_) {
+        $count++;
+    }
+    return $count;
+}
+
+/**
+ * Run the full pipeline on a program, emit ARM64, verify via interpreter + native execution.
+ */
+function arm64Pipeline(string $name, callable $buildFn, int $expected): void
+{
+    // Baseline
+    $baselineModule = $buildFn();
+    $baseline = (new Interpreter())->run($baselineModule, 'main');
+    assert($baseline === $expected, "Baseline mismatch: {$baseline} !== {$expected}");
+
+    // Count before
+    $beforeCounts = [];
+    $beforeTotal = 0;
+    foreach ($baselineModule->getFunctions() as $fn) {
+        $c = countInstructions($fn);
+        $beforeCounts[$fn->getName()] = $c;
+        $beforeTotal += $c;
+    }
+
+    // Optimize
+    $module = $buildFn();
+    optimizeModule($module);
+
+    // Verify interpreter still correct
+    $afterResult = (new Interpreter())->run($module, 'main');
+    assert($afterResult === $expected, "Post-opt mismatch: {$afterResult} !== {$expected}");
+
+    // Count after
+    $afterTotal = 0;
+    foreach ($module->getFunctions() as $fn) {
+        $afterTotal += countInstructions($fn);
+    }
+
+    separator("ARM64: {$name}  (IR: {$beforeTotal} → {$afterTotal} instructions)");
+
+    // Show optimized IR
+    echo "── Optimized IR ──\n\n";
+    echo $module->dump();
+
+    // Emit ARM64 with regalloc
+    echo "── ARM64 (regalloc) ──\n\n";
+    $emitter = new \PicoIR\Codegen\Arm64Emitter();
+    $emitter->enableRegAlloc();
+    $asm = $emitter->emit($module);
+    echo $asm;
+
+    echo "\n  IR: {$beforeTotal} → {$afterTotal} instructions";
+    echo " (" . ($beforeTotal - $afterTotal) . " removed, " . round(100 * ($beforeTotal - $afterTotal) / $beforeTotal) . "% reduction)\n";
+    echo "  interpreter: {$afterResult} ✓\n";
+}
+
+arm64Pipeline('Point (10+20=30)', 'buildPointProgram', 30);
+arm64Pipeline('Rect (5×3=15, dead perim+diag eliminated)', 'buildRectProgram', 15);
+
+// Write the Rect program to a file and test natively
+separator("Native execution test — Rect program");
+
+$rectModule = buildRectProgram();
+optimizeModule($rectModule);
+$emitter = new \PicoIR\Codegen\Arm64Emitter();
+$emitter->enableRegAlloc();
+$rectAsm = $emitter->emit($rectModule);
+$tmpFile = sys_get_temp_dir() . '/picoIR_rect.s';
+$tmpBin = sys_get_temp_dir() . '/picoIR_rect';
+file_put_contents($tmpFile, $rectAsm);
+$buildOut = shell_exec("clang -o {$tmpBin} {$tmpFile} 2>&1");
+if ($buildOut !== null && $buildOut !== '') {
+    echo "Build output: {$buildOut}\n";
+}
+$exitCode = -1;
+exec($tmpBin, $output, $exitCode);
+echo "  {$tmpBin} → exit code {$exitCode}";
+if ($exitCode === 15) {
+    echo "  \033[32m✓\033[0m\n";
+} else {
+    echo "  \033[31m✗ expected 15\033[0m\n";
+}
+
+// Also test Point natively
+$pointModule = buildPointProgram();
+optimizeModule($pointModule);
+$emitter2 = new \PicoIR\Codegen\Arm64Emitter();
+$emitter2->enableRegAlloc();
+$pointAsm = $emitter2->emit($pointModule);
+$tmpFile2 = sys_get_temp_dir() . '/picoIR_point.s';
+$tmpBin2 = sys_get_temp_dir() . '/picoIR_point';
+file_put_contents($tmpFile2, $pointAsm);
+shell_exec("clang -o {$tmpBin2} {$tmpFile2} 2>&1");
+$exitCode2 = -1;
+exec($tmpBin2, $output2, $exitCode2);
+echo "  {$tmpBin2} → exit code {$exitCode2}";
+if ($exitCode2 === 30) {
+    echo "  \033[32m✓\033[0m\n";
+} else {
+    echo "  \033[31m✗ expected 30\033[0m\n";
+}
 
 exit($passed === $total ? 0 : 1);

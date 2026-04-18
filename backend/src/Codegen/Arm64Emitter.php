@@ -153,8 +153,11 @@ class Arm64Emitter
                 $this->emitInstruction($inst);
             }
 
-            if ($this->useRegAlloc) {
+            if ($this->useRegAlloc && !$bb->hasTerminator()) {
                 $this->spillAll();
+            } elseif ($this->useRegAlloc) {
+                $this->regHot = [];
+                $this->regOwner = [];
             }
         }
     }
