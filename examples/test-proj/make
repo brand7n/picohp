@@ -1,4 +1,0 @@
-#!/bin/sh
-# Minimal local build (vendor must exist: run `composer install` in this directory once).
-cd "$(dirname "$0")" || exit 1
-../../picoHP build --debug .
