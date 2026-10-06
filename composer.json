@@ -7,8 +7,16 @@
         "php": "^8.4"
     },
     "require-dev": {
-        "pestphp/pest": "^3.0"
+        "pestphp/pest": "^3.0",
+        "remodulate/pico-runtime": "@dev"
     },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../pico_runtime",
+            "options": { "symlink": true }
+        }
+    ],
     "autoload": {
         "psr-4": {
             "PicoIR\\": "src/"

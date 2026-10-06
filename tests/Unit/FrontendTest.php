@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use PicoIR\BaseType;
 use PicoIR\Frontend\{AstLoader, AstNode, LoweringPass, TypeMapper};
+use Remodulate\Pico\Json;
+use Remodulate\Pico\PicoString;
 
 it('maps phpstan type strings to base types', function (string $phpType, BaseType $expected) {
     expect(TypeMapper::map($phpType))->toBe($expected);
@@ -26,23 +28,28 @@ it('loads a bare-list JSON AST into a root node', function () {
 });
 
 it('reads resolvedType attributes', function () {
-    $node = new AstNode(['nodeType' => 'Expr_Variable', 'attributes' => ['resolvedType' => 'int'], 'name' => 'x']);
+    $node = new AstNode(Json::parse(new PicoString(
+        '{"nodeType":"Expr_Variable","attributes":{"resolvedType":"int"},"name":"x"}'
+    )));
     expect($node->resolvedType())->toBe('int');
+    expect($node->name())->toBe('x');
 });
 
 it('lowers an int literal echo to a printf call', function () {
-    $ast = new AstNode(['nodeType' => '_Root', 'stmts' => [
-        ['nodeType' => 'Stmt_Echo', 'attributes' => [], 'exprs' => [
-            ['nodeType' => 'Scalar_Int', 'attributes' => [], 'value' => 7],
-        ]],
-    ]]);
+    $ast = new AstNode(Json::parse(new PicoString(
+        '{"nodeType":"_Root","stmts":[
+            {"nodeType":"Stmt_Echo","attributes":{},"exprs":[
+                {"nodeType":"Scalar_Int","attributes":{},"value":7}
+            ]}
+        ]}'
+    )));
     $ir = (new LoweringPass())->lower($ast)->dump();
     expect($ir)->toContain('call i32 (ptr, ...) @printf');
 });
 
 it('rejects an unsupported statement with a clear error', function () {
-    $ast = new AstNode(['nodeType' => '_Root', 'stmts' => [
-        ['nodeType' => 'Stmt_Class', 'attributes' => ['startLine' => 1]],
-    ]]);
+    $ast = new AstNode(Json::parse(new PicoString(
+        '{"nodeType":"_Root","stmts":[{"nodeType":"Stmt_Class","attributes":{"startLine":1}}]}'
+    )));
     (new LoweringPass())->lower($ast);
 })->throws(RuntimeException::class, 'unsupported statement: Stmt_Class');
