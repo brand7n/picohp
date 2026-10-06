@@ -54,11 +54,53 @@ class StoreToLoadForwardingPass
 
     private function processBlock(BasicBlock $bb): void
     {
+        $this->crossBlockAllocas = $this->findCrossBlockAllocas($bb);
+
         // Keep running until no more changes — each pass may expose new opportunities
         $changed = true;
         while ($changed) {
             $changed = $this->forwardBlock($bb);
         }
+    }
+
+    /** @var array<string, true> alloca refs that are stored/loaded in more than one block */
+    private array $crossBlockAllocas = [];
+
+    /**
+     * Find allocas whose stores/loads span multiple basic blocks. Forwarding is only
+     * sound within a single block, so these must be left alone.
+     *
+     * @return array<string, true>
+     */
+    private function findCrossBlockAllocas(BasicBlock $bb): array
+    {
+        $fn = $bb->parent;
+        if ($fn === null) {
+            return [];
+        }
+        /** @var array<string, array<string, true>> allocaRef => set of block names */
+        $blocks = [];
+        foreach ($fn->getBasicBlocks() as $block) {
+            foreach ($block->getInstructions() as $inst) {
+                $ptr = null;
+                if ($inst instanceof StoreInstruction) {
+                    $ptr = $inst->pointer;
+                } elseif ($inst instanceof LoadInstruction) {
+                    $ptr = $inst->pointer;
+                }
+                if ($ptr !== null) {
+                    $ref = $ptr->renderRef();
+                    $blocks[$ref][$block->getName()] = true;
+                }
+            }
+        }
+        $cross = [];
+        foreach ($blocks as $ref => $names) {
+            if (count($names) > 1) {
+                $cross[$ref] = true;
+            }
+        }
+        return $cross;
     }
 
     private function forwardBlock(BasicBlock $bb): bool
@@ -74,6 +116,9 @@ class StoreToLoadForwardingPass
         // Find which allocas are promotable
         $toForward = [];
         foreach ($allocaInfo as $allocaRef => $info) {
+            if (isset($this->crossBlockAllocas[$allocaRef])) {
+                continue; // used across blocks — forwarding unsound
+            }
             if ($info['storeCount'] !== 1) {
                 continue; // multiple stores — can't trivially forward
             }

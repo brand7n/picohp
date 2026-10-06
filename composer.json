@@ -1,0 +1,34 @@
+{
+    "name": "picoir/picoir",
+    "description": "PHP subset compiler: JSON AST (php-parser) -> PicoIR -> LLVM IR / ARM64 assembly",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": "^8.4"
+    },
+    "require-dev": {
+        "pestphp/pest": "^3.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "PicoIR\\": "src/"
+        },
+        "classmap": [
+            "src/Instruction/Instructions.php",
+            "src/Values.php"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "PicoIR\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "pest"
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    }
+}

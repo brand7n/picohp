@@ -1,0 +1,83 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use PicoIR\Codegen\Arm64Emitter;
+use PicoIR\Frontend\{AstLoader, LoweringPass};
+use PicoIR\Transform\{DeadInstructionEliminationPass, StoreToLoadForwardingPass};
+
+require __DIR__ . '/../vendor/autoload.php';
+
+/** @return never */
+function usage(int $code): never
+{
+    fwrite(STDERR, <<<TXT
+    Usage: picoir <ast.json> [options]
+
+    Lowers a php-parser JSON AST to PicoIR and emits target code.
+
+    Options:
+      --emit-llvm        Emit LLVM IR text (default)
+      --emit-arm64       Emit ARM64 assembly
+      --optimize         Run optimization passes (store-to-load forwarding, DCE)
+      --interpret        Execute via the PicoIR interpreter, print result
+      -o <file>          Write output to file (default: stdout)
+
+    TXT);
+    exit($code);
+}
+
+$argv = $_SERVER['argv'];
+array_shift($argv);
+
+$input = null;
+$emit = 'llvm';
+$optimize = false;
+$interpret = false;
+$output = null;
+
+while ($argv !== []) {
+    $arg = array_shift($argv);
+    match (true) {
+        $arg === '--emit-llvm' => $emit = 'llvm',
+        $arg === '--emit-arm64' => $emit = 'arm64',
+        $arg === '--optimize' => $optimize = true,
+        $arg === '--interpret' => $interpret = true,
+        $arg === '-o' => $output = array_shift($argv) ?? usage(1),
+        $arg === '-h', $arg === '--help' => usage(0),
+        is_string($arg) && str_starts_with($arg, '-') => usage(1),
+        default => $input = $arg,
+    };
+}
+
+if ($input === null) {
+    usage(1);
+}
+
+$ast = AstLoader::load($input);
+$module = (new LoweringPass())->lower($ast);
+
+if ($optimize) {
+    (new StoreToLoadForwardingPass())->run($module);
+    (new DeadInstructionEliminationPass())->run($module);
+}
+
+if ($interpret) {
+    $interpreter = new \PicoIR\Interpreter();
+    $result = $interpreter->run($module, 'main');
+    echo $interpreter->getOutput();
+    fwrite(STDERR, "interpret(main) => " . var_export($result, true) . "\n");
+    exit(0);
+}
+
+$code = match ($emit) {
+    'llvm' => $module->dump(),
+    'arm64' => (new Arm64Emitter())->emit($module),
+};
+
+if ($output !== null) {
+    file_put_contents($output, $code);
+} else {
+    echo $code;
+}

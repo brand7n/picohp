@@ -1,0 +1,45 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+// Dev tool: dump a php-parser JSON AST for a PHP source file.
+// Requires nikic/php-parser (installed separately, e.g. `composer require nikic/php-parser`).
+
+$autoloads = [
+    __DIR__ . '/../vendor/autoload.php',
+    __DIR__ . '/../../picohp/vendor/autoload.php',
+    '/tmp/vendor/autoload.php',
+];
+foreach ($autoloads as $file) {
+    if (file_exists($file)) {
+        require_once $file;
+        break;
+    }
+}
+
+if (!class_exists(\PhpParser\ParserFactory::class)) {
+    fwrite(STDERR, "nikic/php-parser not found. Install it in this repo or a sibling.\n");
+    exit(1);
+}
+
+$input = $_SERVER['argv'][1] ?? null;
+if ($input === null || !is_file($input)) {
+    fwrite(STDERR, "Usage: dump-ast <file.php> [out.json]\n");
+    exit(1);
+}
+
+$parser = (new \PhpParser\ParserFactory())->createForHostVersion();
+$code = file_get_contents($input);
+if ($code === false) {
+    exit(1);
+}
+$ast = $parser->parse($code);
+$json = json_encode($ast, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
+
+$out = $_SERVER['argv'][2] ?? null;
+if ($out !== null) {
+    file_put_contents($out, $json . "\n");
+} else {
+    echo $json . "\n";
+}

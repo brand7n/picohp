@@ -60,6 +60,12 @@ class Builder
         return $this->emit(new BinaryOpInstruction($opcode, $lhs, $rhs, $resultType ?? $lhs->getType()));
     }
 
+    /** Integer comparison, result i1. Predicate without "icmp" prefix: eq, ne, sgt, sge, slt, sle. */
+    public function createICmp(string $pred, ValueAbstract $lhs, ValueAbstract $rhs): ValueAbstract
+    {
+        return $this->createBinOp("icmp {$pred}", $lhs, $rhs, BaseType::BOOL);
+    }
+
     public function createAdd(ValueAbstract $lhs, ValueAbstract $rhs): ValueAbstract
     {
         $isFloat = $lhs->getType() === BaseType::FLOAT;
@@ -137,9 +143,9 @@ class Builder
     /**
      * @param list<ValueAbstract> $args
      */
-    public function createCall(string $functionName, array $args, BaseType $returnType): ValueAbstract
+    public function createCall(string $functionName, array $args, BaseType $returnType, ?string $signature = null): ValueAbstract
     {
-        $inst = new CallInstruction($functionName, $args, $returnType);
+        $inst = new CallInstruction($functionName, $args, $returnType, $signature);
         $this->emit($inst);
         return $returnType === BaseType::VOID ? new Void_() : $inst;
     }
@@ -187,6 +193,12 @@ class Builder
         };
     }
 
+    /** Coerce a string-literal global ([N x i8]*) to a C char* (i8*). */
+    public function createCString(ValueAbstract $global, int $byteLen): ValueAbstract
+    {
+        return $this->emit(new \PicoIR\Instruction\ArrayGepInstruction($byteLen, $global));
+    }
+
     // ── String constants ───────────────────────────────────────────
 
     public function createStringConstant(string $value): Global_
@@ -195,7 +207,9 @@ class Builder
         $escaped = $this->escapeString($value);
         $len = strlen($value) + 1;
         $this->module->addGlobal("@{$name} = private constant [{$len} x i8] c\"{$escaped}\\00\", align 1");
-        return new Global_($name, BaseType::STRING);
+        $global = new Global_($name, BaseType::STRING);
+        $global->byteLen = $len;
+        return $global;
     }
 
     private function escapeString(string $value): string

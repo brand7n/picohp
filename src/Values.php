@@ -53,6 +53,9 @@ class Param extends ValueAbstract
 
 class Global_ extends ValueAbstract
 {
+    /** For string-literal globals: total array size in bytes (incl. NUL). */
+    public int $byteLen = 0;
+
     public function __construct(string $name, BaseType $type)
     {
         parent::__construct($type);

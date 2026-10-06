@@ -16,7 +16,7 @@ class BinaryOpInstruction extends Instruction
         public ValueAbstract $rhs,
         BaseType $resultType,
     ) {
-        parent::__construct($opcode, [$lhs, $rhs], $resultType, $opcode);
+        parent::__construct($opcode, [$lhs, $rhs], $resultType, str_replace(' ', '', $opcode));
     }
 
     public function renderDef(): string
@@ -152,6 +152,24 @@ class GepInstruction extends Instruction
     }
 }
 
+// ── Array GEP (string literals: [N x i8]* → i8*) ──────────────────
+
+class ArrayGepInstruction extends Instruction
+{
+    public function __construct(
+        public readonly int $arrayLen,
+        public ValueAbstract $basePtr,
+    ) {
+        parent::__construct('getelementptr', [$basePtr], BaseType::PTR, 'arrgep');
+    }
+
+    public function renderDef(): string
+    {
+        return "{$this->renderRef()} = getelementptr inbounds [{$this->arrayLen} x i8], "
+             . "ptr {$this->basePtr->renderRef()}, i32 0, i32 0";
+    }
+}
+
 // ── Calls ──────────────────────────────────────────────────────────
 
 class CallInstruction extends Instruction
@@ -167,6 +185,8 @@ class CallInstruction extends Instruction
         /** @var list<ValueAbstract> */
         public array $args,
         BaseType $returnType,
+        /** Full LLVM signature for vararg/extern calls, e.g. "i32 (ptr, ...)". */
+        public readonly ?string $signature = null,
     ) {
         parent::__construct('call', $args, $returnType, 'call');
     }
@@ -177,6 +197,9 @@ class CallInstruction extends Instruction
             static fn (ValueAbstract $v): string => "{$v->getType()->toLLVM()} {$v->renderRef()}",
             $this->args,
         ));
+        if ($this->signature !== null) {
+            return "{$this->renderRef()} = call {$this->signature} @{$this->functionName}({$argStr})";
+        }
         if ($this->getType() === BaseType::VOID) {
             return "call void @{$this->functionName}({$argStr})";
         }
