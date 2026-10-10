@@ -42,7 +42,7 @@ final class Lexer
                 }
                 continue;
             }
-            if ($ch === '@') {
+            if ($ch === '@' || $ch === ';') {
                 while ($i < $len && $source[$i] !== "\n") {
                     $i++;
                 }

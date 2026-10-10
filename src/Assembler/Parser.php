@@ -27,18 +27,17 @@ final class Parser
                 continue;
             }
 
-            if ($t->type === Token::IDENT && str_starts_with($t->value, '.')) {
-                $name = substr($t->value, 1);
-                $i++;
-                $statements[] = new Statement(Statement::DIRECTIVE, $name, $this->collectOperands($tokens, $i, $n), $t->line);
-                continue;
-            }
-
             if ($t->type === Token::IDENT) {
                 $next = $tokens[$i + 1] ?? null;
                 if ($next !== null && $next->type === Token::PUNCT && $next->value === ':') {
                     $statements[] = new Statement(Statement::LABEL, $t->value, [], $t->line);
                     $i += 2;
+                    continue;
+                }
+                if (str_starts_with($t->value, '.')) {
+                    $name = substr($t->value, 1);
+                    $i++;
+                    $statements[] = new Statement(Statement::DIRECTIVE, $name, $this->collectOperands($tokens, $i, $n), $t->line);
                     continue;
                 }
                 $i++;

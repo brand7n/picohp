@@ -81,11 +81,35 @@ addresses) → `InstructionEncoder` → `Output\RawBinary`.
 bin/armasm examples/hello.s program.bin
 ```
 
-Supported so far: `ADD/SUB/ADDS/SUBS/AND/ORR/EOR` (X & W), `MOVZ/MOVK/MOVN`,
-`CMP`, `B`, `CBZ/CBNZ`, `RET`, labels, and `.text`/`.global`/`.globl`.
-Validated byte-for-byte against Apple's `clang -arch arm64` (see
-`tests/Unit/AssemblerTest.php`). Next: memory ops (`LDR/STR/LDP/STP`), shifted
-operands, `.align`/data directives, then Mach-O output.
+Supported: `ADD/SUB/ADDS/SUBS/AND/ORR/EOR` (X & W, register + immediate),
+`MOV/MOVZ/MOVK/MOVN`, `CMP`, `MUL/SDIV/MSUB/LSL/LSR/ASR`, `B/BL/B.cond`,
+`CBZ/CBNZ`, `CSET`, `RET`, `LDR/STR` (incl. STUR/LDUR), `LDP/STP` (pre/post
+index), float ops (`FADD/FSUB/FMUL/FDIV/FCMP/FCSEL/FMOV/SCVTF/FCVTZS`), `BRK`,
+labels, and `.text`/`.section`/`.p2align`/`.global`/`.globl`. Every encoding is
+verified byte-for-byte against Apple's `clang -arch arm64`.
+
+### Outputs
+
+- `assemble()` — raw little-endian machine code
+- `assembleObject()` — Mach-O arm64 relocatable object (link with `ld`/`clang`)
+
+```bash
+bin/armasm in.s out.bin            # raw binary
+bin/armasm in.s out.o --object     # Mach-O object
+```
+
+### End-to-end: PHP → native executable
+
+`bin/picoir-run` compiles a PHP program all the way to a runnable binary:
+PHP → AST → PicoIR → ARM64 asm → Mach-O object (our assembler) → native
+executable (Apple's `clang`) → run. The exit code is the program's return value.
+
+```bash
+bin/picoir-run program.php; echo $?
+```
+
+Works for integer arithmetic, control flow, and function calls. `echo`/`printf`
+(needs libc + relocations) and string literals are the next step.
 
 ## Tests
 

@@ -1,0 +1,61 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+// End-to-end runner: PHP source -> AST -> PicoIR -> ARM64 asm -> Mach-O object
+// (our assembler) -> native executable (Apple's clang) -> run.
+//
+// Usage: picoir-run <file.php> [args...]
+
+use PicoIR\Assembler\Assembler;
+
+require __DIR__ . '/../vendor/autoload.php';
+
+$argv = $_SERVER['argv'];
+array_shift($argv);
+$input = array_shift($argv) ?? null;
+if ($input === null || !is_file($input)) {
+    fwrite(STDERR, "Usage: picoir-run <file.php> [args...]\n");
+    exit(2);
+}
+
+$tmp = sys_get_temp_dir() . '/picoir_run_' . getmypid();
+$json = "$tmp.json";
+$asm = "$tmp.s";
+$obj = "$tmp.o";
+$bin = "$tmp.bin";
+
+$root = __DIR__ . '/..';
+
+$step = static function (string $cmd) use ($tmp): void {
+    exec($cmd . ' 2>&1', $o, $code);
+    if ($code !== 0) {
+        fwrite(STDERR, "error: " . implode("\n", $o) . "\n");
+        exit(1);
+    }
+};
+
+try {
+    $step(PHP_BINARY . " $root/bin/dump-ast " . escapeshellarg($input) . ' ' . escapeshellarg($json));
+    $step(PHP_BINARY . " $root/bin/picoir " . escapeshellarg($json) . ' --emit-arm64 > ' . escapeshellarg($asm));
+
+    $source = file_get_contents($asm);
+    if ($source === false) {
+        throw new RuntimeException("cannot read $asm");
+    }
+    file_put_contents($obj, (new Assembler())->assembleObject($source));
+
+    $step('clang -arch arm64 -o ' . escapeshellarg($bin) . ' ' . escapeshellarg($obj));
+
+    $cmd = escapeshellarg($bin);
+    foreach ($argv as $a) {
+        $cmd .= ' ' . escapeshellarg($a);
+    }
+    passthru($cmd, $exit);
+    exit($exit);
+} finally {
+    foreach ([$json, $asm, $obj, $bin] as $f) {
+        @unlink($f);
+    }
+}
