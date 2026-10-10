@@ -71,6 +71,22 @@ bin/picoir program.json --interpret         # run on the IR interpreter
 bin/picoir program.json --emit-arm64        # AArch64 assembly
 ```
 
+## ARM64 assembler (`src/Assembler/`)
+
+A self-contained two-pass AArch64 assembler (GNU/Linux syntax, little-endian
+raw binary output). Pipeline: `Lexer` → `Parser` → `Assembler` (labels +
+addresses) → `InstructionEncoder` → `Output\RawBinary`.
+
+```bash
+bin/armasm examples/hello.s program.bin
+```
+
+Supported so far: `ADD/SUB/ADDS/SUBS/AND/ORR/EOR` (X & W), `MOVZ/MOVK/MOVN`,
+`CMP`, `B`, `CBZ/CBNZ`, `RET`, labels, and `.text`/`.global`/`.globl`.
+Validated byte-for-byte against Apple's `clang -arch arm64` (see
+`tests/Unit/AssemblerTest.php`). Next: memory ops (`LDR/STR/LDP/STP`), shifted
+operands, `.align`/data directives, then Mach-O output.
+
 ## Tests
 
 Oracle-based: compiled binary output must match `php <program>` exactly.

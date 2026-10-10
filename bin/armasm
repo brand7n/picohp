@@ -1,0 +1,30 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use PicoIR\Assembler\Assembler;
+
+require __DIR__ . '/../vendor/autoload.php';
+
+if ($argc !== 3) {
+    fwrite(STDERR, "Usage: armasm <input.s> <output.bin>\n");
+    exit(2);
+}
+
+[$_, $input, $output] = $argv;
+
+try {
+    $source = file_get_contents($input);
+    if ($source === false) {
+        throw new RuntimeException("cannot read input: $input");
+    }
+    $binary = (new Assembler())->assemble($source);
+    if (file_put_contents($output, $binary) === false) {
+        throw new RuntimeException("cannot write output: $output");
+    }
+    printf("Wrote %d bytes to %s\n", strlen($binary), $output);
+} catch (Throwable $e) {
+    fwrite(STDERR, "Assembly error: " . $e->getMessage() . "\n");
+    exit(1);
+}
