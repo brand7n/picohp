@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PicoIR\Assembler;
 
-use PicoIR\Assembler\Output\{MachO, MachOObject, RawBinary};
+use PicoIR\Assembler\Output\{ELFObject, MachO, MachOObject, RawBinary};
 use RuntimeException;
 
 /**
@@ -37,6 +37,13 @@ final class Assembler
         [$words, $labels, $globals] = $this->assembleCore($source);
         $entry = $this->entryLabel($labels, $globals);
         return (new MachOObject())->encode($words, $entry, $labels[$entry]);
+    }
+
+    public function assembleElf(string $source): string
+    {
+        [$words, $labels, $globals] = $this->assembleCore($source);
+        $entry = $this->entryLabel($labels, $globals);
+        return (new ELFObject())->encode($words, $entry, $labels[$entry]);
     }
 
     /** @param array<string, int> $labels @param list<string> $globals */

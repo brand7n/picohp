@@ -92,10 +92,12 @@ verified byte-for-byte against Apple's `clang -arch arm64`.
 
 - `assemble()` — raw little-endian machine code
 - `assembleObject()` — Mach-O arm64 relocatable object (link with `ld`/`clang`)
+- `assembleElf()` — ELF64 aarch64 relocatable object (link with `clang`/`ld` on Linux)
 
 ```bash
 bin/armasm in.s out.bin            # raw binary
 bin/armasm in.s out.o --object     # Mach-O object
+bin/armasm in.s out.o --elf        # ELF64 object (Linux)
 ```
 
 ### End-to-end: PHP → native executable

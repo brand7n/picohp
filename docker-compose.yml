@@ -1,0 +1,7 @@
+services:
+  picoir:
+    build:
+      context: ..
+      dockerfile: picohp-ir2/Dockerfile
+    image: picoir:dev
+    command: vendor/bin/pest

@@ -158,12 +158,22 @@ it('encodes floating-point instructions', function () {
     expect(bin2hex(asm("fcvtzs w0, d0")))->toBe('0000781e');
 });
 
-it('produces a linkable Mach-O object with _main at its address', function () {
-    $src = ".text\n.globl _main\n_main:\nstp x29, x30, [sp, #-16]!\nmov x29, sp\nsub sp, sp, #16\nmov x0, #42\nadd sp, sp, #16\nldp x29, x30, [sp], #16\nret";
-    $obj = (new Assembler())->assembleObject($src);
+it('produces a linkable object with _main at its address', function () {
+    $asm = new Assembler();
     $tmp = sys_get_temp_dir() . '/picoir_test_' . uniqid();
-    file_put_contents("$tmp.o", $obj);
-    exec("clang -arch arm64 -o $tmp $tmp.o 2>&1", $o, $code);
+    if (PHP_OS_FAMILY === 'Darwin') {
+        // Mach-O: crt calls _main, then exit(42).
+        $src = ".text\n.globl _main\n_main:\nstp x29, x30, [sp, #-16]!\nmov x29, sp\nsub sp, sp, #16\nmov x0, #42\nadd sp, sp, #16\nldp x29, x30, [sp], #16\nret";
+        $obj = $asm->assembleObject($src);
+        file_put_contents("$tmp.o", $obj);
+        exec("clang -arch arm64 -o $tmp $tmp.o 2>&1", $o, $code);
+    } else {
+        // ELF: link with crt (default) so it calls main, then exit(42).
+        $src = ".text\n.globl main\nmain:\nstp x29, x30, [sp, #-16]!\nmov x29, sp\nsub sp, sp, #16\nmov x0, #42\nadd sp, sp, #16\nldp x29, x30, [sp], #16\nret";
+        $obj = $asm->assembleElf($src);
+        file_put_contents("$tmp.o", $obj);
+        exec("clang -o $tmp $tmp.o 2>&1", $o, $code);
+    }
     expect($code)->toBe(0, implode("\n", $o));
     exec("$tmp", $o, $code);
     expect($code)->toBe(42);
