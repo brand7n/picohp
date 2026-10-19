@@ -6,7 +6,7 @@ use PicoIR\Assembler\Assembler;
 
 function asm(string $source): string
 {
-    return (new Assembler())->assemble($source);
+    return (new Assembler())->assemble($source)->raw();
 }
 
 function words(string $binary): array
@@ -165,13 +165,13 @@ it('produces a linkable object with _main at its address', function () {
         // Mach-O: crt calls _main, then exit(42).
         $src = ".text\n.globl _main\n_main:\nstp x29, x30, [sp, #-16]!\nmov x29, sp\nsub sp, sp, #16\nmov x0, #42\nadd sp, sp, #16\nldp x29, x30, [sp], #16\nret";
         $obj = $asm->assembleObject($src);
-        file_put_contents("$tmp.o", $obj);
+        file_put_contents("$tmp.o", $obj->raw());
         exec("clang -arch arm64 -o $tmp $tmp.o 2>&1", $o, $code);
     } else {
         // ELF: link with crt (default) so it calls main, then exit(42).
         $src = ".text\n.globl main\nmain:\nstp x29, x30, [sp, #-16]!\nmov x29, sp\nsub sp, sp, #16\nmov x0, #42\nadd sp, sp, #16\nldp x29, x30, [sp], #16\nret";
         $obj = $asm->assembleElf($src);
-        file_put_contents("$tmp.o", $obj);
+        file_put_contents("$tmp.o", $obj->raw());
         exec("clang -o $tmp $tmp.o 2>&1", $o, $code);
     }
     expect($code)->toBe(0, implode("\n", $o));

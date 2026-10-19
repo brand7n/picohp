@@ -152,6 +152,23 @@ class GepInstruction extends Instruction
     }
 }
 
+// ── Struct size (null-GEP trick) ──────────────────────────────────
+
+class SizeOfInstruction extends Instruction
+{
+    public function __construct(
+        public readonly string $structName,
+    ) {
+        parent::__construct('getelementptr', [], BaseType::PTR, 'sizeof');
+    }
+
+    public function renderDef(): string
+    {
+        return "{$this->renderRef()} = getelementptr inbounds %struct.{$this->structName}, "
+             . 'ptr null, i32 1';
+    }
+}
+
 // ── Array GEP (string literals: [N x i8]* → i8*) ──────────────────
 
 class ArrayGepInstruction extends Instruction
@@ -197,7 +214,7 @@ class CallInstruction extends Instruction
             static fn (ValueAbstract $v): string => "{$v->getType()->toLLVM()} {$v->renderRef()}",
             $this->args,
         ));
-        if ($this->signature !== null) {
+        if ($this->signature !== null && str_contains($this->signature, '...')) {
             return "{$this->renderRef()} = call {$this->signature} @{$this->functionName}({$argStr})";
         }
         if ($this->getType() === BaseType::VOID) {

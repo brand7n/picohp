@@ -9,6 +9,9 @@ class Module
     /** @var list<string> Raw header lines (target triple, declares, struct defs) */
     private array $headerLines = [];
 
+    /** @var array<string, string> Extern declarations: name => signature */
+    private array $declares = [];
+
     /** @var list<string> Global constant definitions */
     private array $globals = [];
 
@@ -27,6 +30,15 @@ class Module
     public function addHeaderLine(string $line): void
     {
         $this->headerLines[] = $line;
+    }
+
+    /**
+     * Declare an external function (runtime or libc). Idempotent; the first
+     * signature registered for a name wins.
+     */
+    public function declareFunction(string $name, string $signature): void
+    {
+        $this->declares[$name] ??= $signature;
     }
 
     public function addGlobal(string $line): void
@@ -61,6 +73,15 @@ class Module
             $lines[] = $h;
         }
         if ($this->headerLines !== []) {
+            $lines[] = '';
+        }
+
+        foreach ($this->declares as $name => $signature) {
+            // "i64 (i64)" → "declare i64 @name(i64)"
+            [$ret, $params] = explode(' ', $signature, 2);
+            $lines[] = "declare {$ret} @{$name}{$params}";
+        }
+        if ($this->declares !== []) {
             $lines[] = '';
         }
 

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace PicoIR\Assembler\Output;
 
+use Remodulate\Pico\PicoString;
+use Remodulate\Pico\StringBuilder;
+
 /**
  * Serializes instruction words into a minimal runnable Mach-O arm64
  * executable (MH_EXECUTE, PIE). Layout:
@@ -33,71 +36,71 @@ final class MachO
     /**
      * @param list<int> $words
      */
-    public function encode(array $words, int $entry): string
+    public function encode(array $words, int $entry): PicoString
     {
-        $code = '';
+        $code = new StringBuilder();
         foreach ($words as $word) {
-            $code .= pack('V', $word);
+            $code->appendU32LE($word);
         }
-        $codeSize = strlen($code);
+        $codeSize = $code->length();
 
         $textOffset = 32 + 152 + 24; // header + segment + LC_MAIN
         $textAddr = self::VM_BASE;
-        $vmsize = (int) (ceil($codeSize / self::PAGE) * self::PAGE);
+        $vmsize = intdiv($codeSize + self::PAGE - 1, self::PAGE) * self::PAGE;
         $entryoff = $textOffset + $entry;
 
         $flags = self::MH_PIE | self::MH_TWOLEVEL | self::MH_DYLDLINK | self::MH_NOUNDEFS;
 
-        $out = '';
+        $out = new StringBuilder();
         // mach_header_64
-        $out .= pack('V', self::MH_MAGIC_64);
-        $out .= pack('V', self::CPU_TYPE_ARM64);
-        $out .= pack('V', 0); // cpusubtype
-        $out .= pack('V', self::MH_EXECUTE);
-        $out .= pack('V', 2); // ncmds
-        $out .= pack('V', 176); // sizeofcmds
-        $out .= pack('V', $flags);
-        $out .= pack('V', 0); // reserved
+        $out->appendU32LE(self::MH_MAGIC_64);
+        $out->appendU32LE(self::CPU_TYPE_ARM64);
+        $out->appendU32LE(0); // cpusubtype
+        $out->appendU32LE(self::MH_EXECUTE);
+        $out->appendU32LE(2); // ncmds
+        $out->appendU32LE(176); // sizeofcmds
+        $out->appendU32LE($flags);
+        $out->appendU32LE(0); // reserved
 
         // LC_SEGMENT_64 __TEXT
-        $out .= pack('V', self::LC_SEGMENT_64);
-        $out .= pack('V', 152); // cmdsize
-        $out .= $this->cstr('__TEXT', 16);
-        $out .= pack('Q', $textAddr); // vmaddr
-        $out .= pack('Q', $vmsize); // vmsize
-        $out .= pack('Q', 0); // fileoff
-        $out .= pack('Q', $codeSize); // filesize
-        $out .= pack('V', 7); // maxprot
-        $out .= pack('V', 5); // initprot (r-x)
-        $out .= pack('V', 1); // nsects
-        $out .= pack('V', 0); // flags
+        $out->appendU32LE(self::LC_SEGMENT_64);
+        $out->appendU32LE(152); // cmdsize
+        $out->append($this->cstr('__TEXT', 16));
+        $out->appendU64LE($textAddr); // vmaddr
+        $out->appendU64LE($vmsize); // vmsize
+        $out->appendU64LE(0); // fileoff
+        $out->appendU64LE($codeSize); // filesize
+        $out->appendU32LE(7); // maxprot
+        $out->appendU32LE(5); // initprot (r-x)
+        $out->appendU32LE(1); // nsects
+        $out->appendU32LE(0); // flags
 
         // section __text
-        $out .= $this->cstr('__text', 16);
-        $out .= $this->cstr('__TEXT', 16);
-        $out .= pack('Q', $textAddr); // addr
-        $out .= pack('Q', $codeSize); // size
-        $out .= pack('V', $textOffset); // offset
-        $out .= pack('V', 2); // align (2^2 = 4)
-        $out .= pack('V', 0); // reloff
-        $out .= pack('V', 0); // nreloc
-        $out .= pack('V', 0x80000400); // flags: S_ATTR_PURE_INSTRUCTIONS | S_REGULAR
-        $out .= pack('V', 0); // reserved1
-        $out .= pack('V', 0); // reserved2
-        $out .= pack('V', 0); // reserved3
+        $out->append($this->cstr('__text', 16));
+        $out->append($this->cstr('__TEXT', 16));
+        $out->appendU64LE($textAddr); // addr
+        $out->appendU64LE($codeSize); // size
+        $out->appendU32LE($textOffset); // offset
+        $out->appendU32LE(2); // align (2^2 = 4)
+        $out->appendU32LE(0); // reloff
+        $out->appendU32LE(0); // nreloc
+        $out->appendU32LE(0x80000400); // flags: S_ATTR_PURE_INSTRUCTIONS | S_REGULAR
+        $out->appendU32LE(0); // reserved1
+        $out->appendU32LE(0); // reserved2
+        $out->appendU32LE(0); // reserved3
 
         // LC_MAIN
-        $out .= pack('V', self::LC_MAIN);
-        $out .= pack('V', 24); // cmdsize
-        $out .= pack('Q', $entryoff);
-        $out .= pack('Q', 0); // stacksize
+        $out->appendU32LE(self::LC_MAIN);
+        $out->appendU32LE(24); // cmdsize
+        $out->appendU64LE($entryoff);
+        $out->appendU64LE(0); // stacksize
 
-        $out .= $code;
-        return $out;
+        $out->append($code->toString());
+        return $out->toString();
     }
 
-    private function cstr(string $s, int $len): string
+    private function cstr(string $s, int $len): PicoString
     {
-        return str_pad(substr($s, 0, $len - 1), $len, "\0");
+        return (new PicoString($s))->substring(0, $len - 1)->padRight($len, 0);
     }
 }

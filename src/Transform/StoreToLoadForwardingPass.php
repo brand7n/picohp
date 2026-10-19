@@ -55,6 +55,7 @@ class StoreToLoadForwardingPass
     private function processBlock(BasicBlock $bb): void
     {
         $this->crossBlockAllocas = $this->findCrossBlockAllocas($bb);
+        $this->externallyUsedRefs = $this->findExternallyUsedRefs($bb);
 
         // Keep running until no more changes — each pass may expose new opportunities
         $changed = true;
@@ -65,6 +66,35 @@ class StoreToLoadForwardingPass
 
     /** @var array<string, true> alloca refs that are stored/loaded in more than one block */
     private array $crossBlockAllocas = [];
+
+    /** @var array<string, true> value refs read by instructions in *other* blocks */
+    private array $externallyUsedRefs = [];
+
+    /**
+     * Values produced in this block but consumed in another block cannot be
+     * deleted when their defining instruction is forwarded away.
+     *
+     * @return array<string, true>
+     */
+    private function findExternallyUsedRefs(BasicBlock $bb): array
+    {
+        $fn = $bb->parent;
+        if ($fn === null) {
+            return [];
+        }
+        $used = [];
+        foreach ($fn->getBasicBlocks() as $block) {
+            if ($block === $bb) {
+                continue;
+            }
+            foreach ($block->getInstructions() as $inst) {
+                foreach ($inst->operands as $op) {
+                    $used[$op->renderRef()] = true;
+                }
+            }
+        }
+        return $used;
+    }
 
     /**
      * Find allocas whose stores/loads span multiple basic blocks. Forwarding is only
@@ -118,6 +148,16 @@ class StoreToLoadForwardingPass
         foreach ($allocaInfo as $allocaRef => $info) {
             if (isset($this->crossBlockAllocas[$allocaRef])) {
                 continue; // used across blocks — forwarding unsound
+            }
+            $consumedElsewhere = false;
+            foreach ($info['loads'] as $loadInst) {
+                if (isset($this->externallyUsedRefs[$loadInst->renderRef()])) {
+                    $consumedElsewhere = true;
+                    break;
+                }
+            }
+            if ($consumedElsewhere) {
+                continue; // load result consumed in another block — can't delete it
             }
             if ($info['storeCount'] !== 1) {
                 continue; // multiple stores — can't trivially forward

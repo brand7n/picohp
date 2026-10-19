@@ -17,7 +17,7 @@ enum BaseType: string
     public function toLLVM(): string
     {
         return match ($this) {
-            self::INT => 'i32',
+            self::INT => 'i64',
             self::FLOAT => 'double',
             self::BOOL => 'i1',
             self::STRING, self::PTR => 'ptr',

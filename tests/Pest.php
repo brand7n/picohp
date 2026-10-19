@@ -17,11 +17,19 @@ function compileAndRun(string $fixture, bool $optimize = false): string
     exec(PHP_BINARY . " {$root}/bin/picoir {$json}{$opt} > " . escapeshellarg($ll) . ' 2>&1', $o, $code);
     expect($code)->toBe(0, "picoir failed: " . implode("\n", $o));
 
-    exec('clang ' . escapeshellarg($ll) . ' -o ' . escapeshellarg($bin) . ' 2>/dev/null', $o, $code);
+    $lib = runtimeLib();
+    exec('clang ' . escapeshellarg($ll) . ' ' . escapeshellarg($lib) . ' -o ' . escapeshellarg($bin) . ' 2>&1', $o, $code);
     expect($code)->toBe(0, "clang failed: " . implode("\n", $o));
 
     $out = shell_exec(escapeshellarg($bin));
     return $out ?? '';
+}
+
+/** Absolute path to the Pico runtime static library. */
+function runtimeLib(): string
+{
+    $root = dirname(__DIR__);
+    return "{$root}/vendor/remodulate/pico-runtime/rust/target/release/libpico_runtime.a";
 }
 
 /** Run the PHP oracle on the matching program. */

@@ -15,6 +15,7 @@ use PicoIR\Instruction\{
     LoadInstruction,
     ReturnInstruction,
     SelectInstruction,
+    SizeOfInstruction,
     StoreInstruction,
     SwitchInstruction,
     UnreachableInstruction,
@@ -150,16 +151,26 @@ class Builder
         return $returnType === BaseType::VOID ? new Void_() : $inst;
     }
 
+    /**
+     * Call an external function, registering its `declare` on first use.
+     *
+     * @param list<ValueAbstract> $args
+     */
+    public function createRuntimeCall(string $functionName, array $args, BaseType $returnType, string $signature): ValueAbstract
+    {
+        $this->module->declareFunction($functionName, $signature);
+        return $this->createCall($functionName, $args, $returnType, $signature);
+    }
+
     // ── Object alloc (sizeof + runtime call) ───────────────────────
 
     public function createObjectAlloc(string $structName, int $typeId): ValueAbstract
     {
-        // sizeof via null-GEP trick: ptrtoint (gep %struct, null, 1) to i64
-        // For the mockup we just emit the call directly
-        return $this->createCall('picohp_object_alloc', [
-            new Constant(0, BaseType::INT),  // placeholder size
+        $size = $this->createPtrToInt($this->emit(new SizeOfInstruction($structName)));
+        return $this->createRuntimeCall('picohp_object_alloc', [
+            $size,
             new Constant($typeId, BaseType::INT),
-        ], BaseType::PTR);
+        ], BaseType::PTR, 'ptr (i64, i64)');
     }
 
     // ── Array / Map runtime ────────────────────────────────────────
@@ -197,6 +208,26 @@ class Builder
     public function createCString(ValueAbstract $global, int $byteLen): ValueAbstract
     {
         return $this->emit(new \PicoIR\Instruction\ArrayGepInstruction($byteLen, $global));
+    }
+
+    // ── Strings (PicoStr objects) ──────────────────────────────────
+
+    /**
+     * A `PicoString` value from a PHP source-level string.
+     *
+     * ponytail: literals are copied out of the data segment on every use;
+     * switch to static PicoStr structs in the data segment once the emitter
+     * can lay out runtime objects.
+     */
+    public function createPicoString(string $value): ValueAbstract
+    {
+        $global = $this->createStringConstant($value);
+        return $this->createRuntimeCall(
+            'pico_str_from_cstr',
+            [$this->createCString($global, $global->byteLen)],
+            BaseType::STRING,
+            'ptr (ptr)',
+        );
     }
 
     // ── String constants ───────────────────────────────────────────

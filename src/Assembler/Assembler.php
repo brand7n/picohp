@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PicoIR\Assembler;
 
 use PicoIR\Assembler\Output\{ELFObject, MachO, MachOObject, RawBinary};
+use Remodulate\Pico\PicoString;
 use RuntimeException;
 
 /**
@@ -19,31 +20,31 @@ use RuntimeException;
  */
 final class Assembler
 {
-    public function assemble(string $source): string
+    public function assemble(string $source): PicoString
     {
         [$words] = $this->assembleCore($source);
         return (new RawBinary())->encode($words);
     }
 
-    public function assembleMachO(string $source): string
+    public function assembleMachO(string $source): PicoString
     {
         [$words, $labels, $globals] = $this->assembleCore($source);
         $entry = $this->entryLabel($labels, $globals);
         return (new MachO())->encode($words, $labels[$entry]);
     }
 
-    public function assembleObject(string $source): string
+    public function assembleObject(string $source): PicoString
     {
         [$words, $labels, $globals] = $this->assembleCore($source);
         $entry = $this->entryLabel($labels, $globals);
-        return (new MachOObject())->encode($words, $entry, $labels[$entry]);
+        return (new MachOObject())->encode($words, new PicoString($entry), $labels[$entry]);
     }
 
-    public function assembleElf(string $source): string
+    public function assembleElf(string $source): PicoString
     {
         [$words, $labels, $globals] = $this->assembleCore($source);
         $entry = $this->entryLabel($labels, $globals);
-        return (new ELFObject())->encode($words, $entry, $labels[$entry]);
+        return (new ELFObject())->encode($words, new PicoString($entry), $labels[$entry]);
     }
 
     /** @param array<string, int> $labels @param list<string> $globals */

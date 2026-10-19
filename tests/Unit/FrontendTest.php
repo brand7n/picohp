@@ -35,7 +35,7 @@ it('reads resolvedType attributes', function () {
     expect($node->name())->toBe('x');
 });
 
-it('lowers an int literal echo to a printf call', function () {
+it('lowers an int literal echo to the runtime output function', function () {
     $ast = new AstNode(Json::parse(new PicoString(
         '{"nodeType":"_Root","stmts":[
             {"nodeType":"Stmt_Echo","attributes":{},"exprs":[
@@ -44,12 +44,13 @@ it('lowers an int literal echo to a printf call', function () {
         ]}'
     )));
     $ir = (new LoweringPass())->lower($ast)->dump();
-    expect($ir)->toContain('call i32 (ptr, ...) @printf');
+    expect($ir)->toContain('declare i64 @pico_echo_int(i64)')
+        ->toContain('call i64 @pico_echo_int');
 });
 
 it('rejects an unsupported statement with a clear error', function () {
     $ast = new AstNode(Json::parse(new PicoString(
-        '{"nodeType":"_Root","stmts":[{"nodeType":"Stmt_Class","attributes":{"startLine":1}}]}'
+        '{"nodeType":"_Root","stmts":[{"nodeType":"Stmt_Trait","attributes":{"startLine":1}}]}'
     )));
     (new LoweringPass())->lower($ast);
-})->throws(RuntimeException::class, 'unsupported statement: Stmt_Class');
+})->throws(RuntimeException::class, 'unsupported statement: Stmt_Trait');
